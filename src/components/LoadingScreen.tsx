@@ -1,6 +1,7 @@
 import { motion, type Variants } from 'motion/react'
 import { useEffect, useState } from 'react'
 import fanEmblem from '../assets/brand/cetatea-fan-emblem.webp'
+import { usePerformance } from '../contexts/usePerformance'
 import styles from './LoadingScreen.module.css'
 
 type LoadingScreenProps = {
@@ -18,6 +19,15 @@ const loaderSequence: Variants = {
   },
 }
 
+const loaderEconomySequence: Variants = {
+  hidden: { opacity: 1 },
+  visible: { opacity: 1 },
+  exit: {
+    opacity: 0,
+    transition: { delay: 0.12, duration: 0.2, ease: 'easeOut' },
+  },
+}
+
 const interfaceSequence: Variants = {
   hidden: {},
   visible: {
@@ -26,6 +36,12 @@ const interfaceSequence: Variants = {
   exit: {
     transition: { staggerChildren: 0.065, staggerDirection: -1 },
   },
+}
+
+const interfaceEconomySequence: Variants = {
+  hidden: {},
+  visible: { transition: { delayChildren: 0.24, staggerChildren: 0.055 } },
+  exit: { transition: { staggerChildren: 0.025, staggerDirection: -1 } },
 }
 
 const revealItem: Variants = {
@@ -42,6 +58,12 @@ const revealItem: Variants = {
     filter: 'blur(7px)',
     transition: { duration: 0.32, ease: [0.7, 0, 0.84, 0] },
   },
+}
+
+const revealEconomyItem: Variants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.2, ease: 'easeOut' } },
+  exit: { opacity: 0, transition: { duration: 0.14 } },
 }
 
 const identitySequence: Variants = {
@@ -68,6 +90,12 @@ const emblemSequence: Variants = {
   },
 }
 
+const emblemEconomySequence: Variants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.24, ease: 'easeOut' } },
+  exit: { opacity: 0, transition: { duration: 0.14 } },
+}
+
 const titleSequence: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.11, delayChildren: 0.08 } },
@@ -88,15 +116,23 @@ const titleItem: Variants = {
   },
 }
 
+const titleEconomyItem: Variants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.22, ease: 'easeOut' } },
+  exit: { opacity: 0, transition: { duration: 0.14 } },
+}
+
 export function LoadingScreen({ isSceneReady, onComplete }: LoadingScreenProps) {
   const [progress, setProgress] = useState(0)
+  const { isEconomy } = usePerformance()
 
   useEffect(() => {
     if (!isSceneReady) return
 
-    const startedAt = performance.now() + 720
-    const duration = 2350
+    const startedAt = performance.now() + (isEconomy ? 240 : 720)
+    const duration = isEconomy ? 1250 : 2350
     let frame = 0
+    let completionTimer = 0
 
     const updateProgress = (now: number) => {
       const nextProgress = Math.max(0, Math.min((now - startedAt) / duration, 1))
@@ -105,18 +141,21 @@ export function LoadingScreen({ isSceneReady, onComplete }: LoadingScreenProps) 
       if (nextProgress < 1) {
         frame = requestAnimationFrame(updateProgress)
       } else {
-        window.setTimeout(onComplete, 260)
+        completionTimer = window.setTimeout(onComplete, isEconomy ? 100 : 260)
       }
     }
 
     frame = requestAnimationFrame(updateProgress)
-    return () => cancelAnimationFrame(frame)
-  }, [isSceneReady, onComplete])
+    return () => {
+      cancelAnimationFrame(frame)
+      window.clearTimeout(completionTimer)
+    }
+  }, [isEconomy, isSceneReady, onComplete])
 
   return (
     <motion.div
       className={styles.loader}
-      variants={loaderSequence}
+      variants={isEconomy ? loaderEconomySequence : loaderSequence}
       initial="hidden"
       animate={isSceneReady ? 'visible' : 'hidden'}
       exit="exit"
@@ -124,38 +163,38 @@ export function LoadingScreen({ isSceneReady, onComplete }: LoadingScreenProps) 
       <div className={styles.cinematicShade} />
       <div className={styles.noise} />
 
-      <motion.div className={styles.interface} variants={interfaceSequence}>
-        <motion.div className={styles.frame} variants={revealItem}>
+      <motion.div className={styles.interface} variants={isEconomy ? interfaceEconomySequence : interfaceSequence}>
+        <motion.div className={styles.frame} variants={isEconomy ? revealEconomyItem : revealItem}>
           <span><i /> 47.6514° N · STADIONUL ARENI</span>
           <span>CLUBUL SUPORTERILOR · SUCEAVA · 1932</span>
         </motion.div>
 
         <motion.div className={styles.identity} variants={identitySequence}>
-          <motion.div className={styles.emblemStage} variants={emblemSequence}>
-            <motion.span animate={{ rotate: 360 }} transition={{ duration: 18, repeat: Infinity, ease: 'linear' }} />
-            <motion.span animate={{ rotate: -360 }} transition={{ duration: 24, repeat: Infinity, ease: 'linear' }} />
+          <motion.div className={styles.emblemStage} variants={isEconomy ? emblemEconomySequence : emblemSequence}>
+            <motion.span animate={isEconomy ? undefined : { rotate: 360 }} transition={{ duration: 18, repeat: Infinity, ease: 'linear' }} />
+            <motion.span animate={isEconomy ? undefined : { rotate: -360 }} transition={{ duration: 24, repeat: Infinity, ease: 'linear' }} />
             <img src={fanEmblem} alt="Emblema Clubului Suporterilor Cetatea Suceava" />
           </motion.div>
 
           <motion.div className={styles.title} variants={titleSequence} aria-label="Cetatea se trezește">
-            <motion.small variants={titleItem}>Din oraș. Pentru oraș.</motion.small>
+            <motion.small variants={isEconomy ? titleEconomyItem : titleItem}>Din oraș. Pentru oraș.</motion.small>
             <span className={styles.titleMask}>
-              <motion.strong variants={titleItem}>CETATEA</motion.strong>
+              <motion.strong variants={isEconomy ? titleEconomyItem : titleItem}>CETATEA</motion.strong>
             </span>
             <span className={styles.titleMask}>
-              <motion.strong variants={titleItem}>SE TREZEȘTE</motion.strong>
+              <motion.strong variants={isEconomy ? titleEconomyItem : titleItem}>SE TREZEȘTE</motion.strong>
             </span>
-            <motion.em variants={titleItem}>O cetate. O tribună. O singură voce.</motion.em>
+            <motion.em variants={isEconomy ? titleEconomyItem : titleItem}>O cetate. O tribună. O singură voce.</motion.em>
           </motion.div>
         </motion.div>
 
-        <motion.div className={styles.coordinates} variants={revealItem} aria-hidden="true">
+        <motion.div className={styles.coordinates} variants={isEconomy ? revealEconomyItem : revealItem} aria-hidden="true">
           <span>SV</span>
           <i />
           <strong>BUCOVINA</strong>
         </motion.div>
 
-        <motion.div className={styles.progressArea} variants={revealItem}>
+        <motion.div className={styles.progressArea} variants={isEconomy ? revealEconomyItem : revealItem}>
           <div className={styles.progressMeta}>
             <span><i /> {progress < 36 ? 'Aprindem nocturna' : progress < 72 ? 'Ridicăm tribuna' : 'Deschidem porțile'}</span>
             <strong>{progress.toString().padStart(2, '0')}<small>%</small></strong>

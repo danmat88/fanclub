@@ -380,3 +380,23 @@
   .frame i,
   .progressMeta i { animation: none !important; }
 }
+
+:global(html[data-performance='economie']) .noise {
+  display: none;
+}
+
+:global(html[data-performance='economie']) .emblemStage,
+:global(html[data-performance='economie']) .titleMask:nth-of-type(2) strong {
+  filter: none;
+}
+
+:global(html[data-performance='economie']) .emblemStage::before {
+  filter: none;
+  opacity: .55;
+}
+
+:global(html[data-performance='economie']) .emblemStage > span,
+:global(html[data-performance='economie']) .frame i,
+:global(html[data-performance='economie']) .progressMeta i {
+  animation: none;
+}

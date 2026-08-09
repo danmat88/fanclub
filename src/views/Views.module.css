@@ -787,3 +787,16 @@
   .liveMinute i,
   .selectedPlayerVisual::after { animation: none; }
 }
+
+:global(html[data-performance='economie']) .selectedPlayerVisual::after,
+:global(html[data-performance='economie']) .demoSignal i,
+:global(html[data-performance='economie']) .liveMinute i {
+  animation: none;
+}
+
+:global(html[data-performance='economie']) .selectedPlayerVisual img,
+:global(html[data-performance='economie']) .clubCrest,
+:global(html[data-performance='economie']) .matchModeButton:hover,
+:global(html[data-performance='economie']) .matchModeActive {
+  filter: none;
+}

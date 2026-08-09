@@ -11,6 +11,26 @@
       } catch {
         document.documentElement.dataset.theme = 'nocturna'
       }
+
+      try {
+        const modSalvat = localStorage.getItem('cetatea-performance')
+        const mod = ['automat', 'complet', 'economie'].includes(modSalvat)
+          ? modSalvat
+          : 'automat'
+        const conexiune = navigator.connection
+        const economieAutomata =
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+          Boolean(conexiune && conexiune.saveData) ||
+          (typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4) ||
+          (typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4)
+
+        document.documentElement.dataset.performanceMode = mod
+        document.documentElement.dataset.performance =
+          mod === 'automat' ? (economieAutomata ? 'economie' : 'complet') : mod
+      } catch {
+        document.documentElement.dataset.performanceMode = 'automat'
+        document.documentElement.dataset.performance = 'economie'
+      }
     </script>
     <meta name="theme-color" content="#061126" />
     <link rel="icon" type="image/png" href="/favicon.png" />

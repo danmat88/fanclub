@@ -7,7 +7,12 @@ import arenaBackground from './assets/brand/loading-cetatea-arena.webp'
 import { LoadingScreen } from './components/LoadingScreen'
 import { Navigation } from './components/Navigation'
 import { navigationItems } from './components/navigationItems'
+import {
+  performanceModeLabels,
+  performanceModeOrder,
+} from './contexts/performance-context'
 import { themeLabels, type Theme } from './contexts/theme-context'
+import { usePerformance } from './contexts/usePerformance'
 import { useSound } from './contexts/useSound'
 import { useTheme } from './contexts/useTheme'
 import { latestResult, nextMatch } from './data/clubData'
@@ -80,6 +85,14 @@ const interfaceItemReveal = {
   },
 }
 
+const interfaceItemEconomyReveal = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { duration: 0.22, ease: 'easeOut' as const },
+  },
+}
+
 const pageVariants = {
   enter: (direction: number) => ({
     opacity: 0,
@@ -104,11 +117,18 @@ const pageVariants = {
   }),
 }
 
+const pageEconomyVariants = {
+  enter: { opacity: 0 },
+  center: { opacity: 1 },
+  exit: { opacity: 0 },
+}
+
 function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
   const countdown = useMatchCountdown()
   const { theme, toggleTheme } = useTheme()
+  const { mode: performanceMode, resolvedMode, isEconomy, cycleMode } = usePerformance()
   const { isMuted, play, toggleMute } = useSound()
   const currentIndex = Math.max(0, routeOrder.indexOf(location.pathname))
   const [direction, setDirection] = useState(1)
@@ -119,6 +139,11 @@ function AppShell() {
   )
   const ActiveView = viewMap[location.pathname] ?? NextMatchView
   const nextTheme = themeOrder[(themeOrder.indexOf(theme) + 1) % themeOrder.length]
+  const nextPerformanceMode =
+    performanceModeOrder[
+      (performanceModeOrder.indexOf(performanceMode) + 1) % performanceModeOrder.length
+    ]
+  const interfaceReveal = isEconomy ? interfaceItemEconomyReveal : interfaceItemReveal
 
   useEffect(() => {
     const syncFullscreen = () => setIsFullscreen(Boolean(document.fullscreenElement))
@@ -140,6 +165,11 @@ function AppShell() {
 
   const handleTheme = () => {
     toggleTheme()
+    play('toggle')
+  }
+
+  const handlePerformance = () => {
+    cycleMode()
     play('toggle')
   }
 
@@ -172,14 +202,14 @@ function AppShell() {
       initial="hidden"
       animate="visible"
     >
-      <motion.div className={styles.ambient} variants={interfaceItemReveal} aria-hidden="true">
+      <motion.div className={styles.ambient} variants={interfaceReveal} aria-hidden="true">
         <span className={styles.orbitOne} />
         <span className={styles.orbitTwo} />
         <span className={styles.axis} />
       </motion.div>
 
       <motion.aside className={styles.rail} variants={railReveal}>
-        <motion.div className={styles.brand} variants={interfaceItemReveal}>
+        <motion.div className={styles.brand} variants={interfaceReveal}>
           <span className={styles.brandMark}>
             <img src={fanEmblem} alt="" />
           </span>
@@ -190,7 +220,7 @@ function AppShell() {
           </span>
         </motion.div>
 
-        <motion.section className={`${styles.railMatch} ${location.pathname === '/' ? styles.railMatchActive : ''}`} variants={interfaceItemReveal}>
+        <motion.section className={`${styles.railMatch} ${location.pathname === '/' ? styles.railMatchActive : ''}`} variants={interfaceReveal}>
           <button className={styles.railMatchOpen} onClick={goToMatch} aria-current={location.pathname === '/' ? 'page' : undefined}>
             <span className={styles.matchEyebrow}>
               <strong><i /> Următorul meci</strong>
@@ -240,18 +270,18 @@ function AppShell() {
           </button>
         </motion.section>
 
-        <motion.div className={styles.navigationSlot} variants={interfaceItemReveal}>
+        <motion.div className={styles.navigationSlot} variants={interfaceReveal}>
           <Navigation activePath={location.pathname} onNavigate={handleNavigate} />
         </motion.div>
 
-        <motion.div className={styles.heritage} variants={interfaceItemReveal}>
+        <motion.div className={styles.heritage} variants={interfaceReveal}>
           <span>Din oraș. Pentru oraș.</span>
           <strong>Alb-albastru / din 1932</strong>
         </motion.div>
       </motion.aside>
 
       <motion.main className={styles.workspace} variants={workspaceReveal}>
-        <motion.header className={styles.topbar} variants={interfaceItemReveal}>
+        <motion.header className={styles.topbar} variants={interfaceReveal}>
           <div className={styles.systemStatus}>
             <span><i /> Sistem de meci</span>
             <small>{firebaseConfigured ? 'Date conectate' : 'Mod local pregătit'}</small>
@@ -287,6 +317,24 @@ function AppShell() {
             </button>
             <button
               className={styles.control}
+              onClick={handlePerformance}
+              aria-label={`Mod performanță: ${performanceModeLabels[performanceMode]}. Efecte active: ${performanceModeLabels[resolvedMode]}. Următorul mod: ${performanceModeLabels[nextPerformanceMode]}`}
+              title={`Performanță: ${performanceModeLabels[performanceMode]} · efecte ${performanceModeLabels[resolvedMode].toLowerCase()}`}
+            >
+              <span
+                className={`${styles.performanceIcon} ${
+                  resolvedMode === 'economie'
+                    ? styles.performanceEconomy
+                    : styles.performanceComplete
+                } ${performanceMode === 'automat' ? styles.performanceAuto : ''}`}
+                aria-hidden="true"
+              >
+                <i />
+              </span>
+              <span aria-live="polite">{performanceModeLabels[performanceMode]}</span>
+            </button>
+            <button
+              className={styles.control}
               onClick={() => void toggleFullscreen()}
               aria-label={isFullscreen ? 'Ieși din ecran complet' : 'Activează ecranul complet'}
               title={isFullscreen ? 'Ieși din ecran complet' : 'Ecran complet'}
@@ -310,24 +358,28 @@ function AppShell() {
           </div>
         </motion.header>
 
-        <motion.div className={styles.stage} variants={interfaceItemReveal}>
+        <motion.div className={styles.stage} variants={interfaceReveal}>
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               className={styles.page}
               key={location.pathname}
               custom={direction}
-              variants={pageVariants}
+              variants={isEconomy ? pageEconomyVariants : pageVariants}
               initial="enter"
               animate="center"
               exit="exit"
-              transition={{ duration: 0.56, ease: [0.76, 0, 0.24, 1] }}
+              transition={
+                isEconomy
+                  ? { duration: 0.2, ease: 'easeOut' }
+                  : { duration: 0.56, ease: [0.76, 0, 0.24, 1] }
+              }
             >
               <ActiveView />
             </motion.div>
           </AnimatePresence>
         </motion.div>
 
-        <motion.div className={styles.viewportIndex} variants={interfaceItemReveal}>0{currentIndex + 1} / 06</motion.div>
+        <motion.div className={styles.viewportIndex} variants={interfaceReveal}>0{currentIndex + 1} / 06</motion.div>
       </motion.main>
     </motion.div>
   )

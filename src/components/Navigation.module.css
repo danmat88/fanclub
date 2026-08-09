@@ -322,3 +322,14 @@
   .copy small { display: none; }
   .navHint { display: none; }
 }
+
+:global(html[data-performance='economie']) .navHub i,
+:global(html[data-performance='economie']) .active .line::after {
+  animation: none;
+}
+
+:global(html[data-performance='economie']) .item:hover,
+:global(html[data-performance='economie']) .item:focus-visible,
+:global(html[data-performance='economie']) .active {
+  filter: none;
+}
