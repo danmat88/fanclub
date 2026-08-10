@@ -1,6 +1,6 @@
 import {
-  IdCard,
   Megaphone,
+  Newspaper,
   RadioTower,
   Trophy,
   UsersRound,
@@ -45,10 +45,10 @@ export const navigationItems: NavigationItem[] = [
     icon: Trophy,
   },
   {
-    path: '/carnet',
-    label: 'Contul meu',
-    meta: 'Carnet și recompense',
-    badge: 'NV 08',
-    icon: IdCard,
+    path: '/stiri',
+    label: 'Știri',
+    meta: 'Noutăți și povești',
+    badge: 'NOU',
+    icon: Newspaper,
   },
 ]

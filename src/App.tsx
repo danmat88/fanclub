@@ -16,6 +16,7 @@ import fanEmblem from './assets/brand/cetatea-fan-emblem.webp'
 import arenaBackground from './assets/brand/loading-cetatea-arena.webp'
 import { LoadingScreen } from './components/LoadingScreen'
 import { Navigation } from './components/Navigation'
+import { ProfilePanel } from './components/ProfilePanel'
 import { navigationItems } from './components/navigationItems'
 import {
   performanceModeLabels,
@@ -30,10 +31,10 @@ import { useMatchCountdown } from './hooks/useMatchCountdown'
 import { firebaseConfigured } from './lib/firebaseConfig'
 import {
   CommunityView,
-  FanIdView,
   LeagueTableView,
   LiveCenterView,
   NextMatchView,
+  NewsView,
   SquadView,
 } from './views/Views'
 
@@ -43,7 +44,7 @@ const viewMap: Record<string, React.ComponentType> = {
   '/tribuna': CommunityView,
   '/lot': SquadView,
   '/clasament': LeagueTableView,
-  '/carnet': FanIdView,
+  '/stiri': NewsView,
 }
 
 const routeOrder = ['/', ...navigationItems.map((item) => item.path)]
@@ -150,6 +151,7 @@ function AppShell() {
   const [isRailCollapsed, setIsRailCollapsed] = useState(
     () => localStorage.getItem('cetatea-rail') === 'restrans',
   )
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const ActiveView = viewMap[location.pathname] ?? NextMatchView
   const nextTheme = themeOrder[(themeOrder.indexOf(theme) + 1) % themeOrder.length]
   const nextPerformanceMode =
@@ -164,10 +166,19 @@ function AppShell() {
     return () => document.removeEventListener('fullscreenchange', syncFullscreen)
   }, [])
 
+  useEffect(() => {
+    if (location.pathname !== '/carnet') return
+    setIsProfileOpen(true)
+    void navigate('/', { replace: true })
+  }, [location.pathname, navigate])
+
+  const closeProfilePanel = useCallback(() => setIsProfileOpen(false), [])
+
   const handleNavigate = (path: string) => {
     const nextIndex = Math.max(0, routeOrder.indexOf(path))
     setDirection(nextIndex >= lastIndex ? 1 : -1)
     setLastIndex(nextIndex)
+    setIsProfileOpen(false)
     play('navigate')
   }
 
@@ -402,15 +413,17 @@ function AppShell() {
               <span>{isFullscreen ? 'Ecran complet' : 'Extinde'}</span>
             </button>
             <button
-              className={`${styles.control} ${styles.profileControl}`}
-              aria-label="Deschide carnetul suporterului"
+              className={`${styles.control} ${styles.profileControl} ${isProfileOpen ? styles.profileControlActive : ''}`}
+              aria-label={isProfileOpen ? 'Închide profilul și setările' : 'Deschide profilul și setările'}
+              aria-expanded={isProfileOpen}
+              aria-controls="profile-panel"
               onClick={() => {
-                handleNavigate('/carnet')
-                void navigate('/carnet')
+                setIsProfileOpen((current) => !current)
+                play('toggle')
               }}
             >
               <b>CS</b>
-              <span>Carnet</span>
+              <span>Profil</span>
             </button>
           </div>
         </motion.header>
@@ -438,6 +451,18 @@ function AppShell() {
 
         <motion.div className={styles.viewportIndex} variants={interfaceReveal}>0{currentIndex + 1} / 06</motion.div>
       </motion.main>
+
+      <ProfilePanel
+        open={isProfileOpen}
+        connected={firebaseConfigured}
+        isMuted={isMuted}
+        performanceLabel={performanceModeLabels[performanceMode]}
+        themeLabel={themeLabels[theme]}
+        onClose={closeProfilePanel}
+        onCyclePerformance={handlePerformance}
+        onCycleTheme={handleTheme}
+        onToggleSound={toggleMute}
+      />
     </motion.div>
   )
 }

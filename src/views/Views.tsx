@@ -1,9 +1,28 @@
-import { motion, type Variants } from 'motion/react'
+import { AnimatePresence, motion, type Variants } from 'motion/react'
 import {
+  ArrowLeft,
+  ArrowRight,
+  Bell,
+  Bookmark,
+  CalendarDays,
+  Clock3,
+  Eye,
+  Newspaper,
+  Pause,
+  Play,
+  Share2,
+  Sparkles,
+  X,
+} from 'lucide-react'
+import {
+  useEffect,
+  useMemo,
   useState,
   type CSSProperties,
   type FormEvent,
 } from 'react'
+import fanEmblem from '../assets/brand/cetatea-fan-emblem.webp'
+import arenaBackground from '../assets/brand/loading-cetatea-arena.webp'
 import { useSound } from '../contexts/useSound'
 import { club, nextMatch, squad, standings, upcomingFixtures, type PlayerPosition } from '../data/clubData'
 import { useMatchCountdown } from '../hooks/useMatchCountdown'
@@ -490,6 +509,346 @@ export function LeagueTableView() {
           <p>Date actualizate din clasamentul și programul publicate de club.</p>
         </motion.aside>
       </div>
+    </section>
+  )
+}
+
+type NewsCategory = 'Toate' | 'Meci' | 'Echipă' | 'Comunitate' | 'Club'
+
+type NewsArticle = {
+  id: number
+  category: Exclude<NewsCategory, 'Toate'>
+  kicker: string
+  title: string
+  summary: string
+  body: [string, string]
+  date: string
+  readTime: string
+  image: string
+  imagePosition: string
+  tone: string
+}
+
+const newsArticles: NewsArticle[] = [
+  {
+    id: 1,
+    category: 'Meci',
+    kicker: 'Pregătirea Areniului',
+    title: 'Cetatea cheamă orașul la primul mare asediu al sezonului.',
+    summary: 'Tot ce trebuie să știe suporterii înaintea duelului cu CSM Satu Mare: acces, atmosferă și momentele serii.',
+    body: [
+      'Porțile Stadionului Areni se deschid mai devreme pentru ca fiecare suporter să poată intra în ritmul meciului. Zona dedicată fanilor va reuni mesajele comunității, muzica tribunei și ultimele informații despre echipă.',
+      'Recomandarea clubului suporterilor este simplă: vino în alb-albastru, ajungi devreme și păstrează voce pentru toate cele 90 de minute. Cetatea se construiește cu fiecare om din tribună.',
+    ],
+    date: '10 august 2026',
+    readTime: '4 min.',
+    image: arenaBackground,
+    imagePosition: 'center 52%',
+    tone: 'var(--tone-cyan)',
+  },
+  {
+    id: 2,
+    category: 'Echipă',
+    kicker: 'Din vestiar',
+    title: 'Victoria de la Târgu Mureș a aprins încrederea Cetății.',
+    summary: 'O privire din interior asupra rezultatului care a legat echipa și a dat startul unei săptămâni intense.',
+    body: [
+      'Succesul cu 2–0 a venit din disciplină, răbdare și o energie transmisă de suporterii care au făcut deplasarea. Stafful a păstrat însă mesajul clar: victoria este un punct de plecare, nu o destinație.',
+      'În zilele următoare, lotul intră într-un program axat pe recuperare și pregătirea fazelor fixe. Obiectivul este ca Areniul să vadă o echipă curajoasă, compactă și gata să controleze ritmul.',
+    ],
+    date: '9 august 2026',
+    readTime: '3 min.',
+    image: arenaBackground,
+    imagePosition: '72% center',
+    tone: 'var(--tone-violet)',
+  },
+  {
+    id: 3,
+    category: 'Comunitate',
+    kicker: 'Vocile peluzei',
+    title: 'Mesajele suporterilor intră pe ecranele Cetății.',
+    summary: 'Cele mai puternice mesaje din Peluză vor deveni parte din experiența digitală și din ziua de meci.',
+    body: [
+      'Peluza din aplicație nu este doar un flux de comentarii. Este locul în care scandările, poveștile și inițiativele fanilor pot primi vizibilitatea pe care o merită.',
+      'Mesajele apreciate de comunitate vor fi selectate în colecția săptămânii, iar autorii vor primi reputație în carnetul digital. Respectul și pasiunea rămân regulile de bază.',
+    ],
+    date: '8 august 2026',
+    readTime: '5 min.',
+    image: fanEmblem,
+    imagePosition: 'center',
+    tone: 'var(--tone-green)',
+  },
+  {
+    id: 4,
+    category: 'Club',
+    kicker: 'Identitate alb-albastră',
+    title: '1932 nu este doar un an. Este semnalul care ne adună.',
+    summary: 'O nouă serie editorială readuce la viață oamenii, locurile și momentele care au construit fotbalul sucevean.',
+    body: [
+      'Seria „Arhiva Cetății” va conecta generațiile prin fotografii, mărturii și povești din jurul Areniului. Fiecare episod va putea fi salvat în profil și distribuit comunității.',
+      'Prima poveste pornește de la tribune: de la vocile care au rămas, indiferent de ligă, vreme sau rezultat. Identitatea clubului este memoria orașului dusă mai departe.',
+    ],
+    date: '7 august 2026',
+    readTime: '6 min.',
+    image: fanEmblem,
+    imagePosition: 'center',
+    tone: 'var(--tone-amber)',
+  },
+  {
+    id: 5,
+    category: 'Echipă',
+    kicker: 'Garda Cetății',
+    title: 'Lotul intră într-o săptămână decisivă pentru ritmul sezonului.',
+    summary: 'Antrenamente deschise, dueluri pentru titularizare și detaliile urmărite de staff înaintea etapei a treia.',
+    body: [
+      'Concurența din lot crește, iar fiecare compartiment are obiective clare pentru următorul meci. Intensitatea fără minge și viteza tranziției sunt prioritățile săptămânii.',
+      'Suporterii vor primi în aplicație informațiile esențiale despre lot, convocări și formula de start, imediat ce acestea devin oficiale.',
+    ],
+    date: '6 august 2026',
+    readTime: '3 min.',
+    image: club.badge,
+    imagePosition: 'center',
+    tone: 'var(--tone-rose)',
+  },
+]
+
+const newsCategories: NewsCategory[] = ['Toate', 'Meci', 'Echipă', 'Comunitate', 'Club']
+
+export function NewsView() {
+  const { play } = useSound()
+  const [category, setCategory] = useState<NewsCategory>('Toate')
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [autoplay, setAutoplay] = useState(true)
+  const [hovering, setHovering] = useState(false)
+  const [saved, setSaved] = useState<number[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('cetatea-saved-news') ?? '[]')
+      return Array.isArray(stored) ? stored.filter((id): id is number => typeof id === 'number') : []
+    } catch {
+      return []
+    }
+  })
+  const [readerArticle, setReaderArticle] = useState<NewsArticle | null>(null)
+
+  const visibleArticles = useMemo(
+    () => category === 'Toate'
+      ? newsArticles
+      : newsArticles.filter((article) => article.category === category),
+    [category],
+  )
+  const activeArticle = visibleArticles[activeIndex] ?? visibleArticles[0]
+
+  useEffect(() => {
+    setActiveIndex(0)
+  }, [category])
+
+  useEffect(() => {
+    localStorage.setItem('cetatea-saved-news', JSON.stringify(saved))
+  }, [saved])
+
+  useEffect(() => {
+    if (!autoplay || hovering || readerArticle || visibleArticles.length < 2) return
+    const timer = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % visibleArticles.length)
+    }, 7000)
+    return () => window.clearInterval(timer)
+  }, [autoplay, hovering, readerArticle, visibleArticles.length])
+
+  useEffect(() => {
+    if (!readerArticle) return
+    const closeReader = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setReaderArticle(null)
+    }
+    document.addEventListener('keydown', closeReader)
+    return () => document.removeEventListener('keydown', closeReader)
+  }, [readerArticle])
+
+  const moveCarousel = (direction: number) => {
+    setActiveIndex((current) => (
+      current + direction + visibleArticles.length
+    ) % visibleArticles.length)
+    play('navigate')
+  }
+
+  const selectArticle = (index: number) => {
+    setActiveIndex(index)
+    play('navigate')
+  }
+
+  const toggleSaved = (id: number) => {
+    setSaved((current) => current.includes(id)
+      ? current.filter((item) => item !== id)
+      : [...current, id])
+    play('success')
+  }
+
+  const shareArticle = async (article: NewsArticle) => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: article.title, text: article.summary })
+      } else {
+        await navigator.clipboard?.writeText(`${article.title} — ${window.location.href}`)
+      }
+      play('success')
+    } catch {
+      // Distribuirea poate fi anulată de utilizator.
+    }
+  }
+
+  if (!activeArticle) return null
+
+  return (
+    <section className={`${styles.view} ${styles.newsView}`}>
+      <ViewIntro code="ȘT–06" label="Centrul editorial al Cetății" title="Poveștile care țin" accent="orașul aproape." />
+
+      <div
+        className={styles.newsLayout}
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+      >
+        <motion.article
+          className={styles.newsHero}
+          style={{ '--news-tone': activeArticle.tone } as CSSProperties}
+          tabIndex={0}
+          aria-label="Caruselul principal de știri. Folosește săgețile stânga și dreapta."
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft') moveCarousel(-1)
+            if (event.key === 'ArrowRight') moveCarousel(1)
+          }}
+          variants={reveal}
+          initial="hidden"
+          animate="visible"
+          custom={.05}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={activeArticle.id}
+              className={styles.newsSlide}
+              initial={{ opacity: 0, x: 48, clipPath: 'inset(0 0 0 18%)' }}
+              animate={{ opacity: 1, x: 0, clipPath: 'inset(0 0 0 0%)' }}
+              exit={{ opacity: 0, x: -36, clipPath: 'inset(0 16% 0 0)' }}
+              transition={{ duration: .52, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <div className={styles.newsMedia}>
+                <img src={activeArticle.image} style={{ objectPosition: activeArticle.imagePosition }} alt="" />
+                <span aria-hidden="true" />
+              </div>
+
+              <div className={styles.newsCopy} aria-live="polite">
+                <div className={styles.newsKicker}><Sparkles aria-hidden="true" /> {activeArticle.kicker}<i />{activeArticle.category}</div>
+                <h2>{activeArticle.title}</h2>
+                <p>{activeArticle.summary}</p>
+                <div className={styles.newsMeta}>
+                  <span><CalendarDays aria-hidden="true" /> {activeArticle.date}</span>
+                  <span><Clock3 aria-hidden="true" /> {activeArticle.readTime}</span>
+                  <span><Eye aria-hidden="true" /> 1,9K</span>
+                </div>
+                <div className={styles.newsActions}>
+                  <button type="button" onClick={() => { setReaderArticle(activeArticle); setAutoplay(false); play('navigate') }}>
+                    <Newspaper aria-hidden="true" /><span>Citește povestea</span><ArrowRight aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className={saved.includes(activeArticle.id) ? styles.newsActionActive : ''}
+                    onClick={() => toggleSaved(activeArticle.id)}
+                    aria-pressed={saved.includes(activeArticle.id)}
+                    aria-label={saved.includes(activeArticle.id) ? 'Elimină din articolele salvate' : 'Salvează articolul'}
+                  >
+                    <Bookmark aria-hidden="true" />
+                  </button>
+                  <button type="button" onClick={() => void shareArticle(activeArticle)} aria-label="Distribuie articolul">
+                    <Share2 aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          <div className={styles.heroNavigation}>
+            <button type="button" onClick={() => moveCarousel(-1)} aria-label="Știrea precedentă"><ArrowLeft aria-hidden="true" /></button>
+            <span><strong>0{activeIndex + 1}</strong><i />0{visibleArticles.length}</span>
+            <button type="button" onClick={() => moveCarousel(1)} aria-label="Știrea următoare"><ArrowRight aria-hidden="true" /></button>
+          </div>
+          <div className={`${styles.newsProgress} ${!autoplay || hovering ? styles.newsProgressPaused : ''}`} key={`${activeArticle.id}-${autoplay}`}><i /></div>
+        </motion.article>
+
+        <motion.aside className={styles.newsNavigator} variants={reveal} initial="hidden" animate="visible" custom={.13}>
+          <div className={styles.newsFilters} aria-label="Filtrează știrile">
+            {newsCategories.map((item) => (
+              <button
+                type="button"
+                key={item}
+                className={category === item ? styles.newsFilterActive : ''}
+                onClick={() => { setCategory(item); play('navigate') }}
+                aria-pressed={category === item}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.newsQueue}>
+            {visibleArticles.map((article, index) => (
+              <button
+                type="button"
+                key={article.id}
+                className={activeIndex === index ? styles.newsQueueActive : ''}
+                style={{ '--news-tone': article.tone } as CSSProperties}
+                onClick={() => selectArticle(index)}
+                aria-current={activeIndex === index ? 'true' : undefined}
+              >
+                <span>0{index + 1}</span>
+                <div><small>{article.category} · {article.readTime}</small><strong>{article.title}</strong></div>
+                <i />
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className={styles.autoplayControl}
+            onClick={() => { setAutoplay((current) => !current); play('toggle') }}
+            aria-pressed={autoplay}
+          >
+            {autoplay ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+            <span><strong>{autoplay ? 'Flux automat activ' : 'Flux automat oprit'}</strong><small>Schimbare la fiecare 7 secunde</small></span>
+            <Bell aria-hidden="true" />
+          </button>
+        </motion.aside>
+      </div>
+
+      <AnimatePresence>
+        {readerArticle && (
+          <motion.div
+            className={styles.articleReader}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="article-reader-title"
+            initial={{ opacity: 0, y: 34, clipPath: 'inset(12% 8% 0)' }}
+            animate={{ opacity: 1, y: 0, clipPath: 'inset(0 0 0)' }}
+            exit={{ opacity: 0, y: 24, clipPath: 'inset(0 8% 12%)' }}
+            transition={{ duration: .46, ease: [0.16, 1, 0.3, 1] }}
+            style={{ '--news-tone': readerArticle.tone } as CSSProperties}
+          >
+            <header>
+              <span>{readerArticle.category} / {readerArticle.date}</span>
+              <button type="button" autoFocus onClick={() => setReaderArticle(null)} aria-label="Închide articolul"><X aria-hidden="true" /></button>
+            </header>
+            <div>
+              <small>{readerArticle.kicker}</small>
+              <h2 id="article-reader-title">{readerArticle.title}</h2>
+              {readerArticle.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+            </div>
+            <footer>
+              <span><Clock3 aria-hidden="true" /> {readerArticle.readTime} de lectură</span>
+              <div>
+                <button type="button" onClick={() => toggleSaved(readerArticle.id)}><Bookmark aria-hidden="true" /> {saved.includes(readerArticle.id) ? 'Salvat' : 'Salvează'}</button>
+                <button type="button" onClick={() => void shareArticle(readerArticle)}><Share2 aria-hidden="true" /> Distribuie</button>
+              </div>
+            </footer>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   )
 }

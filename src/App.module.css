@@ -1168,6 +1168,18 @@
   font-size: 0.39rem;
 }
 
+.profileControlActive {
+  color: var(--text-primary);
+  background:
+    linear-gradient(var(--tone-rose), var(--tone-rose)) left top / 32% 1px no-repeat,
+    linear-gradient(var(--tone-amber), var(--tone-amber)) right bottom / 32% 1px no-repeat,
+    linear-gradient(110deg, color-mix(in srgb, var(--tone-rose) 11%, transparent), transparent);
+}
+
+.profileControlActive b {
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--tone-rose) 70%, transparent));
+}
+
 .fullscreenIcon {
   position: relative;
   display: block;
