@@ -1,5 +1,14 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { BellRing, CalendarDays, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import {
+  BellRing,
+  CalendarDays,
+  Clock3,
+  MapPin,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Swords,
+  Trophy,
+} from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import styles from './App.module.css'
@@ -266,7 +275,10 @@ function AppShell() {
                 <img src={nextMatch.home.badge} alt="Sigla Cetatea Suceava" />
                 <span><b>{nextMatch.home.name}</b><small>{nextMatch.home.city}</small></span>
               </span>
-              <i>contra</i>
+              <span className={styles.versus} aria-label="contra">
+                <Swords strokeWidth={1.8} aria-hidden="true" />
+                <small>VS</small>
+              </span>
               <span>
                 <img src={nextMatch.away.badge} alt="Sigla CSM Satu Mare" />
                 <span><b>{nextMatch.away.name}</b><small>{nextMatch.away.city}</small></span>
@@ -274,8 +286,14 @@ function AppShell() {
             </span>
 
             <span className={styles.railDate}>
-              <b>{nextMatch.dateLabel}</b>
-              <small>{nextMatch.timeLabel} · {nextMatch.venue}</small>
+              <span className={styles.matchDateMain}>
+                <CalendarDays strokeWidth={1.8} aria-hidden="true" />
+                <b>{nextMatch.dateLabel}</b>
+              </span>
+              <span className={styles.matchMeta}>
+                <span><Clock3 strokeWidth={2} aria-hidden="true" /> {nextMatch.timeLabel}</span>
+                <span><MapPin strokeWidth={2} aria-hidden="true" /> {nextMatch.venue}</span>
+              </span>
             </span>
 
             <span className={styles.railCountdown} aria-label="Timp rămas până la meci">
@@ -289,7 +307,7 @@ function AppShell() {
             </span>
 
             <span className={styles.lastResult}>
-              <small>Ultimul rezultat</small>
+              <small><Trophy strokeWidth={1.8} aria-hidden="true" /> Ultimul rezultat</small>
               <b>{latestResult.home} <strong>{latestResult.score}</strong> Cetatea</b>
             </span>
           </button>

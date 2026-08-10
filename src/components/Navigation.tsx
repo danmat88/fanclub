@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react'
+import { MoveUpRight } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import styles from './Navigation.module.css'
 import { navigationItems } from './navigationItems'
@@ -36,7 +36,7 @@ export function Navigation({ activePath, collapsed, onNavigate }: NavigationProp
         <strong><i /> 5 destinații</strong>
       </div>
       <div className={styles.items}>
-        {navigationItems.map((item) => {
+        {navigationItems.map((item, index) => {
           const Icon = item.icon
 
           return (
@@ -48,6 +48,7 @@ export function Navigation({ activePath, collapsed, onNavigate }: NavigationProp
               className={`${styles.item} ${item.path === activePath ? styles.active : ''}`}
               onClick={() => onNavigate(item.path)}
             >
+              <span className={styles.itemIndex} aria-hidden="true">0{index + 1}</span>
               <span className={styles.iconFrame} aria-hidden="true">
                 <Icon strokeWidth={1.9} />
               </span>
@@ -56,7 +57,11 @@ export function Navigation({ activePath, collapsed, onNavigate }: NavigationProp
                 <small>{item.meta}</small>
               </span>
               <span className={styles.badge}>{item.badge}</span>
-              <ChevronRight className={styles.arrow} strokeWidth={2} aria-hidden="true" />
+              <MoveUpRight className={styles.arrow} strokeWidth={2} aria-hidden="true" />
+              <span className={styles.energyRail} aria-hidden="true">
+                <i /><i /><i />
+              </span>
+              <span className={styles.frameMarks} aria-hidden="true"><i /><i /></span>
             </NavLink>
           )
         })}
