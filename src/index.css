@@ -1,8 +1,11 @@
 :root {
-  --font-body: 'Manrope Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-game: 'Saira Variable', 'Arial Narrow', sans-serif;
-  --font-tech: 'Oxanium Variable', 'Manrope Variable', ui-sans-serif, sans-serif;
-  --font-display: 'Saira Variable', 'Manrope Variable', sans-serif;
+  --font-body: 'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-game: 'Exo 2 Variable', 'Arial Narrow', sans-serif;
+  --font-tech: 'Chakra Petch', 'Space Grotesk Variable', ui-sans-serif, sans-serif;
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --type-micro: clamp(.58rem, .54vw, .65rem);
+  --type-label: clamp(.64rem, .62vw, .74rem);
+  --type-small: clamp(.7rem, .7vw, .82rem);
   font-family: var(--font-body);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -25,8 +28,8 @@
   --surface-faint: rgba(131, 181, 245, 0.055);
   --surface-solid: #081a38;
   --text-primary: #f2f7ff;
-  --text-subtle: #b8cbe4;
-  --text-dim: #7894b6;
+  --text-subtle: #d3e1f3;
+  --text-dim: #9fb5ce;
   --line: rgba(125, 173, 232, 0.16);
   --line-strong: rgba(141, 190, 247, 0.3);
   --ambient-line: rgba(91, 146, 213, 0.11);
@@ -67,8 +70,8 @@
   --surface-faint: rgba(19, 79, 149, 0.055);
   --surface-solid: #f5faff;
   --text-primary: #061a34;
-  --text-subtle: #365574;
-  --text-dim: #607b96;
+  --text-subtle: #294b6c;
+  --text-dim: #4b6782;
   --line: rgba(15, 62, 116, 0.15);
   --line-strong: rgba(17, 71, 133, 0.28);
   --ambient-line: rgba(17, 83, 164, 0.1);
@@ -109,8 +112,8 @@
   --surface-faint: rgba(255, 119, 134, 0.06);
   --surface-solid: #2b0d18;
   --text-primary: #fff4f2;
-  --text-subtle: #e4b8ba;
-  --text-dim: #ae7d87;
+  --text-subtle: #f1d2d4;
+  --text-dim: #c99ca4;
   --line: rgba(255, 146, 156, 0.16);
   --line-strong: rgba(255, 164, 167, 0.31);
   --ambient-line: rgba(255, 115, 128, 0.11);
@@ -151,8 +154,8 @@
   --surface-faint: rgba(93, 224, 204, 0.055);
   --surface-solid: #092e31;
   --text-primary: #effffb;
-  --text-subtle: #b4d8d2;
-  --text-dim: #76a49f;
+  --text-subtle: #d1ebe6;
+  --text-dim: #9bc1bc;
   --line: rgba(116, 222, 205, 0.16);
   --line-strong: rgba(136, 235, 218, 0.3);
   --ambient-line: rgba(78, 196, 178, 0.11);
@@ -213,6 +216,21 @@ textarea {
 button,
 a {
   -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root,
+#root * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 button:focus-visible,

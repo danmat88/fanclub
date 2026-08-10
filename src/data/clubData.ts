@@ -30,6 +30,7 @@ export const nextMatch = {
   round: 'Etapa a III-a',
   kickoff: '2026-08-15T11:00:00+03:00',
   dateLabel: 'Sâmbătă, 15 august',
+  compactDateLabel: '15 aug.',
   timeLabel: '11:00',
   venue: 'Stadionul Areni',
   home: {

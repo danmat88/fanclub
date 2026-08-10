@@ -1,15 +1,29 @@
 import { AnimatePresence, motion } from 'motion/react'
 import {
+  Activity,
   BellRing,
   CalendarDays,
   Clock3,
+  Gauge,
+  Maximize2,
   MapPin,
+  Megaphone,
+  MessageCircle,
+  Minimize2,
+  Newspaper,
+  Palette,
   PanelLeftClose,
   PanelLeftOpen,
+  RadioTower,
   Swords,
   Trophy,
+  UsersRound,
+  Volume2,
+  VolumeX,
+  Wifi,
+  type LucideIcon,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import styles from './App.module.css'
 import fanEmblem from './assets/brand/cetatea-fan-emblem.webp'
@@ -33,6 +47,7 @@ import {
   CommunityView,
   LeagueTableView,
   LiveCenterView,
+  MatchBroadcast,
   NextMatchView,
   NewsView,
   SquadView,
@@ -49,6 +64,59 @@ const viewMap: Record<string, React.ComponentType> = {
 
 const routeOrder = ['/', ...navigationItems.map((item) => item.path)]
 const themeOrder: Theme[] = ['nocturna', 'zi-de-meci', 'asediu', 'bucovina']
+
+type HeaderView = {
+  label: string
+  eyebrow: string
+  detail: string
+  tone: string
+  icon: LucideIcon
+}
+
+const headerViews: Record<string, HeaderView> = {
+  '/': {
+    label: 'Următorul meci',
+    eyebrow: 'Centrul confruntării',
+    detail: `${nextMatch.round} · ${nextMatch.timeLabel}`,
+    tone: 'var(--tone-cyan)',
+    icon: Swords,
+  },
+  '/meci-direct': {
+    label: 'Meci live',
+    eyebrow: 'Fiecare fază, împreună',
+    detail: 'Semnal · scor · tribună',
+    tone: 'var(--tone-violet)',
+    icon: RadioTower,
+  },
+  '/tribuna': {
+    label: 'Peluza',
+    eyebrow: 'Vocea suporterilor',
+    detail: '284 conectați',
+    tone: 'var(--tone-green)',
+    icon: Megaphone,
+  },
+  '/lot': {
+    label: 'Echipa',
+    eyebrow: 'Lotul Cetății',
+    detail: '26 jucători · staff tehnic',
+    tone: 'var(--tone-amber)',
+    icon: UsersRound,
+  },
+  '/clasament': {
+    label: 'Sezonul',
+    eyebrow: 'Liga a II-a',
+    detail: 'Clasament · formă · calendar',
+    tone: 'var(--tone-rose)',
+    icon: Trophy,
+  },
+  '/stiri': {
+    label: 'Știri',
+    eyebrow: 'Jurnalul Cetății',
+    detail: 'Noutăți · reacții · conversații',
+    tone: 'var(--tone-cyan)',
+    icon: Newspaper,
+  },
+}
 
 const appReveal = {
   hidden: { opacity: 0 },
@@ -152,7 +220,14 @@ function AppShell() {
     () => localStorage.getItem('cetatea-rail') === 'restrans',
   )
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [broadcastAnchor, setBroadcastAnchor] = useState<HTMLDivElement | null>(null)
+  const [broadcastActive, setBroadcastActive] = useState(false)
+  const [broadcastStarted, setBroadcastStarted] = useState(false)
+  const [broadcastDismissed, setBroadcastDismissed] = useState(false)
+  const [broadcastRequestToken, setBroadcastRequestToken] = useState(0)
   const ActiveView = viewMap[location.pathname] ?? NextMatchView
+  const currentHeader = headerViews[location.pathname] ?? headerViews['/']
+  const HeaderIcon = currentHeader.icon
   const nextTheme = themeOrder[(themeOrder.indexOf(theme) + 1) % themeOrder.length]
   const nextPerformanceMode =
     performanceModeOrder[
@@ -174,6 +249,14 @@ function AppShell() {
 
   const closeProfilePanel = useCallback(() => setIsProfileOpen(false), [])
 
+  const handleBroadcastActiveChange = useCallback((active: boolean) => {
+    setBroadcastActive(active)
+    if (active) {
+      setBroadcastStarted(true)
+      setBroadcastDismissed(false)
+    }
+  }, [])
+
   const handleNavigate = (path: string) => {
     const nextIndex = Math.max(0, routeOrder.indexOf(path))
     setDirection(nextIndex >= lastIndex ? 1 : -1)
@@ -185,6 +268,22 @@ function AppShell() {
   const goToMatch = () => {
     handleNavigate('/')
     void navigate('/')
+  }
+
+  const goToCommunity = () => {
+    handleNavigate('/tribuna')
+    void navigate('/tribuna')
+  }
+
+  const returnToBroadcast = () => {
+    setBroadcastDismissed(false)
+    setBroadcastRequestToken((current) => current + 1)
+    goToMatch()
+  }
+
+  const closeBroadcast = () => {
+    setBroadcastDismissed(true)
+    play('toggle')
   }
 
   const handleTheme = () => {
@@ -349,27 +448,47 @@ function AppShell() {
       </motion.aside>
 
       <motion.main className={styles.workspace} variants={workspaceReveal}>
-        <motion.header className={styles.topbar} variants={interfaceReveal}>
-          <div className={styles.systemStatus}>
-            <span><i /> Sistem de meci</span>
-            <small>{firebaseConfigured ? 'Date conectate' : 'Mod local pregătit'}</small>
+        <motion.header
+          className={styles.topbar}
+          variants={interfaceReveal}
+          style={{ '--header-tone': currentHeader.tone } as CSSProperties}
+        >
+          <div className={styles.headerContext}>
+            <span className={styles.headerSequence} aria-hidden="true">0{currentIndex + 1}</span>
+            <span className={styles.headerRouteIcon} aria-hidden="true"><HeaderIcon strokeWidth={1.8} /></span>
+            <motion.span
+              className={styles.headerRouteCopy}
+              key={location.pathname}
+              initial={isEconomy ? { opacity: 0 } : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: isEconomy ? .16 : .32, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <small><i /> {currentHeader.eyebrow}</small>
+              <strong>{currentHeader.label}</strong>
+            </motion.span>
+            <span className={styles.headerConnection} title={firebaseConfigured ? 'Firebase conectat' : 'Firebase pregătit pentru configurare'}>
+              <Wifi strokeWidth={1.8} aria-hidden="true" />
+              <span><b>{firebaseConfigured ? 'Conectat' : 'Mod local'}</b><small>{currentHeader.detail}</small></span>
+            </span>
           </div>
 
-          <div className={styles.commandSignature} aria-hidden="true">
-            <span>CSM Cetatea 1932</span>
-            <i />
-            <strong>Areni / Zi de meci</strong>
-          </div>
+          <button type="button" className={styles.communityPulse} onClick={goToCommunity} aria-label="Deschide Pulsul Cetății: 12 reacții noi în comunitate">
+            <span className={styles.pulseMark} aria-hidden="true"><Activity strokeWidth={1.9} /></span>
+            <span className={styles.pulseCopy}><small>Pulsul Cetății</small><strong>Tribuna este activă</strong></span>
+            <span className={styles.pulseWave} aria-hidden="true"><i /><i /><i /><i /><i /><i /></span>
+            <span className={styles.pulseUpdates}><MessageCircle strokeWidth={1.8} aria-hidden="true" /><b>12</b><small>noi</small></span>
+          </button>
 
-          <div className={styles.controls}>
+          <div className={styles.controls} role="group" aria-label="Comenzile aplicației">
             <button
               className={styles.control}
               onClick={handleTheme}
               aria-label={`Schimbă tema. Tema curentă: ${themeLabels[theme]}`}
               title={`Următoarea temă: ${themeLabels[nextTheme]}`}
             >
-              <span className={`${styles.themeIcon} ${theme === 'zi-de-meci' ? styles.light : ''}`} />
-              <span>{themeLabels[theme]}</span>
+              <Palette className={styles.controlGlyph} strokeWidth={1.8} aria-hidden="true" />
+              <span className={styles.controlLabel}>{themeLabels[theme]}</span>
+              <i className={styles.controlNode} aria-hidden="true" />
             </button>
             <button
               className={styles.control}
@@ -378,10 +497,11 @@ function AppShell() {
               aria-label={isMuted ? 'Activează sunetele' : 'Dezactivează sunetele'}
               title={isMuted ? 'Activează sunetele' : 'Oprește sunetele'}
             >
-              <span className={`${styles.soundIcon} ${isMuted ? styles.muted : ''}`}>
-                <i /><i /><i />
-              </span>
-              <span>{isMuted ? 'Sunet oprit' : 'Sunet activ'}</span>
+              {isMuted
+                ? <VolumeX className={styles.controlGlyph} strokeWidth={1.8} aria-hidden="true" />
+                : <Volume2 className={styles.controlGlyph} strokeWidth={1.8} aria-hidden="true" />}
+              <span className={styles.controlLabel}>{isMuted ? 'Sunet oprit' : 'Sunet activ'}</span>
+              <i className={styles.controlNode} aria-hidden="true" />
             </button>
             <button
               className={styles.control}
@@ -389,17 +509,9 @@ function AppShell() {
               aria-label={`Mod performanță: ${performanceModeLabels[performanceMode]}. Efecte active: ${performanceModeLabels[resolvedMode]}. Următorul mod: ${performanceModeLabels[nextPerformanceMode]}`}
               title={`Performanță: ${performanceModeLabels[performanceMode]} · efecte ${performanceModeLabels[resolvedMode].toLowerCase()}`}
             >
-              <span
-                className={`${styles.performanceIcon} ${
-                  resolvedMode === 'economie'
-                    ? styles.performanceEconomy
-                    : styles.performanceComplete
-                } ${performanceMode === 'automat' ? styles.performanceAuto : ''}`}
-                aria-hidden="true"
-              >
-                <i />
-              </span>
-              <span aria-live="polite">{performanceModeLabels[performanceMode]}</span>
+              <Gauge className={styles.controlGlyph} strokeWidth={1.8} aria-hidden="true" />
+              <span className={styles.controlLabel} aria-live="polite">{performanceModeLabels[performanceMode]}</span>
+              <i className={styles.controlNode} aria-hidden="true" />
             </button>
             <button
               className={styles.control}
@@ -407,10 +519,11 @@ function AppShell() {
               aria-label={isFullscreen ? 'Ieși din ecran complet' : 'Activează ecranul complet'}
               title={isFullscreen ? 'Ieși din ecran complet' : 'Ecran complet'}
             >
-              <span className={`${styles.fullscreenIcon} ${isFullscreen ? styles.fullscreenActive : ''}`}>
-                <i /><i /><i /><i />
-              </span>
-              <span>{isFullscreen ? 'Ecran complet' : 'Extinde'}</span>
+              {isFullscreen
+                ? <Minimize2 className={styles.controlGlyph} strokeWidth={1.8} aria-hidden="true" />
+                : <Maximize2 className={styles.controlGlyph} strokeWidth={1.8} aria-hidden="true" />}
+              <span className={styles.controlLabel}>{isFullscreen ? 'Micșorează' : 'Extinde'}</span>
+              <i className={styles.controlNode} aria-hidden="true" />
             </button>
             <button
               className={`${styles.control} ${styles.profileControl} ${isProfileOpen ? styles.profileControlActive : ''}`}
@@ -423,7 +536,8 @@ function AppShell() {
               }}
             >
               <b>CS</b>
-              <span>Profil</span>
+              <span className={styles.controlLabel}>Profil</span>
+              <i className={styles.controlNode} aria-hidden="true" />
             </button>
           </div>
         </motion.header>
@@ -444,13 +558,30 @@ function AppShell() {
                   : { duration: 0.56, ease: [0.76, 0, 0.24, 1] }
               }
             >
-              <ActiveView />
+              {location.pathname === '/' ? (
+                <NextMatchView
+                  broadcastAnchorRef={setBroadcastAnchor}
+                  broadcastRequestToken={broadcastRequestToken}
+                  onBroadcastActiveChange={handleBroadcastActiveChange}
+                />
+              ) : (
+                <ActiveView />
+              )}
             </motion.div>
           </AnimatePresence>
         </motion.div>
 
         <motion.div className={styles.viewportIndex} variants={interfaceReveal}>0{currentIndex + 1} / 06</motion.div>
       </motion.main>
+
+      {broadcastStarted && !broadcastDismissed && (
+        <MatchBroadcast
+          anchor={broadcastAnchor}
+          docked={location.pathname === '/' && broadcastActive}
+          onClose={closeBroadcast}
+          onReturnToMatch={returnToBroadcast}
+        />
+      )}
 
       <ProfilePanel
         open={isProfileOpen}

@@ -15,18 +15,17 @@ import {
   Eye,
   Flame,
   GitCompareArrows,
+  GripHorizontal,
   Heart,
   LayoutDashboard,
   MapPin,
   Maximize2,
   MessageCircle,
-  Mic2,
   Minus,
   Newspaper,
   Pause,
   Play,
   Plus,
-  RadioTower,
   Search,
   Send,
   Share2,
@@ -39,17 +38,22 @@ import {
   UserRoundCog,
   UsersRound,
   Video,
+  Volume2,
+  VolumeX,
   Wifi,
   X,
   Zap,
 } from 'lucide-react'
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
   type FormEvent,
+  type PointerEvent as ReactPointerEvent,
+  type RefCallback,
 } from 'react'
 import fanEmblem from '../assets/brand/cetatea-fan-emblem.webp'
 import arenaBackground from '../assets/brand/loading-cetatea-arena.webp'
@@ -138,13 +142,687 @@ const matchDayMoments = [
   { time: nextMatch.timeLabel, label: 'Fluierul de start', meta: `${nextMatch.round} · ora oficială`, official: true },
 ]
 
-const matchStreamUrl = import.meta.env.VITE_MATCH_STREAM_URL?.trim() as string | undefined
+const configuredMatchStreamUrl = import.meta.env.VITE_MATCH_STREAM_URL?.trim() as string | undefined
+const demoYouTubeVideoId = '6jqWAYfKroA'
+const demoYouTubeStreamUrl = `https://www.youtube-nocookie.com/embed/${demoYouTubeVideoId}?autoplay=1&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&loop=1&playlist=${demoYouTubeVideoId}&playsinline=1&rel=0&hl=ro`
+const matchStreamUrl = configuredMatchStreamUrl || demoYouTubeStreamUrl
+const isDemoStream = !configuredMatchStreamUrl
 
-export function NextMatchView() {
+type YouTubePlayerController = {
+  destroy: () => void
+  getCurrentTime: () => number
+  getDuration: () => number
+  getPlayerState: () => number
+  isMuted: () => boolean
+  mute: () => void
+  pauseVideo: () => void
+  playVideo: () => void
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void
+  unMute: () => void
+}
+
+type YouTubePlayerEvent = { target: YouTubePlayerController }
+type YouTubeStateEvent = YouTubePlayerEvent & { data: number }
+
+type YouTubeApi = {
+  Player: new (
+    element: HTMLIFrameElement,
+    options: {
+      events: {
+        onReady: (event: YouTubePlayerEvent) => void
+        onStateChange: (event: YouTubeStateEvent) => void
+        onError: () => void
+      }
+    },
+  ) => YouTubePlayerController
+}
+
+declare global {
+  interface Window {
+    YT?: YouTubeApi
+    onYouTubeIframeAPIReady?: () => void
+  }
+}
+
+let youtubeApiPromise: Promise<YouTubeApi> | null = null
+
+function loadYouTubeApi() {
+  if (window.YT?.Player) return Promise.resolve(window.YT)
+  if (youtubeApiPromise) return youtubeApiPromise
+
+  youtubeApiPromise = new Promise<YouTubeApi>((resolve, reject) => {
+    const previousReadyHandler = window.onYouTubeIframeAPIReady
+
+    window.onYouTubeIframeAPIReady = () => {
+      previousReadyHandler?.()
+      if (window.YT?.Player) resolve(window.YT)
+      else reject(new Error('API-ul YouTube nu a putut fi inițializat.'))
+    }
+
+    const existingScript = document.querySelector<HTMLScriptElement>('script[src="https://www.youtube.com/iframe_api"]')
+    if (existingScript) return
+
+    const script = document.createElement('script')
+    script.src = 'https://www.youtube.com/iframe_api'
+    script.async = true
+    script.addEventListener('error', () => {
+      youtubeApiPromise = null
+      reject(new Error('API-ul YouTube nu a putut fi încărcat.'))
+    }, { once: true })
+    document.head.append(script)
+  })
+
+  return youtubeApiPromise
+}
+
+type BroadcastPhase = 'loading' | 'playing' | 'blocked' | 'error'
+
+type BroadcastRect = {
+  top: number
+  left: number
+  width: number
+  height: number
+}
+
+type BroadcastDragSession = {
+  pointerId: number
+  startX: number
+  startY: number
+  startLeft: number
+  startTop: number
+  moved: boolean
+  captureElement: HTMLElement
+}
+
+type MatchBroadcastProps = {
+  anchor: HTMLDivElement | null
+  docked: boolean
+  onClose: () => void
+  onReturnToMatch: () => void
+  source?: string
+}
+
+function formatVideoTime(value: number) {
+  if (!Number.isFinite(value) || value < 0) return '00:00'
+  const minutes = Math.floor(value / 60)
+  const seconds = Math.floor(value % 60)
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+export function MatchBroadcast({
+  anchor,
+  docked,
+  onClose,
+  onReturnToMatch,
+  source = matchStreamUrl,
+}: MatchBroadcastProps) {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const shellRef = useRef<HTMLElement>(null)
+  const dragSessionRef = useRef<BroadcastDragSession | null>(null)
+  const playerRef = useRef<YouTubePlayerController | null>(null)
+  const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const blockedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const statePollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const visibilityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const relocationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const initialDockFrameRef = useRef<number | null>(null)
+  const previousDockedRef = useRef(docked)
+  const previousDockTargetRef = useRef(false)
+  const initiallyDockedRef = useRef(docked)
+  const userPausedRef = useRef(false)
+  const { isMuted: isSoundMuted, toggleMute: toggleSound } = useSound()
+  const soundMutedRef = useRef(isSoundMuted)
+  const [phase, setPhase] = useState<BroadcastPhase>('loading')
+  const [isPaused, setIsPaused] = useState(false)
+  const [resumeShield, setResumeShield] = useState(false)
+  const [isRelocating, setIsRelocating] = useState(false)
+  const [initialDockReady, setInitialDockReady] = useState(!docked)
+  const [timeline, setTimeline] = useState({ current: 0, duration: 0 })
+  const [anchorRect, setAnchorRect] = useState<BroadcastRect | null>(null)
+  const [viewport, setViewport] = useState(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  }))
+  const [floatingPosition, setFloatingPosition] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('cetatea-video-position') ?? '{}')
+      return {
+        x: typeof stored.x === 'number' ? Math.min(1, Math.max(0, stored.x)) : 1,
+        y: typeof stored.y === 'number' ? Math.min(1, Math.max(0, stored.y)) : 1,
+      }
+    } catch {
+      return { x: 1, y: 1 }
+    }
+  })
+  const [dragPosition, setDragPosition] = useState<{ left: number; top: number } | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const stream = useMemo(() => {
+    try {
+      const url = new URL(source)
+      const hostname = url.hostname.replace(/^www\./, '')
+      const isYouTube = hostname === 'youtube.com'
+        || hostname.endsWith('.youtube.com')
+        || hostname === 'youtube-nocookie.com'
+        || hostname.endsWith('.youtube-nocookie.com')
+
+      if (isYouTube) {
+        url.searchParams.set('enablejsapi', '1')
+        url.searchParams.set('origin', window.location.origin)
+      }
+
+      return { src: url.toString(), isYouTube }
+    } catch {
+      return { src: source, isYouTube: false }
+    }
+  }, [source])
+
+  useEffect(() => {
+    const syncViewport = () => setViewport({ width: window.innerWidth, height: window.innerHeight })
+    window.addEventListener('resize', syncViewport)
+    return () => window.removeEventListener('resize', syncViewport)
+  }, [])
+
+  useEffect(() => {
+    if (!docked || !anchor) {
+      setAnchorRect(null)
+      return
+    }
+
+    let settled = false
+
+    const measure = () => {
+      const rect = anchor.getBoundingClientRect()
+      if (rect.width < 2 || rect.height < 2) return
+
+      const next = {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      }
+      setAnchorRect((current) => {
+        if (
+          current
+          && Math.abs(current.top - next.top) < .5
+          && Math.abs(current.left - next.left) < .5
+          && Math.abs(current.width - next.width) < .5
+          && Math.abs(current.height - next.height) < .5
+        ) return current
+        return next
+      })
+    }
+
+    const observer = new ResizeObserver(() => {
+      if (settled) measure()
+    })
+    observer.observe(anchor)
+    const settleTimer = setTimeout(() => {
+      settled = true
+      measure()
+    }, 560)
+
+    return () => {
+      observer.disconnect()
+      clearTimeout(settleTimer)
+    }
+  }, [anchor, docked])
+
+  const hasDockTarget = docked && Boolean(anchorRect)
+
+  useLayoutEffect(() => {
+    if (initialDockReady || !initiallyDockedRef.current) return
+
+    if (!docked) {
+      setInitialDockReady(true)
+      return
+    }
+
+    if (!anchorRect) return
+    initialDockFrameRef.current = requestAnimationFrame(() => {
+      setInitialDockReady(true)
+      initialDockFrameRef.current = null
+    })
+
+    return () => {
+      if (initialDockFrameRef.current !== null) cancelAnimationFrame(initialDockFrameRef.current)
+    }
+  }, [anchorRect, docked, initialDockReady])
+
+  useLayoutEffect(() => {
+    const dockModeChanged = previousDockedRef.current !== docked
+    const dockTargetAcquired = !previousDockTargetRef.current && hasDockTarget
+
+    previousDockedRef.current = docked
+    previousDockTargetRef.current = hasDockTarget
+
+    if (!dockModeChanged && !dockTargetAcquired) return
+
+    setIsRelocating(true)
+    if (relocationTimerRef.current) clearTimeout(relocationTimerRef.current)
+    relocationTimerRef.current = setTimeout(() => setIsRelocating(false), dockTargetAcquired ? 760 : 680)
+  }, [docked, hasDockTarget])
+
+  useEffect(() => () => {
+    if (relocationTimerRef.current) clearTimeout(relocationTimerRef.current)
+    if (initialDockFrameRef.current !== null) cancelAnimationFrame(initialDockFrameRef.current)
+  }, [])
+
+  useEffect(() => {
+    soundMutedRef.current = isSoundMuted
+    const player = playerRef.current
+    if (!player) return
+    if (isSoundMuted) player.mute()
+    else player.unMute()
+  }, [isSoundMuted])
+
+  useEffect(() => {
+    if (!stream.isYouTube) return
+
+    let isActive = true
+    let player: YouTubePlayerController | null = null
+
+    const revealPlayingStream = () => {
+      if (!isActive || revealTimerRef.current) return
+
+      // YouTube își stinge propriul overlay imediat după pornire.
+      // Păstrăm afișul aplicației peste acea etapă, apoi dezvăluim cadrul curat.
+      revealTimerRef.current = setTimeout(() => {
+        revealTimerRef.current = null
+        if (!isActive || playerRef.current?.getPlayerState() !== 1) return
+        if (blockedTimerRef.current) clearTimeout(blockedTimerRef.current)
+        if (statePollTimerRef.current) clearInterval(statePollTimerRef.current)
+        setIsPaused(false)
+        setPhase('playing')
+      }, 5200)
+    }
+
+    void loadYouTubeApi()
+      .then((api) => {
+        if (!isActive || !iframeRef.current) return
+
+        player = new api.Player(iframeRef.current, {
+          events: {
+            onReady: (event) => {
+              if (!isActive) return
+              playerRef.current = event.target
+              event.target.mute()
+              event.target.playVideo()
+              statePollTimerRef.current = setInterval(() => {
+                if (event.target.getPlayerState() === 1) revealPlayingStream()
+              }, 250)
+              blockedTimerRef.current = setTimeout(() => {
+                if (isActive) setPhase('blocked')
+              }, 6000)
+            },
+            onStateChange: (event) => {
+              if (!isActive) return
+              if (event.data === 1) {
+                if (!soundMutedRef.current) event.target.unMute()
+                setIsPaused(false)
+                revealPlayingStream()
+              }
+              if (event.data === 2) setIsPaused(true)
+            },
+            onError: () => {
+              if (isActive) setPhase('error')
+            },
+          },
+        })
+        playerRef.current = player
+      })
+      .catch(() => {
+        if (isActive) setPhase('error')
+      })
+
+    return () => {
+      isActive = false
+      if (revealTimerRef.current) clearTimeout(revealTimerRef.current)
+      if (blockedTimerRef.current) clearTimeout(blockedTimerRef.current)
+      if (statePollTimerRef.current) clearInterval(statePollTimerRef.current)
+      if (visibilityTimerRef.current) clearTimeout(visibilityTimerRef.current)
+      if (playerRef.current === player) playerRef.current = null
+      player?.destroy()
+    }
+  }, [stream.isYouTube, stream.src])
+
+  useEffect(() => {
+    if (phase !== 'playing') return
+
+    const syncTimeline = () => {
+      const player = playerRef.current
+      if (!player) return
+      setTimeline({
+        current: player.getCurrentTime() || 0,
+        duration: player.getDuration() || 0,
+      })
+    }
+
+    syncTimeline()
+    const interval = setInterval(syncTimeline, 500)
+    return () => clearInterval(interval)
+  }, [phase])
+
+  useEffect(() => {
+    if (phase !== 'playing') return
+
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible' || userPausedRef.current) return
+
+      setResumeShield(true)
+      playerRef.current?.playVideo()
+      if (visibilityTimerRef.current) clearTimeout(visibilityTimerRef.current)
+      visibilityTimerRef.current = setTimeout(() => setResumeShield(false), 4800)
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [phase])
+
+  const requestPlayback = () => {
+    if (!playerRef.current) {
+      setPhase('error')
+      return
+    }
+
+    setPhase('loading')
+    playerRef.current.mute()
+    playerRef.current.playVideo()
+    if (blockedTimerRef.current) clearTimeout(blockedTimerRef.current)
+    blockedTimerRef.current = setTimeout(() => setPhase('blocked'), 6000)
+  }
+
+  const togglePlayback = () => {
+    const player = playerRef.current
+    if (!player) return
+
+    if (isPaused || player.getPlayerState() !== 1) {
+      userPausedRef.current = false
+      setIsPaused(false)
+      setResumeShield(true)
+      player.playVideo()
+      if (visibilityTimerRef.current) clearTimeout(visibilityTimerRef.current)
+      visibilityTimerRef.current = setTimeout(() => setResumeShield(false), 3200)
+      return
+    }
+
+    userPausedRef.current = true
+    player.pauseVideo()
+    setIsPaused(true)
+  }
+
+  const toggleVideoMute = () => {
+    toggleSound()
+  }
+
+  const seekVideo = (value: number) => {
+    playerRef.current?.seekTo(value, true)
+    setTimeline((current) => ({ ...current, current: value }))
+  }
+
+  const closePlayer = () => {
+    userPausedRef.current = true
+    playerRef.current?.pauseVideo()
+    onClose()
+  }
+
+  const curtainCopy = phase === 'blocked'
+    ? 'Browserul a oprit pornirea automată'
+    : phase === 'error'
+      ? 'Semnalul video nu este disponibil'
+      : 'Pregătim cadrul transmisiei'
+
+  const floatingWidth = Math.min(410, Math.max(286, viewport.width * .285), viewport.width - 24)
+  const floatingHeight = floatingWidth * 9 / 16
+  const floatingMargin = 12
+  const floatingTravelX = Math.max(0, viewport.width - floatingWidth - floatingMargin * 2)
+  const floatingTravelY = Math.max(0, viewport.height - floatingHeight - floatingMargin * 2)
+  const floatingLeft = floatingMargin + floatingTravelX * floatingPosition.x
+  const floatingTop = floatingMargin + floatingTravelY * floatingPosition.y
+  const placement = docked && anchorRect
+    ? anchorRect
+    : {
+        top: dragPosition?.top ?? floatingTop,
+        left: dragPosition?.left ?? floatingLeft,
+        width: floatingWidth,
+        height: floatingHeight,
+      }
+  const isFloating = !docked
+  const isInitialDockPending = initiallyDockedRef.current && !initialDockReady
+
+  const clampFloatingPosition = (left: number, top: number) => {
+    const maxLeft = Math.max(floatingMargin, viewport.width - floatingWidth - floatingMargin)
+    const maxTop = Math.max(floatingMargin, viewport.height - floatingHeight - floatingMargin)
+    return {
+      left: Math.min(maxLeft, Math.max(floatingMargin, left)),
+      top: Math.min(maxTop, Math.max(floatingMargin, top)),
+    }
+  }
+
+  const startFloatingDrag = (event: ReactPointerEvent<HTMLElement>, force = false) => {
+    if (!isFloating || (!force && (event.target as HTMLElement).closest('button'))) return
+    const rect = shellRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    dragSessionRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startLeft: rect.left,
+      startTop: rect.top,
+      moved: false,
+      captureElement: event.currentTarget,
+    }
+    setDragPosition({ left: rect.left, top: rect.top })
+    setIsDragging(true)
+  }
+
+  const moveFloatingDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    const session = dragSessionRef.current
+    if (!session || session.pointerId !== event.pointerId) return
+
+    event.preventDefault()
+    const deltaX = event.clientX - session.startX
+    const deltaY = event.clientY - session.startY
+    if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) session.moved = true
+    setDragPosition(clampFloatingPosition(session.startLeft + deltaX, session.startTop + deltaY))
+  }
+
+  const finishFloatingDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    const session = dragSessionRef.current
+    if (!session || session.pointerId !== event.pointerId) return
+
+    const deltaX = event.clientX - session.startX
+    const deltaY = event.clientY - session.startY
+    const finalPosition = clampFloatingPosition(session.startLeft + deltaX, session.startTop + deltaY)
+
+    if (session.captureElement.hasPointerCapture(session.pointerId)) {
+      session.captureElement.releasePointerCapture(session.pointerId)
+    }
+    dragSessionRef.current = null
+
+    if (session.moved) {
+      const nextPosition = {
+        x: floatingTravelX > 0 ? (finalPosition.left - floatingMargin) / floatingTravelX : 0,
+        y: floatingTravelY > 0 ? (finalPosition.top - floatingMargin) / floatingTravelY : 0,
+      }
+      setFloatingPosition(nextPosition)
+      localStorage.setItem('cetatea-video-position', JSON.stringify(nextPosition))
+    }
+
+    setDragPosition(null)
+    setIsDragging(false)
+  }
+
+  const cancelFloatingDrag = () => {
+    const session = dragSessionRef.current
+    if (session?.captureElement.hasPointerCapture(session.pointerId)) {
+      session.captureElement.releasePointerCapture(session.pointerId)
+    }
+    dragSessionRef.current = null
+    setDragPosition(null)
+    setIsDragging(false)
+  }
+
+  const moveFloatingWithKeyboard = (deltaX: number, deltaY: number) => {
+    const next = clampFloatingPosition(floatingLeft + deltaX, floatingTop + deltaY)
+    const nextPosition = {
+      x: floatingTravelX > 0 ? (next.left - floatingMargin) / floatingTravelX : 0,
+      y: floatingTravelY > 0 ? (next.top - floatingMargin) / floatingTravelY : 0,
+    }
+    setFloatingPosition(nextPosition)
+    localStorage.setItem('cetatea-video-position', JSON.stringify(nextPosition))
+  }
+
+  return (
+    <section
+      ref={shellRef}
+      className={`${styles.broadcastShell} ${isFloating ? styles.broadcastShellFloating : styles.broadcastShellDocked} ${isDragging ? styles.broadcastShellDragging : ''} ${isInitialDockPending ? styles.broadcastShellInitialDockPending : ''}`}
+      aria-label={isFloating ? 'Mini-playerul transmisiei' : 'Transmisiunea meciului'}
+      style={{
+        '--broadcast-poster': `url("${arenaBackground}")`,
+        '--broadcast-x': `${placement.left}px`,
+        '--broadcast-y': `${placement.top}px`,
+        width: placement.width,
+        height: placement.height,
+      } as CSSProperties}
+    >
+      <div className={`${styles.broadcastPlayer} ${isPaused ? styles.broadcastPlayerPaused : ''}`}>
+        <iframe
+          ref={iframeRef}
+          className={`${styles.broadcastFrame} ${phase === 'playing' ? styles.broadcastFrameReady : ''}`}
+          src={stream.src}
+          title="Transmisiunea video Cetatea Suceava"
+          allow="autoplay; encrypted-media; picture-in-picture"
+          referrerPolicy="strict-origin-when-cross-origin"
+          tabIndex={-1}
+          onLoad={() => {
+            if (!stream.isYouTube) setPhase('playing')
+          }}
+        />
+
+        <div
+          className={`${styles.broadcastTopShield} ${isFloating ? styles.broadcastDragSurface : ''}`}
+          onPointerDown={(event) => {
+            startFloatingDrag(event)
+          }}
+          onPointerMove={moveFloatingDrag}
+          onPointerUp={finishFloatingDrag}
+          onPointerCancel={cancelFloatingDrag}
+        >
+          <span><i /> CETATEA LIVE</span>
+          <small>{isFloating ? 'Transmisiunea continuă' : 'Semnalul oficial al suporterilor'}</small>
+          {isFloating && (
+            <span className={styles.broadcastWindowActions}>
+              <button
+                type="button"
+                className={styles.broadcastDragHandle}
+                onPointerDown={(event) => startFloatingDrag(event, true)}
+                onKeyDown={(event) => {
+                  const distance = event.shiftKey ? 64 : 24
+                  if (event.key === 'ArrowLeft') moveFloatingWithKeyboard(-distance, 0)
+                  else if (event.key === 'ArrowRight') moveFloatingWithKeyboard(distance, 0)
+                  else if (event.key === 'ArrowUp') moveFloatingWithKeyboard(0, -distance)
+                  else if (event.key === 'ArrowDown') moveFloatingWithKeyboard(0, distance)
+                  else return
+                  event.preventDefault()
+                }}
+                aria-label="Mută mini-playerul"
+                title="Trage pentru a muta"
+              ><GripHorizontal /></button>
+              <button type="button" onClick={onReturnToMatch} aria-label="Deschide transmisiunea în centrul meciului"><Maximize2 /></button>
+              <button type="button" onClick={closePlayer} aria-label="Închide mini-playerul"><X /></button>
+            </span>
+          )}
+        </div>
+
+        {phase === 'playing' && (
+          <div className={styles.broadcastControls}>
+            <button type="button" onClick={togglePlayback} aria-label={isPaused ? 'Continuă redarea' : 'Pune pauză'}>
+              {isPaused ? <Play /> : <Pause />}
+            </button>
+            <time>{formatVideoTime(timeline.current)}</time>
+            <input
+              type="range"
+              min="0"
+              max={Math.max(timeline.duration, 1)}
+              step="0.1"
+              value={Math.min(timeline.current, Math.max(timeline.duration, 1))}
+              onChange={(event) => seekVideo(Number(event.target.value))}
+              disabled={timeline.duration <= 0}
+              aria-label="Poziția în transmisie"
+              style={{ '--video-progress': `${timeline.duration > 0 ? timeline.current / timeline.duration * 100 : 100}%` } as CSSProperties}
+            />
+            <time>{timeline.duration > 0 ? formatVideoTime(timeline.duration) : 'LIVE'}</time>
+            <button type="button" onClick={toggleVideoMute} aria-label={isSoundMuted ? 'Pornește toate sunetele' : 'Oprește toate sunetele'}>
+              {isSoundMuted ? <VolumeX /> : <Volume2 />}
+            </button>
+            {isFloating && (
+              <button type="button" onClick={onReturnToMatch} aria-label="Revino la centrul meciului"><Maximize2 /></button>
+            )}
+          </div>
+        )}
+
+        {isPaused && phase === 'playing' && (
+          <button type="button" className={styles.broadcastPauseVeil} onClick={togglePlayback}>
+            <span><Play /></span>
+            <strong>Transmisiune în pauză</strong>
+            <small>Apasă pentru a continua</small>
+          </button>
+        )}
+
+        <div className={`${styles.broadcastResumeShield} ${resumeShield ? styles.broadcastResumeShieldVisible : ''}`} aria-hidden="true">
+          <span><i /> Semnal reluat</span>
+        </div>
+
+        <div className={`${styles.broadcastRelocationShield} ${isRelocating ? styles.broadcastRelocationShieldVisible : ''}`} aria-hidden="true">
+          <Video />
+          <span><i /> {isFloating ? 'Transmisiunea te urmează' : 'Revenim în centrul meciului'}</span>
+        </div>
+
+        <div
+          className={`${styles.broadcastCurtain} ${phase === 'playing' ? styles.broadcastCurtainHidden : ''}`}
+          role="status"
+          aria-live="polite"
+          aria-hidden={phase === 'playing'}
+        >
+          <div className={styles.broadcastCurtainContent}>
+            <span className={styles.broadcastSignal}><i /> CETATEA LIVE</span>
+            <img src={fanEmblem} alt="" aria-hidden="true" />
+            <strong>{curtainCopy}</strong>
+
+            {phase === 'loading' ? (
+              <span className={styles.broadcastProgress} aria-hidden="true"><i /></span>
+            ) : (
+              <button type="button" onClick={requestPlayback} disabled={phase === 'error'}>
+                <Play aria-hidden="true" />
+                {phase === 'blocked' ? 'Pornește transmisiunea' : 'Semnal indisponibil'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+type NextMatchViewProps = {
+  broadcastAnchorRef?: RefCallback<HTMLDivElement>
+  broadcastRequestToken?: number
+  onBroadcastActiveChange?: (active: boolean) => void
+}
+
+export function NextMatchView({
+  broadcastAnchorRef,
+  broadcastRequestToken = 0,
+  onBroadcastActiveChange,
+}: NextMatchViewProps = {}) {
   const countdown = useMatchCountdown()
   const { play } = useSound()
-  const matchPlayerRef = useRef<HTMLDivElement>(null)
-  const [mode, setMode] = useState<MatchCenterMode>('centru')
+  const [mode, setMode] = useState<MatchCenterMode>(isDemoStream ? 'transmisiune' : 'centru')
   const [messages, setMessages] = useState<WallMessage[]>(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('cetatea-match-messages') ?? '[]')
@@ -167,7 +845,15 @@ export function NextMatchView() {
   })
   const [checkedIn, setCheckedIn] = useState(() => localStorage.getItem('cetatea-match-checkin') === 'active')
   const [matchReminder, setMatchReminder] = useState(() => localStorage.getItem('cetatea-next-match-reminder') === 'active')
-  const [streamStarted, setStreamStarted] = useState(false)
+
+  useEffect(() => {
+    if (broadcastRequestToken > 0) setMode('transmisiune')
+  }, [broadcastRequestToken])
+
+  useEffect(() => {
+    onBroadcastActiveChange?.(mode === 'transmisiune')
+    return () => onBroadcastActiveChange?.(false)
+  }, [mode, onBroadcastActiveChange])
 
   useEffect(() => {
     localStorage.setItem('cetatea-match-messages', JSON.stringify(messages.filter((item) => item.id > 3)))
@@ -268,16 +954,6 @@ export function NextMatchView() {
     }
   }
 
-  const togglePlayerFullscreen = async () => {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen()
-      else await matchPlayerRef.current?.requestFullscreen()
-      play('toggle')
-    } catch {
-      // Modul fullscreen poate fi blocat dacă fereastra nu este activă.
-    }
-  }
-
   return (
     <section className={`${styles.view} ${styles.matchCenterView}`}>
       <ViewIntro code="MEC–01" label="Următorul meci / Match Center" title="Areni intră în" accent="stare de asediu." />
@@ -317,9 +993,22 @@ export function NextMatchView() {
                     </div>
 
                     <div className={styles.matchEssentials}>
-                      <span><CalendarDays aria-hidden="true" /><small>Data</small><strong>{nextMatch.dateLabel}</strong></span>
-                      <span><MapPin aria-hidden="true" /><small>Locul</small><strong>{nextMatch.venue}</strong></span>
-                      <span><UsersRound aria-hidden="true" /><small>Suporteri conectați</small><strong>{checkedIn ? 285 : 284}</strong></span>
+                      <span>
+                        <span className={styles.factIcon} aria-hidden="true"><CalendarDays /></span>
+                        <span className={styles.factCopy}>
+                          <small>Data</small>
+                          <strong className={styles.factValueFull}>{nextMatch.dateLabel}</strong>
+                          <strong className={styles.factValueCompact}>{nextMatch.compactDateLabel}</strong>
+                        </span>
+                      </span>
+                      <span>
+                        <span className={styles.factIcon} aria-hidden="true"><MapPin /></span>
+                        <span className={styles.factCopy}><small>Locul</small><strong>{nextMatch.venue}</strong></span>
+                      </span>
+                      <span>
+                        <span className={styles.factIcon} aria-hidden="true"><UsersRound /></span>
+                        <span className={styles.factCopy}><small>Suporteri conectați</small><strong>{checkedIn ? 285 : 284}</strong></span>
+                      </span>
                     </div>
 
                     <footer className={styles.matchOverviewActions}>
@@ -331,35 +1020,8 @@ export function NextMatchView() {
                 )}
 
                 {mode === 'transmisiune' && (
-                  <motion.div key="transmisiune" className={styles.broadcastExperience} initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -22 }} transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}>
-                    <div className={styles.broadcastPlayer} ref={matchPlayerRef}>
-                      {streamStarted && matchStreamUrl ? (
-                        <iframe src={matchStreamUrl} title="Transmisiunea oficială a meciului" allow="autoplay; fullscreen; picture-in-picture" allowFullScreen />
-                      ) : (
-                        <div className={styles.broadcastStandby}>
-                          <img src={arenaBackground} alt="Stadionul Areni pregătit pentru meci" />
-                          <span aria-hidden="true" />
-                          <div>
-                            <small><i /> Studio Cetatea · semnal programat</small>
-                            <h2>Areniul intră<br />în direct.</h2>
-                            <p>{matchStreamUrl ? 'Sursa video este pregătită. Pornește transmisiunea când ești gata.' : 'Playerul va conecta sursa oficială imediat ce linkul transmisiunii este publicat.'}</p>
-                            <button type="button" disabled={!matchStreamUrl} onClick={() => { setStreamStarted(true); play('success') }}><Play aria-hidden="true" />{matchStreamUrl ? 'Pornește transmisiunea' : 'Semnal în așteptare'}</button>
-                          </div>
-                        </div>
-                      )}
-                      <div className={styles.broadcastControls}>
-                        <span><i /> {streamStarted && matchStreamUrl ? 'LIVE' : 'PROGRAMAT'}<small>HD · Areni</small></span>
-                        <div>
-                          <button type="button" onClick={() => void togglePlayerFullscreen()} aria-label="Extinde playerul"><Maximize2 aria-hidden="true" /></button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className={styles.broadcastChannels}>
-                      <article><Video aria-hidden="true" /><span><small>Canal video</small><strong>{matchStreamUrl ? 'Pregătit pentru conectare' : 'Așteaptă sursa oficială'}</strong></span><i className={matchStreamUrl ? styles.channelReady : ''} /></article>
-                      <article><Mic2 aria-hidden="true" /><span><small>Audio tribună</small><strong>Se activează la start</strong></span><i /></article>
-                      <article><RadioTower aria-hidden="true" /><span><small>Live text</small><strong>Fază cu fază în aplicație</strong></span><i className={styles.channelReady} /></article>
-                    </div>
+                  <motion.div ref={broadcastAnchorRef} key="transmisiune" className={styles.broadcastExperience} initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -22 }} transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}>
+                    <span className={styles.broadcastDockTarget} aria-hidden="true"><i /><small>Pregătim transmisia</small></span>
                   </motion.div>
                 )}
 
@@ -766,23 +1428,39 @@ export function SquadView() {
                     ))}
                   </div>
 
-                  <div className={styles.playerDirectoryGrid}>
-                    {filteredSquad.map((player) => (
-                      <button
-                        type="button"
-                        key={player.number}
-                        className={`${selectedPlayer.number === player.number ? styles.directoryPlayerActive : ''} ${favorites.includes(player.number) ? styles.directoryPlayerFavorite : ''}`}
-                        style={{ '--player-tone': positionTone[player.position] } as CSSProperties}
-                        onClick={() => selectPlayer(player.number)}
-                        aria-pressed={selectedPlayer.number === player.number}
-                        title={`${player.name} · ${player.position}`}
-                      >
-                        <b>{String(player.number).padStart(2, '0')}</b>
-                        <span><strong>{player.name}</strong><small>{player.position}</small></span>
-                        {favorites.includes(player.number) && <Star aria-label="Favorit" />}
-                        <i />
-                      </button>
-                    ))}
+                  <div
+                    className={`${styles.playerDirectoryGrid} ${
+                      filteredSquad.length <= 4
+                        ? styles.playerDirectorySparse
+                        : filteredSquad.length <= 12
+                          ? styles.playerDirectoryCompact
+                          : ''
+                    }`}
+                    data-density={filteredSquad.length <= 4 ? 'rar' : filteredSquad.length <= 12 ? 'compact' : 'complet'}
+                  >
+                    {filteredSquad.map((player) => {
+                      const compactName = player.name.split(' ').at(-1) ?? player.name
+
+                      return (
+                        <button
+                          type="button"
+                          key={player.number}
+                          className={`${selectedPlayer.number === player.number ? styles.directoryPlayerActive : ''} ${favorites.includes(player.number) ? styles.directoryPlayerFavorite : ''}`}
+                          style={{ '--player-tone': positionTone[player.position] } as CSSProperties}
+                          onClick={() => selectPlayer(player.number)}
+                          aria-pressed={selectedPlayer.number === player.number}
+                          title={`${player.name} · ${player.position}`}
+                        >
+                          <b>{String(player.number).padStart(2, '0')}</b>
+                          <span>
+                            <strong><span className={styles.playerNameFull}>{player.name}</span><span className={styles.playerNameCompact}>{compactName}</span></strong>
+                            <small>{player.position}</small>
+                          </span>
+                          {favorites.includes(player.number) && <Star aria-label="Favorit" />}
+                          <i />
+                        </button>
+                      )
+                    })}
                     {!filteredSquad.length && <p className={styles.noPlayers}>Niciun jucător găsit.</p>}
                   </div>
                 </aside>
@@ -1120,8 +1798,14 @@ export function LeagueTableView() {
                     <span><img src={badgeForTeam(selectedFixture.away)} alt="" /><strong>{selectedFixture.away}</strong></span>
                   </div>
                   <div className={styles.fixtureCoordinates}>
-                    <span><CalendarDays aria-hidden="true" /><small>Data</small><strong>{selectedFixture.date}</strong></span>
-                    <span><CircleDot aria-hidden="true" /><small>Stadion</small><strong>{selectedFixture.venue}</strong></span>
+                    <span>
+                      <span className={styles.factIcon} aria-hidden="true"><CalendarDays /></span>
+                      <span className={styles.factCopy}><small>Data</small><strong>{selectedFixture.date}</strong></span>
+                    </span>
+                    <span>
+                      <span className={styles.factIcon} aria-hidden="true"><CircleDot /></span>
+                      <span className={styles.factCopy}><small>Stadion</small><strong>{selectedFixture.venue}</strong></span>
+                    </span>
                   </div>
                   <button type="button" className={reminders.includes(selectedFixtureIndex) ? styles.fixtureReminderActive : ''} onClick={() => toggleReminder(selectedFixtureIndex)} aria-pressed={reminders.includes(selectedFixtureIndex)}>
                     <Bell aria-hidden="true" /><span><strong>{reminders.includes(selectedFixtureIndex) ? 'Alerta este activă' : 'Activează alerta de meci'}</strong><small>Primești noutățile înainte de start</small></span><i />
@@ -1568,7 +2252,16 @@ export function NewsView() {
             ))}
           </div>
 
-          <div className={styles.newsQueue}>
+          <div
+            className={`${styles.newsQueue} ${
+              visibleArticles.length <= 2
+                ? styles.newsQueueSparse
+                : visibleArticles.length <= 4
+                  ? styles.newsQueueCompact
+                  : ''
+            }`}
+            data-density={visibleArticles.length <= 2 ? 'rar' : visibleArticles.length <= 4 ? 'compact' : 'complet'}
+          >
             {visibleArticles.map((article, index) => (
               <button
                 type="button"
