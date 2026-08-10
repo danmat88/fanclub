@@ -1,8 +1,8 @@
 :root {
-  --font-body: 'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-game: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-  --font-tech: 'Oxanium Variable', 'Space Grotesk Variable', ui-sans-serif, sans-serif;
-  --font-display: 'Barlow Condensed', 'Space Grotesk Variable', sans-serif;
+  --font-body: 'Manrope Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-game: 'Saira Variable', 'Arial Narrow', sans-serif;
+  --font-tech: 'Oxanium Variable', 'Manrope Variable', ui-sans-serif, sans-serif;
+  --font-display: 'Saira Variable', 'Manrope Variable', sans-serif;
   font-family: var(--font-body);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -25,8 +25,8 @@
   --surface-faint: rgba(131, 181, 245, 0.055);
   --surface-solid: #081a38;
   --text-primary: #f2f7ff;
-  --text-subtle: #8fa9c9;
-  --text-dim: #4d6a8c;
+  --text-subtle: #b8cbe4;
+  --text-dim: #7894b6;
   --line: rgba(125, 173, 232, 0.16);
   --line-strong: rgba(141, 190, 247, 0.3);
   --ambient-line: rgba(91, 146, 213, 0.11);
@@ -67,8 +67,8 @@
   --surface-faint: rgba(19, 79, 149, 0.055);
   --surface-solid: #f5faff;
   --text-primary: #061a34;
-  --text-subtle: #49637f;
-  --text-dim: #8295a8;
+  --text-subtle: #365574;
+  --text-dim: #607b96;
   --line: rgba(15, 62, 116, 0.15);
   --line-strong: rgba(17, 71, 133, 0.28);
   --ambient-line: rgba(17, 83, 164, 0.1);
@@ -109,8 +109,8 @@
   --surface-faint: rgba(255, 119, 134, 0.06);
   --surface-solid: #2b0d18;
   --text-primary: #fff4f2;
-  --text-subtle: #d5a2a2;
-  --text-dim: #825c64;
+  --text-subtle: #e4b8ba;
+  --text-dim: #ae7d87;
   --line: rgba(255, 146, 156, 0.16);
   --line-strong: rgba(255, 164, 167, 0.31);
   --ambient-line: rgba(255, 115, 128, 0.11);
@@ -151,8 +151,8 @@
   --surface-faint: rgba(93, 224, 204, 0.055);
   --surface-solid: #092e31;
   --text-primary: #effffb;
-  --text-subtle: #91beb8;
-  --text-dim: #4e7b78;
+  --text-subtle: #b4d8d2;
+  --text-dim: #76a49f;
   --line: rgba(116, 222, 205, 0.16);
   --line-strong: rgba(136, 235, 218, 0.3);
   --ambient-line: rgba(78, 196, 178, 0.11);

@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
+import { BellRing, CalendarDays, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import styles from './App.module.css'
@@ -137,6 +138,9 @@ function AppShell() {
   const [matchAlert, setMatchAlert] = useState(
     () => localStorage.getItem('cetatea-match-alert') === 'active',
   )
+  const [isRailCollapsed, setIsRailCollapsed] = useState(
+    () => localStorage.getItem('cetatea-rail') === 'restrans',
+  )
   const ActiveView = viewMap[location.pathname] ?? NextMatchView
   const nextTheme = themeOrder[(themeOrder.indexOf(theme) + 1) % themeOrder.length]
   const nextPerformanceMode =
@@ -195,9 +199,18 @@ function AppShell() {
     play('success')
   }
 
+  const toggleRail = () => {
+    setIsRailCollapsed((current) => {
+      const next = !current
+      localStorage.setItem('cetatea-rail', next ? 'restrans' : 'extins')
+      return next
+    })
+    play('toggle')
+  }
+
   return (
     <motion.div
-      className={styles.app}
+      className={`${styles.app} ${isRailCollapsed ? styles.appRailCollapsed : ''}`}
       variants={appReveal}
       initial="hidden"
       animate="visible"
@@ -208,7 +221,11 @@ function AppShell() {
         <span className={styles.axis} />
       </motion.div>
 
-      <motion.aside className={styles.rail} variants={railReveal}>
+      <motion.aside
+        className={`${styles.rail} ${isRailCollapsed ? styles.railCollapsed : ''}`}
+        variants={railReveal}
+        aria-label="Panoul clubului suporterilor"
+      >
         <motion.div className={styles.brand} variants={interfaceReveal}>
           <span className={styles.brandMark}>
             <img src={fanEmblem} alt="" />
@@ -218,12 +235,29 @@ function AppShell() {
             <strong>Cetatea 1932</strong>
             <em>Suceava · Stadionul Areni</em>
           </span>
+          <button
+            type="button"
+            className={styles.railToggle}
+            onClick={toggleRail}
+            aria-controls="navigatie-principala"
+            aria-expanded={!isRailCollapsed}
+            aria-label={isRailCollapsed ? 'Extinde panoul lateral' : 'Restrânge panoul lateral'}
+            title={isRailCollapsed ? 'Extinde panoul' : 'Restrânge panoul'}
+          >
+            {isRailCollapsed
+              ? <PanelLeftOpen strokeWidth={1.9} aria-hidden="true" />
+              : <PanelLeftClose strokeWidth={1.9} aria-hidden="true" />}
+          </button>
         </motion.div>
 
         <motion.section className={`${styles.railMatch} ${location.pathname === '/' ? styles.railMatchActive : ''}`} variants={interfaceReveal}>
           <button className={styles.railMatchOpen} onClick={goToMatch} aria-current={location.pathname === '/' ? 'page' : undefined}>
+            <span className={styles.collapsedMatch} aria-hidden={!isRailCollapsed}>
+              <CalendarDays strokeWidth={1.8} />
+              <span><strong>{countdown.days}</strong><small>zile</small></span>
+            </span>
             <span className={styles.matchEyebrow}>
-              <strong><i /> Următorul meci</strong>
+              <strong><CalendarDays strokeWidth={1.9} aria-hidden="true" /> Următorul meci</strong>
               <em>{nextMatch.round}</em>
             </span>
 
@@ -265,18 +299,23 @@ function AppShell() {
             onClick={toggleMatchAlert}
             aria-pressed={matchAlert}
           >
-            <span><i /> {matchAlert ? 'Alerta este activă' : 'Activează alerta'}</span>
+            <span><BellRing strokeWidth={1.9} aria-hidden="true" /> {matchAlert ? 'Alerta este activă' : 'Activează alerta'}</span>
             <b>{matchAlert ? 'ACTIVĂ' : 'OPRITĂ'}</b>
           </button>
         </motion.section>
 
         <motion.div className={styles.navigationSlot} variants={interfaceReveal}>
-          <Navigation activePath={location.pathname} onNavigate={handleNavigate} />
+          <Navigation
+            activePath={location.pathname}
+            collapsed={isRailCollapsed}
+            onNavigate={handleNavigate}
+          />
         </motion.div>
 
         <motion.div className={styles.heritage} variants={interfaceReveal}>
-          <span>Din oraș. Pentru oraș.</span>
-          <strong>Alb-albastru / din 1932</strong>
+          <span className={styles.heritageLine}>Din oraș. Pentru oraș.</span>
+          <strong className={styles.heritageMotto}>Alb-albastru / din 1932</strong>
+          <strong className={styles.heritageCompact} aria-hidden={!isRailCollapsed}>1932</strong>
         </motion.div>
       </motion.aside>
 
