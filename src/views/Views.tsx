@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   Bell,
   Bookmark,
+  CalendarPlus,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -16,10 +17,16 @@ import {
   GitCompareArrows,
   Heart,
   LayoutDashboard,
+  MapPin,
+  Maximize2,
   MessageCircle,
+  Mic2,
+  Minus,
   Newspaper,
   Pause,
   Play,
+  Plus,
+  RadioTower,
   Search,
   Send,
   Share2,
@@ -27,15 +34,19 @@ import {
   Sparkles,
   Star,
   ThumbsUp,
+  TicketCheck,
   Trophy,
   UserRoundCog,
   UsersRound,
+  Video,
+  Wifi,
   X,
   Zap,
 } from 'lucide-react'
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type FormEvent,
@@ -112,14 +123,67 @@ const initialMessages: WallMessage[] = [
   { id: 3, author: 'Radu / Burdujeni', text: 'Cetatea nu cade. Ne vedem la stadion!', time: '10:51' },
 ]
 
+type MatchCenterMode = 'centru' | 'transmisiune' | 'program'
+
+const matchCenterModes = [
+  { id: 'centru' as const, label: 'Centrul meciului', meta: 'Scor și predicții', icon: TicketCheck },
+  { id: 'transmisiune' as const, label: 'Transmisiune', meta: 'Video · audio · text', icon: Video },
+  { id: 'program' as const, label: 'Planul zilei', meta: 'Repere și acces', icon: CalendarDays },
+]
+
+const matchDayMoments = [
+  { time: '09:30', label: 'Sosire recomandată', meta: 'Intră devreme în atmosfera Areniului', official: false },
+  { time: '10:20', label: 'Încălzirea echipelor', meta: 'Moment orientativ înaintea partidei', official: false },
+  { time: '10:50', label: 'Echipele intră pe teren', meta: 'Ultimele minute înainte de start', official: false },
+  { time: nextMatch.timeLabel, label: 'Fluierul de start', meta: `${nextMatch.round} · ora oficială`, official: true },
+]
+
+const matchStreamUrl = import.meta.env.VITE_MATCH_STREAM_URL?.trim() as string | undefined
+
 export function NextMatchView() {
   const countdown = useMatchCountdown()
   const { play } = useSound()
-  const [messages, setMessages] = useState(initialMessages)
+  const matchPlayerRef = useRef<HTMLDivElement>(null)
+  const [mode, setMode] = useState<MatchCenterMode>('centru')
+  const [messages, setMessages] = useState<WallMessage[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('cetatea-match-messages') ?? '[]')
+      return Array.isArray(stored) ? [...initialMessages, ...stored] : initialMessages
+    } catch {
+      return initialMessages
+    }
+  })
   const [message, setMessage] = useState('')
-  const [prediction, setPrediction] = useState<'1' | 'X' | '2' | null>(null)
-  const [matchMode, setMatchMode] = useState(false)
-  const [checkedIn, setCheckedIn] = useState(false)
+  const [scorePrediction, setScorePrediction] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('cetatea-score-prediction') ?? '{}')
+      return {
+        home: typeof stored.home === 'number' ? stored.home : 2,
+        away: typeof stored.away === 'number' ? stored.away : 0,
+      }
+    } catch {
+      return { home: 2, away: 0 }
+    }
+  })
+  const [checkedIn, setCheckedIn] = useState(() => localStorage.getItem('cetatea-match-checkin') === 'active')
+  const [matchReminder, setMatchReminder] = useState(() => localStorage.getItem('cetatea-next-match-reminder') === 'active')
+  const [streamStarted, setStreamStarted] = useState(false)
+
+  useEffect(() => {
+    localStorage.setItem('cetatea-match-messages', JSON.stringify(messages.filter((item) => item.id > 3)))
+  }, [messages])
+
+  useEffect(() => {
+    localStorage.setItem('cetatea-score-prediction', JSON.stringify(scorePrediction))
+  }, [scorePrediction])
+
+  useEffect(() => {
+    localStorage.setItem('cetatea-match-checkin', checkedIn ? 'active' : 'inactive')
+  }, [checkedIn])
+
+  useEffect(() => {
+    localStorage.setItem('cetatea-next-match-reminder', matchReminder ? 'active' : 'inactive')
+  }, [matchReminder])
 
   const sendMessage = (event: FormEvent) => {
     event.preventDefault()
@@ -147,169 +211,223 @@ export function NextMatchView() {
     play('navigate')
   }
 
+  const changeScore = (team: 'home' | 'away', direction: number) => {
+    setScorePrediction((current) => ({
+      ...current,
+      [team]: Math.max(0, Math.min(9, current[team] + direction)),
+    }))
+    play('toggle')
+  }
+
+  const toggleCheckIn = () => {
+    setCheckedIn((current) => !current)
+    play('success')
+  }
+
+  const toggleMatchReminder = () => {
+    setMatchReminder((current) => !current)
+    play('success')
+  }
+
+  const addMatchToCalendar = () => {
+    const start = new Date(nextMatch.kickoff)
+    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000)
+    const toCalendarDate = (date: Date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+    const calendar = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Fan Club Cetatea Suceava//RO',
+      'BEGIN:VEVENT',
+      `DTSTART:${toCalendarDate(start)}`,
+      `DTEND:${toCalendarDate(end)}`,
+      `SUMMARY:${nextMatch.home.name} - ${nextMatch.away.name}`,
+      `LOCATION:${nextMatch.venue}`,
+      `DESCRIPTION:${nextMatch.competition} · ${nextMatch.round}`,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n')
+    const url = URL.createObjectURL(new Blob([calendar], { type: 'text/calendar;charset=utf-8' }))
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'cetatea-suceava-csm-satu-mare.ics'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(url)
+    play('success')
+  }
+
+  const shareMatch = async () => {
+    const text = `${nextMatch.home.name} – ${nextMatch.away.name}, ${nextMatch.dateLabel}, ora ${nextMatch.timeLabel}, ${nextMatch.venue}`
+    try {
+      if (navigator.share) await navigator.share({ title: 'Următorul meci al Cetății', text })
+      else await navigator.clipboard?.writeText(text)
+      play('success')
+    } catch {
+      // Distribuirea poate fi anulată de utilizator.
+    }
+  }
+
+  const togglePlayerFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen()
+      else await matchPlayerRef.current?.requestFullscreen()
+      play('toggle')
+    } catch {
+      // Modul fullscreen poate fi blocat dacă fereastra nu este activă.
+    }
+  }
+
   return (
-    <section className={styles.view}>
-      <ViewIntro code="MEC–01" label="Următorul meci / date oficiale" title="Areni intră în" accent="stare de asediu." />
+    <section className={`${styles.view} ${styles.matchCenterView}`}>
+      <ViewIntro code="MEC–01" label="Următorul meci / Match Center" title="Areni intră în" accent="stare de asediu." />
 
-      <div className={styles.matchLayout}>
-        <motion.div
-          className={styles.matchCommand}
-          variants={reveal}
-          initial="hidden"
-          animate="visible"
-          custom={0.06}
-        >
-          <div className={styles.matchTopline}>
-            <HudLabel value={`${nextMatch.dateLabel.toUpperCase()} / ${nextMatch.timeLabel}`}>{nextMatch.venue}</HudLabel>
-            <span className={styles.demoSignal}><i /> Program oficial actualizat</span>
-          </div>
+      <div className={styles.matchCenterHub}>
+        <motion.nav className={styles.matchCenterModes} variants={reveal} initial="hidden" animate="visible" aria-label="Modurile centrului de meci">
+          {matchCenterModes.map((item, index) => {
+            const Icon = item.icon
+            return (
+              <button type="button" key={item.id} className={mode === item.id ? styles.matchCenterModeActive : ''} onClick={() => { setMode(item.id); play('navigate') }} aria-pressed={mode === item.id}>
+                <span>0{index + 1}</span><Icon aria-hidden="true" /><div><strong>{item.label}</strong><small>{item.meta}</small></div><i />
+              </button>
+            )
+          })}
+          <div className={styles.matchCenterSignal}><span><i /> Program oficial</span><strong>{nextMatch.dateLabel} · {nextMatch.timeLabel}</strong></div>
+        </motion.nav>
 
-          <div className={styles.countdown} aria-label="Timp rămas până la meci">
-            {[
-              [countdown.days, 'Zile'],
-              [countdown.hours, 'Ore'],
-              [countdown.minutes, 'Minute'],
-              [countdown.seconds, 'Secunde'],
-            ].map(([value, label]) => (
-              <div className={styles.timeUnit} key={label}>
-                <strong>{value}</strong>
-                <span>{label}</span>
+        <div className={styles.matchCenterScene}>
+          <div className={styles.matchCenterGrid}>
+            <div className={styles.matchModeScene}>
+              <AnimatePresence mode="wait" initial={false}>
+                {mode === 'centru' && (
+                  <motion.article key="centru" className={styles.matchOverview} initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -22 }} transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}>
+                    <header><span><i /> {nextMatch.competition} · {nextMatch.round}</span><strong>{nextMatch.venue}</strong><em>PROGRAMAT</em></header>
+
+                    <div className={styles.matchCountdownCommand} aria-label="Timp rămas până la meci">
+                      <div><small>Începe în</small><strong>Fiecare voce contează.</strong></div>
+                      {[[countdown.days, 'Zile'], [countdown.hours, 'Ore'], [countdown.minutes, 'Min.'], [countdown.seconds, 'Sec.']].map(([value, label]) => (
+                        <span key={label}><strong>{value}</strong><small>{label}</small></span>
+                      ))}
+                    </div>
+
+                    <div className={styles.matchClash}>
+                      <div className={styles.matchClubHome}><span><img src={nextMatch.home.badge} alt="Sigla Cetatea Suceava" /></span><div><small>Gazde · {nextMatch.home.city}</small><h2>{nextMatch.home.name}</h2><strong>Î / V</strong></div></div>
+                      <div className={styles.matchVersus}><small>{nextMatch.timeLabel}</small><strong>VS</strong><i /><span>{nextMatch.round}</span></div>
+                      <div className={styles.matchClubAway}><div><small>Oaspeți · {nextMatch.away.city}</small><h2>{nextMatch.away.name}</h2><strong>Î / E</strong></div><span><img src={nextMatch.away.badge} alt="Sigla CSM Satu Mare" /></span></div>
+                    </div>
+
+                    <div className={styles.matchEssentials}>
+                      <span><CalendarDays aria-hidden="true" /><small>Data</small><strong>{nextMatch.dateLabel}</strong></span>
+                      <span><MapPin aria-hidden="true" /><small>Locul</small><strong>{nextMatch.venue}</strong></span>
+                      <span><UsersRound aria-hidden="true" /><small>Suporteri conectați</small><strong>{checkedIn ? 285 : 284}</strong></span>
+                    </div>
+
+                    <footer className={styles.matchOverviewActions}>
+                      <button type="button" className={matchReminder ? styles.matchOverviewActionActive : ''} onClick={toggleMatchReminder} aria-pressed={matchReminder}><Bell aria-hidden="true" /><span><strong>{matchReminder ? 'Alertă activată' : 'Anunță-mă'}</strong><small>Lot, start și scor</small></span></button>
+                      <button type="button" onClick={addMatchToCalendar}><CalendarPlus aria-hidden="true" /><span><strong>Adaugă în calendar</strong><small>Fișier compatibil .ics</small></span></button>
+                      <button type="button" onClick={() => void shareMatch()}><Share2 aria-hidden="true" /><span><strong>Cheamă un suporter</strong><small>Distribuie confruntarea</small></span></button>
+                    </footer>
+                  </motion.article>
+                )}
+
+                {mode === 'transmisiune' && (
+                  <motion.div key="transmisiune" className={styles.broadcastExperience} initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -22 }} transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}>
+                    <div className={styles.broadcastPlayer} ref={matchPlayerRef}>
+                      {streamStarted && matchStreamUrl ? (
+                        <iframe src={matchStreamUrl} title="Transmisiunea oficială a meciului" allow="autoplay; fullscreen; picture-in-picture" allowFullScreen />
+                      ) : (
+                        <div className={styles.broadcastStandby}>
+                          <img src={arenaBackground} alt="Stadionul Areni pregătit pentru meci" />
+                          <span aria-hidden="true" />
+                          <div>
+                            <small><i /> Studio Cetatea · semnal programat</small>
+                            <h2>Areniul intră<br />în direct.</h2>
+                            <p>{matchStreamUrl ? 'Sursa video este pregătită. Pornește transmisiunea când ești gata.' : 'Playerul va conecta sursa oficială imediat ce linkul transmisiunii este publicat.'}</p>
+                            <button type="button" disabled={!matchStreamUrl} onClick={() => { setStreamStarted(true); play('success') }}><Play aria-hidden="true" />{matchStreamUrl ? 'Pornește transmisiunea' : 'Semnal în așteptare'}</button>
+                          </div>
+                        </div>
+                      )}
+                      <div className={styles.broadcastControls}>
+                        <span><i /> {streamStarted && matchStreamUrl ? 'LIVE' : 'PROGRAMAT'}<small>HD · Areni</small></span>
+                        <div>
+                          <button type="button" onClick={() => void togglePlayerFullscreen()} aria-label="Extinde playerul"><Maximize2 aria-hidden="true" /></button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={styles.broadcastChannels}>
+                      <article><Video aria-hidden="true" /><span><small>Canal video</small><strong>{matchStreamUrl ? 'Pregătit pentru conectare' : 'Așteaptă sursa oficială'}</strong></span><i className={matchStreamUrl ? styles.channelReady : ''} /></article>
+                      <article><Mic2 aria-hidden="true" /><span><small>Audio tribună</small><strong>Se activează la start</strong></span><i /></article>
+                      <article><RadioTower aria-hidden="true" /><span><small>Live text</small><strong>Fază cu fază în aplicație</strong></span><i className={styles.channelReady} /></article>
+                    </div>
+                  </motion.div>
+                )}
+
+                {mode === 'program' && (
+                  <motion.div key="program" className={styles.matchDayExperience} initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -22 }} transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}>
+                    <div className={styles.matchDayTimeline}>
+                      <header><div><small>Plan recomandat</small><strong>Ritmul zilei de meci</strong></div><span>START {nextMatch.timeLabel}</span></header>
+                      <div>
+                        {matchDayMoments.map((moment, index) => (
+                          <article key={`${moment.time}-${moment.label}`} className={moment.official ? styles.matchDayOfficial : ''}>
+                            <span><b>{moment.time}</b><i /></span>
+                            <div><small>0{index + 1} · {moment.official ? 'ORĂ OFICIALĂ' : 'REPER ORIENTATIV'}</small><strong>{moment.label}</strong><p>{moment.meta}</p></div>
+                            {moment.official && <Wifi aria-hidden="true" />}
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+
+                    <aside className={styles.stadiumBriefing}>
+                      <header><span><MapPin aria-hidden="true" /> Coordonatele Cetății</span><strong>ARENI / SV</strong></header>
+                      <div className={styles.stadiumRadar}><span /><span /><i /><strong>47.64°N<br />26.24°E</strong></div>
+                      <h2>{nextMatch.venue}</h2>
+                      <p>Vino în alb-albastru și verifică informațiile oficiale înainte de plecare. Orele din plan, exceptând startul, sunt orientative.</p>
+                      <div className={styles.matchChecklist}><span><i /> Bilet / acces</span><span><i /> Fular alb-albastru</span><span><i /> Voce pentru 90'</span></div>
+                      <button type="button" className={checkedIn ? styles.matchChecklistActive : ''} onClick={toggleCheckIn}><TicketCheck aria-hidden="true" /> {checkedIn ? 'Participarea este confirmată' : 'Confirmă că vii la Areni'} <ArrowRight aria-hidden="true" /></button>
+                    </aside>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <motion.aside className={styles.matchRoom} variants={reveal} initial="hidden" animate="visible" custom={.12}>
+              <header><div><small>Camera suporterilor</small><strong>Pulsul dinaintea meciului.</strong></div><span><i /> 284 online</span></header>
+
+              <div className={styles.exactScorePrediction}>
+                <header><span>Predicția ta de scor</span><small>Se salvează automat</small></header>
+                <div>
+                  {(['home', 'away'] as const).map((team) => (
+                    <span key={team}>
+                      <small>{team === 'home' ? nextMatch.home.name : nextMatch.away.name}</small>
+                      <div><button type="button" onClick={() => changeScore(team, -1)} aria-label={`Scade scorul pentru ${team === 'home' ? nextMatch.home.name : nextMatch.away.name}`}><Minus aria-hidden="true" /></button><strong>{scorePrediction[team]}</strong><button type="button" onClick={() => changeScore(team, 1)} aria-label={`Crește scorul pentru ${team === 'home' ? nextMatch.home.name : nextMatch.away.name}`}><Plus aria-hidden="true" /></button></div>
+                    </span>
+                  ))}
+                  <b>:</b>
+                </div>
+                <footer><span>Predicția comunității</span><strong>2 – 0 · 38%</strong></footer>
               </div>
-            ))}
-          </div>
 
-          <div className={styles.matchup}>
-            <div className={styles.clubIdentity}>
-              <span className={styles.clubCrest}><img src={nextMatch.home.badge} alt="Sigla Cetatea Suceava" /></span>
-              <div><small>Gazde</small><strong>{nextMatch.home.name}</strong><em>{nextMatch.home.city}</em></div>
-            </div>
+              <div className={styles.matchRoomCheckIn}>
+                <div><span>Suporteri care vin</span><strong>{checkedIn ? '1.933' : '1.932'}</strong></div>
+                <button type="button" className={checkedIn ? styles.matchRoomChecked : ''} onClick={toggleCheckIn} aria-pressed={checkedIn}><TicketCheck aria-hidden="true" />{checkedIn ? 'Vin la Areni' : 'Confirmă prezența'}<i /></button>
+              </div>
 
-            <div className={styles.versusCore}>
-              <span>{nextMatch.round}</span>
-              <strong>CONTRA</strong>
-              <i />
-            </div>
-
-            <div className={`${styles.clubIdentity} ${styles.awayClub}`}>
-              <div><small>Oaspeți</small><strong>{nextMatch.away.name}</strong><em>{nextMatch.away.city}</em></div>
-              <span className={styles.clubCrest}><img src={nextMatch.away.badge} alt="Sigla CSM Satu Mare" /></span>
-            </div>
-          </div>
-
-          <div className={styles.matchTools}>
-            <div className={styles.prediction}>
-              <span>Predicția ta</span>
-              <div>
-                {(['1', 'X', '2'] as const).map((option) => (
-                  <button
-                    key={option}
-                    className={prediction === option ? styles.selectedPrediction : ''}
-                    onClick={() => {
-                      setPrediction(option)
-                      play('toggle')
-                    }}
-                    aria-pressed={prediction === option}
-                  >
-                    {option}
-                  </button>
+              <div className={styles.matchRoomMessages} aria-live="polite">
+                {messages.slice(-3).map((wallMessage, index) => (
+                  <motion.article key={wallMessage.id} initial={{ opacity: 0, x: 14 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * .04 }}>
+                    <span>{wallMessage.author.slice(0, 2).toUpperCase()}</span><div><header><strong>{wallMessage.author}</strong><time>{wallMessage.time}</time></header><p>{wallMessage.text}</p></div>
+                  </motion.article>
                 ))}
               </div>
-            </div>
 
-            <div className={styles.matchIntel}>
-              <span><small>Ora startului</small><strong>{nextMatch.timeLabel}</strong></span>
-              <span><small>Cod tribună</small><strong>Alb / Albastru</strong></span>
-              <span><small>Formă</small><strong>Î / V</strong></span>
-            </div>
+              <div className={styles.matchQuickMessages}>{['Forza Cetatea!', 'Toți la Areni', 'Alb-albastru'].map((text) => <button type="button" key={text} onClick={() => quickMessage(text)}>{text}</button>)}</div>
+              <form className={styles.matchRoomComposer} onSubmit={sendMessage}>
+                <span>CS</span><label><input value={message} maxLength={72} onChange={(event) => setMessage(event.target.value)} placeholder="Scrie în camera meciului..." /><small>{message.length}/72</small></label><button type="submit" disabled={!message.trim()} aria-label="Trimite mesajul"><Send aria-hidden="true" /></button>
+              </form>
+            </motion.aside>
           </div>
-
-          <button
-            className={`${styles.matchModeButton} ${matchMode ? styles.matchModeActive : ''}`}
-            onClick={() => {
-              setMatchMode((current) => !current)
-              play('success')
-            }}
-            aria-pressed={matchMode}
-          >
-            <span><i /> {matchMode ? 'Modul de meci este activ' : 'Activează modul de meci'}</span>
-            <small>{matchMode ? 'Suntem gata de meci' : 'Pornește experiența de tribună'}</small>
-            <b>{matchMode ? 'ACTIV' : '↗'}</b>
-          </button>
-        </motion.div>
-
-        <motion.aside
-          className={styles.fanWall}
-          variants={reveal}
-          initial="hidden"
-          animate="visible"
-          custom={0.14}
-        >
-          <div className={styles.wallHeading}>
-            <div><span>Zidul Cetății</span><strong>Spune-o tare.</strong></div>
-            <em><i /> ÎN DIRECT</em>
-          </div>
-
-          <div className={styles.messageFeed} aria-live="polite">
-            {messages.slice(-3).map((wallMessage, index) => (
-              <motion.article
-                className={styles.message}
-                key={wallMessage.id}
-                initial={{ opacity: 0, x: 18 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.04 }}
-              >
-                <span>{wallMessage.author.slice(0, 2).toUpperCase()}</span>
-                <div><strong>{wallMessage.author}</strong><p>{wallMessage.text}</p></div>
-                <time>{wallMessage.time}</time>
-              </motion.article>
-            ))}
-          </div>
-
-          <div className={styles.crowdCommand}>
-            <div className={styles.crowdReading}>
-              <span>Puterea tribunei</span>
-              <strong>{checkedIn ? '85%' : '84%'}</strong>
-            </div>
-            <div className={styles.crowdTrack}>
-              <motion.i
-                animate={{ scaleX: checkedIn ? 0.85 : 0.84 }}
-                transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-              />
-            </div>
-            <button
-              className={checkedIn ? styles.checkedIn : ''}
-              onClick={() => {
-                setCheckedIn((current) => !current)
-                play('success')
-              }}
-              aria-pressed={checkedIn}
-            >
-              <i /> {checkedIn ? 'Check-in confirmat' : 'Check-in pentru Areni'}
-            </button>
-          </div>
-
-          <div className={styles.quickMessages}>
-            {['Forza Cetatea!', 'Toți la Areni', 'Alb-albastru'].map((text) => (
-              <button key={text} onClick={() => quickMessage(text)}>{text}</button>
-            ))}
-          </div>
-
-          <form className={styles.messageComposer} onSubmit={sendMessage}>
-            <label htmlFor="fan-message">Mesajul tău pentru tribună</label>
-            <div>
-              <input
-                id="fan-message"
-                value={message}
-                maxLength={72}
-                onChange={(event) => setMessage(event.target.value)}
-                placeholder="Scrie pe Zid..."
-                autoComplete="off"
-              />
-              <button type="submit" aria-label="Trimite mesajul">↗</button>
-            </div>
-            <small>{message.length}/72 · mesaj public</small>
-          </form>
-        </motion.aside>
+        </div>
       </div>
     </section>
   )
