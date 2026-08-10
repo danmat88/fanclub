@@ -1,18 +1,31 @@
 import { AnimatePresence, motion, type Variants } from 'motion/react'
 import {
+  Activity,
   ArrowLeft,
   ArrowRight,
   Bell,
   Bookmark,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  CircleDot,
   Clock3,
   Eye,
+  GitCompareArrows,
+  Heart,
+  LayoutDashboard,
   Newspaper,
   Pause,
   Play,
+  Search,
   Share2,
+  Shield,
   Sparkles,
+  Star,
+  UserRoundCog,
+  UsersRound,
   X,
+  Zap,
 } from 'lucide-react'
 import {
   useEffect,
@@ -24,7 +37,7 @@ import {
 import fanEmblem from '../assets/brand/cetatea-fan-emblem.webp'
 import arenaBackground from '../assets/brand/loading-cetatea-arena.webp'
 import { useSound } from '../contexts/useSound'
-import { club, nextMatch, squad, standings, upcomingFixtures, type PlayerPosition } from '../data/clubData'
+import { club, nextMatch, squad, standings, technicalStaff, upcomingFixtures, type PlayerPosition } from '../data/clubData'
 import { useMatchCountdown } from '../hooks/useMatchCountdown'
 import styles from './Views.module.css'
 
@@ -387,69 +400,383 @@ export function CommunityView() {
   )
 }
 
+type TeamMode = 'lot' | 'asezare' | 'staff'
+
+const teamModes = [
+  { id: 'lot' as const, label: 'Lot interactiv', meta: '26 jucători', icon: UsersRound },
+  { id: 'asezare' as const, label: 'Așezare tactică', meta: '4–4–2', icon: LayoutDashboard },
+  { id: 'staff' as const, label: 'Staff tehnic', meta: `${technicalStaff.length} membri`, icon: UserRoundCog },
+]
+
+const positionFilters = ['Toți', 'Portar', 'Fundaș', 'Mijlocaș', 'Atacant'] as const
+
+const positionTone: Record<PlayerPosition, string> = {
+  Portar: 'var(--tone-amber)',
+  Fundaș: 'var(--tone-cyan)',
+  Mijlocaș: 'var(--tone-violet)',
+  Atacant: 'var(--tone-rose)',
+}
+
+const positionRole: Record<PlayerPosition, string> = {
+  Portar: 'Ultimul zid',
+  Fundaș: 'Garda cetății',
+  Mijlocaș: 'Arhitectul jocului',
+  Atacant: 'Vârful asediului',
+}
+
+const formationSlots = [
+  { number: 1, x: 50, y: 88 },
+  { number: 24, x: 17, y: 67 },
+  { number: 5, x: 39, y: 72 },
+  { number: 21, x: 61, y: 72 },
+  { number: 6, x: 83, y: 67 },
+  { number: 14, x: 16, y: 42 },
+  { number: 73, x: 39, y: 49 },
+  { number: 10, x: 61, y: 49 },
+  { number: 7, x: 84, y: 42 },
+  { number: 25, x: 37, y: 19 },
+  { number: 9, x: 63, y: 19 },
+]
+
+function playerRadar(number: number, position: PlayerPosition) {
+  const positionBoost = { Portar: 4, Fundaș: 7, Mijlocaș: 11, Atacant: 14 }[position]
+  return [
+    { label: 'Energie', value: 68 + ((number * 3 + positionBoost) % 27) },
+    { label: 'Tehnică', value: 64 + ((number * 5 + positionBoost) % 31) },
+    { label: 'Impact', value: 61 + ((number * 7 + positionBoost) % 34) },
+  ]
+}
+
 export function SquadView() {
   const { play } = useSound()
+  const [mode, setMode] = useState<TeamMode>('lot')
   const [position, setPosition] = useState<'Toți' | PlayerPosition>('Toți')
   const [selectedNumber, setSelectedNumber] = useState(10)
-  const filteredSquad = position === 'Toți'
-    ? squad
-    : squad.filter((player) => player.position === position)
+  const [query, setQuery] = useState('')
+  const [comparison, setComparison] = useState<number[]>([])
+  const [showComparison, setShowComparison] = useState(false)
+  const [favorites, setFavorites] = useState<number[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('cetatea-favorite-players') ?? '[]')
+      return Array.isArray(stored) ? stored.filter((value): value is number => typeof value === 'number') : []
+    } catch {
+      return []
+    }
+  })
+
+  const filteredSquad = useMemo(() => squad.filter((player) => {
+    const matchesPosition = position === 'Toți' || player.position === position
+    const normalizedQuery = query.trim().toLocaleLowerCase('ro')
+    const matchesQuery = !normalizedQuery || player.name.toLocaleLowerCase('ro').includes(normalizedQuery) || String(player.number).includes(normalizedQuery)
+    return matchesPosition && matchesQuery
+  }), [position, query])
+
   const selectedPlayer = squad.find((player) => player.number === selectedNumber) ?? squad[0]
+  const selectedIndex = squad.findIndex((player) => player.number === selectedPlayer.number)
+  const radar = playerRadar(selectedPlayer.number, selectedPlayer.position)
+  const comparisonPlayers = comparison
+    .map((number) => squad.find((player) => player.number === number))
+    .filter((player): player is (typeof squad)[number] => Boolean(player))
+
+  useEffect(() => {
+    localStorage.setItem('cetatea-favorite-players', JSON.stringify(favorites))
+  }, [favorites])
+
+  useEffect(() => {
+    if (!showComparison) return
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowComparison(false)
+    }
+    document.addEventListener('keydown', close)
+    return () => document.removeEventListener('keydown', close)
+  }, [showComparison])
+
+  const selectPlayer = (number: number) => {
+    setSelectedNumber(number)
+    play('navigate')
+  }
+
+  const stepPlayer = (direction: number) => {
+    const nextIndex = (selectedIndex + direction + squad.length) % squad.length
+    selectPlayer(squad[nextIndex].number)
+  }
+
+  const toggleFavorite = (number: number) => {
+    setFavorites((current) => current.includes(number)
+      ? current.filter((item) => item !== number)
+      : [...current, number])
+    play('success')
+  }
+
+  const toggleComparison = (number: number) => {
+    setComparison((current) => {
+      if (current.includes(number)) return current.filter((item) => item !== number)
+      if (current.length < 2) return [...current, number]
+      return [current[1], number]
+    })
+    play('toggle')
+  }
 
   return (
-    <section className={styles.view}>
-      <ViewIntro code="LOT–04" label="Garda Cetății / lot oficial" title="Cei care apără" accent="Cetatea." />
-      <div className={styles.squadLayout}>
-        <motion.div className={styles.rosterBoard} variants={reveal} initial="hidden" animate="visible" custom={0.05}>
-          <HudLabel value={`${squad.length} DE JUCĂTORI`}>Lotul primei echipe</HudLabel>
-          <div className={styles.rosterFilters} aria-label="Filtrează lotul după post">
-            {(['Toți', 'Portar', 'Fundaș', 'Mijlocaș', 'Atacant'] as const).map((filter) => (
-              <button
-                key={filter}
-                className={position === filter ? styles.rosterFilterActive : ''}
-                onClick={() => {
-                  setPosition(filter)
-                  play('toggle')
-                }}
-                aria-pressed={position === filter}
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
-          <div className={styles.rosterGrid}>
-            {filteredSquad.map((player) => (
-              <button
-                key={player.number}
-                className={`${styles.rosterPlayer} ${selectedPlayer.number === player.number ? styles.rosterPlayerActive : ''}`}
-                onClick={() => {
-                  setSelectedNumber(player.number)
-                  play('navigate')
-                }}
-                aria-pressed={selectedPlayer.number === player.number}
-                title={`Numărul ${player.number}, ${player.name}, ${player.position}`}
-              >
-                <b>{String(player.number).padStart(2, '0')}</b>
-                <span><strong>{player.name}</strong><small>{player.position}</small></span>
-              </button>
-            ))}
-          </div>
-        </motion.div>
+    <section className={`${styles.view} ${styles.teamView}`}>
+      <ViewIntro code="LOT–04" label="Garda Cetății / centru interactiv" title="O echipă." accent="Un singur puls." />
 
-        <motion.aside className={styles.squadPanel} variants={reveal} initial="hidden" animate="visible" custom={0.13}>
-          <div className={styles.wallHeading}><div><span>Jucător selectat</span><strong>Profilul lotului.</strong></div><em>OFICIAL</em></div>
-          <div className={styles.selectedPlayerVisual}>
-            <img src={club.badge} alt="Sigla Cetatea Suceava" />
-            <span>{String(selectedPlayer.number).padStart(2, '0')}</span>
-          </div>
-          <div className={styles.playerName}><small>{selectedPlayer.position} / CSM Cetatea 1932</small><strong>{selectedPlayer.name}</strong></div>
-          <div className={styles.playerMetrics}>
-            <span><small>Număr</small><strong>{String(selectedPlayer.number).padStart(2, '0')}</strong></span>
-            <span><small>Post</small><strong>{selectedPlayer.position}</strong></span>
-            <span><small>Naționalitate</small><strong>Român</strong></span>
-          </div>
-        </motion.aside>
+      <div className={styles.teamHub}>
+        <motion.nav className={styles.teamModes} variants={reveal} initial="hidden" animate="visible" aria-label="Modurile secțiunii Echipa">
+          {teamModes.map((item, index) => {
+            const Icon = item.icon
+            return (
+              <button
+                type="button"
+                key={item.id}
+                className={mode === item.id ? styles.teamModeActive : ''}
+                onClick={() => { setMode(item.id); play('navigate') }}
+                aria-pressed={mode === item.id}
+              >
+                <span>0{index + 1}</span>
+                <Icon aria-hidden="true" />
+                <div><strong>{item.label}</strong><small>{item.meta}</small></div>
+                <i />
+              </button>
+            )
+          })}
+          <div className={styles.teamPulse}><span><i /> Lot verificat</span><strong>SEZON 26/27</strong></div>
+        </motion.nav>
+
+        <div className={styles.teamScene}>
+          <AnimatePresence mode="wait" initial={false}>
+            {mode === 'lot' && (
+              <motion.div
+                key="lot"
+                className={styles.teamRosterExperience}
+                initial={{ opacity: 0, x: 28 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -22 }}
+                transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <article className={styles.playerSpotlight} style={{ '--player-tone': positionTone[selectedPlayer.position] } as CSSProperties}>
+                  <header>
+                    <span><i /> Jucător selectat</span>
+                    <strong>{positionRole[selectedPlayer.position]}</strong>
+                    <em>DISPONIBIL</em>
+                  </header>
+
+                  <div className={styles.playerHero}>
+                    <span className={styles.playerWatermark}>{String(selectedPlayer.number).padStart(2, '0')}</span>
+                    <div className={styles.playerSigil}>
+                      <i /><i />
+                      <img src={club.badge} alt="Sigla Cetatea Suceava" />
+                      <b>{String(selectedPlayer.number).padStart(2, '0')}</b>
+                    </div>
+                    <div className={styles.playerIdentity}>
+                      <small>{selectedPlayer.position} · CSM Cetatea 1932</small>
+                      <h2>{selectedPlayer.name}</h2>
+                      <span><Shield aria-hidden="true" /> Român · Prima echipă</span>
+                    </div>
+                    <div className={styles.playerStepper}>
+                      <button type="button" onClick={() => stepPlayer(-1)} aria-label="Jucătorul precedent"><ChevronLeft aria-hidden="true" /></button>
+                      <span>{String(selectedIndex + 1).padStart(2, '0')} / {squad.length}</span>
+                      <button type="button" onClick={() => stepPlayer(1)} aria-label="Jucătorul următor"><ChevronRight aria-hidden="true" /></button>
+                    </div>
+                  </div>
+
+                  <div className={styles.playerRadar}>
+                    <div className={styles.radarHeading}><span><Activity aria-hidden="true" /> Radar comunitar</span><small>Indicator vizual · neoficial</small></div>
+                    {radar.map((metric) => (
+                      <span key={metric.label}><small>{metric.label}</small><i><b style={{ '--metric': `${metric.value}%` } as CSSProperties} /></i><strong>{metric.value}</strong></span>
+                    ))}
+                  </div>
+
+                  <footer className={styles.playerActions}>
+                    <button
+                      type="button"
+                      className={favorites.includes(selectedPlayer.number) ? styles.playerActionActive : ''}
+                      onClick={() => toggleFavorite(selectedPlayer.number)}
+                      aria-pressed={favorites.includes(selectedPlayer.number)}
+                    >
+                      <Heart aria-hidden="true" />
+                      <span><strong>{favorites.includes(selectedPlayer.number) ? 'Favorit în Cetate' : 'Adaugă la favoriți'}</strong><small>{68 + ((selectedPlayer.number * 11) % 29)}% puls suporteri</small></span>
+                    </button>
+                    <button
+                      type="button"
+                      className={comparison.includes(selectedPlayer.number) ? styles.playerActionActive : ''}
+                      onClick={() => toggleComparison(selectedPlayer.number)}
+                      aria-pressed={comparison.includes(selectedPlayer.number)}
+                    >
+                      <GitCompareArrows aria-hidden="true" />
+                      <span><strong>{comparison.includes(selectedPlayer.number) ? 'Selectat pentru duel' : 'Adaugă la comparație'}</strong><small>{comparison.length} din 2 selectați</small></span>
+                    </button>
+                  </footer>
+                </article>
+
+                <aside className={styles.squadDirectory}>
+                  <header>
+                    <div><small>Garda completă</small><strong>Explorează lotul</strong></div>
+                    <button
+                      type="button"
+                      onClick={() => setShowComparison(true)}
+                      disabled={comparisonPlayers.length < 2}
+                      title={comparisonPlayers.length < 2 ? 'Selectează doi jucători' : 'Deschide comparația'}
+                    >
+                      <GitCompareArrows aria-hidden="true" /> {comparisonPlayers.length}/2
+                    </button>
+                  </header>
+
+                  <label className={styles.playerSearch}>
+                    <Search aria-hidden="true" />
+                    <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Caută nume sau număr" />
+                    <span>{filteredSquad.length}</span>
+                  </label>
+
+                  <div className={styles.positionFilters} aria-label="Filtrează lotul după post">
+                    {positionFilters.map((filter) => (
+                      <button
+                        type="button"
+                        key={filter}
+                        className={position === filter ? styles.positionFilterActive : ''}
+                        onClick={() => { setPosition(filter); play('toggle') }}
+                        aria-pressed={position === filter}
+                      >
+                        {filter === 'Toți' ? 'Toți' : filter.slice(0, 3)}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className={styles.playerDirectoryGrid}>
+                    {filteredSquad.map((player) => (
+                      <button
+                        type="button"
+                        key={player.number}
+                        className={`${selectedPlayer.number === player.number ? styles.directoryPlayerActive : ''} ${favorites.includes(player.number) ? styles.directoryPlayerFavorite : ''}`}
+                        style={{ '--player-tone': positionTone[player.position] } as CSSProperties}
+                        onClick={() => selectPlayer(player.number)}
+                        aria-pressed={selectedPlayer.number === player.number}
+                        title={`${player.name} · ${player.position}`}
+                      >
+                        <b>{String(player.number).padStart(2, '0')}</b>
+                        <span><strong>{player.name}</strong><small>{player.position}</small></span>
+                        {favorites.includes(player.number) && <Star aria-label="Favorit" />}
+                        <i />
+                      </button>
+                    ))}
+                    {!filteredSquad.length && <p className={styles.noPlayers}>Niciun jucător găsit.</p>}
+                  </div>
+                </aside>
+              </motion.div>
+            )}
+
+            {mode === 'asezare' && (
+              <motion.div
+                key="asezare"
+                className={styles.formationExperience}
+                initial={{ opacity: 0, x: 28 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -22 }}
+                transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div className={styles.formationBoard}>
+                  <header><span><CircleDot aria-hidden="true" /> Plan tactic interactiv</span><strong>4–4–2 / ECHILIBRAT</strong></header>
+                  <div className={styles.formationPitch}>
+                    <span className={styles.pitchHalf} /><span className={styles.pitchCircle} /><span className={styles.pitchBoxTop} /><span className={styles.pitchBoxBottom} />
+                    {formationSlots.map((slot) => {
+                      const player = squad.find((item) => item.number === slot.number)
+                      if (!player) return null
+                      return (
+                        <button
+                          type="button"
+                          key={slot.number}
+                          className={selectedPlayer.number === player.number ? styles.formationPlayerActive : ''}
+                          style={{ '--x': `${slot.x}%`, '--y': `${slot.y}%`, '--player-tone': positionTone[player.position] } as CSSProperties}
+                          onClick={() => selectPlayer(player.number)}
+                        >
+                          <i>{player.number}</i><span>{player.name.split(' ').at(-1)}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <aside className={styles.formationIntel} style={{ '--player-tone': positionTone[selectedPlayer.position] } as CSSProperties}>
+                  <span className={styles.formationBadge}><img src={club.badge} alt="Sigla Cetatea Suceava" /><b>{selectedPlayer.number}</b></span>
+                  <small>Rol în așezare</small>
+                  <h2>{selectedPlayer.name}</h2>
+                  <strong>{positionRole[selectedPlayer.position]}</strong>
+                  <p>Selectează orice poziție de pe teren pentru a explora rapid jucătorul și rolul său în sistem.</p>
+                  <div>{radar.map((metric) => <span key={metric.label}><small>{metric.label}</small><b>{metric.value}</b></span>)}</div>
+                  <button type="button" onClick={() => { setMode('lot'); play('navigate') }}><UsersRound aria-hidden="true" /> Deschide profilul complet <ArrowRight aria-hidden="true" /></button>
+                </aside>
+              </motion.div>
+            )}
+
+            {mode === 'staff' && (
+              <motion.div
+                key="staff"
+                className={styles.staffExperience}
+                initial={{ opacity: 0, x: 28 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -22 }}
+                transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div className={styles.staffCommand}>
+                  <header><span>Comandamentul tehnic</span><strong>Oamenii din spatele echipei.</strong></header>
+                  <div className={styles.staffGrid}>
+                    {technicalStaff.map((member, index) => (
+                      <article key={member.name} style={{ '--staff-index': String(index + 1) } as CSSProperties}>
+                        <span><UserRoundCog aria-hidden="true" /></span>
+                        <div><small>{member.role}</small><strong>{member.name}</strong></div>
+                        <b>0{index + 1}</b>
+                        <i />
+                      </article>
+                    ))}
+                  </div>
+                </div>
+                <aside className={styles.staffManifesto}>
+                  <span><Zap aria-hidden="true" /> Principiul Cetății</span>
+                  <h2>Rigoare.<br />Curaj.<br /><em>Împreună.</em></h2>
+                  <p>Fiecare rol susține aceeași construcție: o echipă pregătită, unită și conectată permanent la Suceava.</p>
+                  <div><strong>6</strong><span>departamente<br />un singur obiectiv</span></div>
+                </aside>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
+
+      <AnimatePresence>
+        {showComparison && comparisonPlayers.length === 2 && (
+          <motion.div
+            className={styles.teamComparison}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="team-comparison-title"
+            initial={{ opacity: 0, y: 30, clipPath: 'inset(10% 8%)' }}
+            animate={{ opacity: 1, y: 0, clipPath: 'inset(0 0)' }}
+            exit={{ opacity: 0, y: 22, clipPath: 'inset(8% 6%)' }}
+            transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <header>
+              <div><small>Laboratorul lotului</small><strong id="team-comparison-title">Comparație directă</strong></div>
+              <button type="button" autoFocus onClick={() => setShowComparison(false)} aria-label="Închide comparația"><X aria-hidden="true" /></button>
+            </header>
+            <div className={styles.comparisonGrid}>
+              {comparisonPlayers.map((player, playerIndex) => (
+                <article key={player.number} style={{ '--player-tone': positionTone[player.position] } as CSSProperties}>
+                  <span className={styles.comparisonNumber}>{String(player.number).padStart(2, '0')}</span>
+                  <div className={styles.comparisonIdentity}><img src={club.badge} alt="" /><span><small>{player.position}</small><strong>{player.name}</strong></span></div>
+                  <div className={styles.comparisonMetrics}>
+                    {playerRadar(player.number, player.position).map((metric) => (
+                      <span key={metric.label}><small>{metric.label}</small><i><b style={{ '--metric': `${metric.value}%` } as CSSProperties} /></i><strong>{metric.value}</strong></span>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => { selectPlayer(player.number); setShowComparison(false) }}>Deschide profilul <ArrowRight aria-hidden="true" /></button>
+                  {playerIndex === 0 && <em>VS</em>}
+                </article>
+              ))}
+            </div>
+            <footer><span>Radar comunitar · indicator conceptual, nu statistică oficială</span><button type="button" onClick={() => { setComparison([]); setShowComparison(false) }}>Golește selecția</button></footer>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   )
 }
