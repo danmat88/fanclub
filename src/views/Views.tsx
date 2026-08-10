@@ -3,6 +3,7 @@ import {
   Activity,
   ArrowLeft,
   ArrowRight,
+  BadgeCheck,
   Bell,
   Bookmark,
   CalendarDays,
@@ -11,17 +12,22 @@ import {
   CircleDot,
   Clock3,
   Eye,
+  Flame,
   GitCompareArrows,
   Heart,
   LayoutDashboard,
+  MessageCircle,
   Newspaper,
   Pause,
   Play,
   Search,
+  Send,
   Share2,
   Shield,
   Sparkles,
   Star,
+  ThumbsUp,
+  Trophy,
   UserRoundCog,
   UsersRound,
   X,
@@ -37,7 +43,7 @@ import {
 import fanEmblem from '../assets/brand/cetatea-fan-emblem.webp'
 import arenaBackground from '../assets/brand/loading-cetatea-arena.webp'
 import { useSound } from '../contexts/useSound'
-import { club, nextMatch, squad, standings, technicalStaff, upcomingFixtures, type PlayerPosition } from '../data/clubData'
+import { club, nextMatch, squad, standings, technicalStaff, upcomingFixtures, type FormResult, type PlayerPosition } from '../data/clubData'
 import { useMatchCountdown } from '../hooks/useMatchCountdown'
 import styles from './Views.module.css'
 
@@ -781,60 +787,233 @@ export function SquadView() {
   )
 }
 
+type SeasonMode = 'clasament' | 'forma' | 'calendar'
+
+const seasonModes = [
+  { id: 'clasament' as const, label: 'Clasament', meta: '22 cluburi', icon: Trophy },
+  { id: 'forma' as const, label: 'Radar de formă', meta: 'Etapele 1–2', icon: Activity },
+  { id: 'calendar' as const, label: 'Calendar', meta: 'Următoarele 6', icon: CalendarDays },
+]
+
 export function LeagueTableView() {
+  const { play } = useSound()
+  const [mode, setMode] = useState<SeasonMode>('clasament')
+  const [selectedPosition, setSelectedPosition] = useState(10)
+  const [simulation, setSimulation] = useState<FormResult>('V')
+  const [selectedFixtureIndex, setSelectedFixtureIndex] = useState(0)
+  const [reminders, setReminders] = useState<number[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('cetatea-fixture-reminders') ?? '[]')
+      return Array.isArray(stored) ? stored.filter((value): value is number => typeof value === 'number') : []
+    } catch {
+      return []
+    }
+  })
+
   const standingColumns = [standings.slice(0, 11), standings.slice(11)]
+  const cetateaStanding = standings.find((row) => row.name === club.name) ?? standings[9]
+  const selectedTeam = standings.find((row) => row.position === selectedPosition) ?? cetateaStanding
+  const selectedFixture = upcomingFixtures[selectedFixtureIndex] ?? upcomingFixtures[0]
+  const simulationPoints = simulation === 'V' ? 3 : simulation === 'E' ? 1 : 0
+  const projectedPoints = cetateaStanding.points + simulationPoints
+  const projectedPosition = 1 + standings.filter((row) => row.name !== club.name && row.points > projectedPoints).length
+
+  useEffect(() => {
+    localStorage.setItem('cetatea-fixture-reminders', JSON.stringify(reminders))
+  }, [reminders])
+
+  const selectTeam = (position: number) => {
+    setSelectedPosition(position)
+    play('navigate')
+  }
+
+  const badgeForTeam = (teamName: string) => {
+    if (teamName.includes('Cetatea')) return club.badge
+    const normalized = teamName.toLocaleLowerCase('ro')
+    return standings.find((row) => (
+      normalized.includes(row.shortName.toLocaleLowerCase('ro'))
+      || row.shortName.toLocaleLowerCase('ro').includes(normalized)
+    ))?.badge ?? fanEmblem
+  }
+
+  const toggleReminder = (index: number) => {
+    setReminders((current) => current.includes(index)
+      ? current.filter((item) => item !== index)
+      : [...current, index])
+    play('success')
+  }
 
   return (
-    <section className={styles.view}>
-      <ViewIntro code="L2–05" label="Liga a II-a / clasament actual" title="Drumul spre" accent="vârf." />
-      <div className={styles.tableLayout}>
-        <motion.div className={styles.standings} variants={reveal} initial="hidden" animate="visible" custom={0.05}>
-          <div className={styles.standingsGrid}>
-            {standingColumns.map((column, columnIndex) => (
-              <div className={styles.standingColumn} key={columnIndex}>
-                <div className={styles.tableHead}><span>Loc / club</span><span>M</span><span>P</span><span>Formă</span></div>
-                {column.map((row) => (
-                  <div className={`${styles.tableRow} ${row.name === club.name ? styles.ourTeam : ''}`} key={row.position} title={row.name}>
-                    <span>{String(row.position).padStart(2, '0')}</span>
-                    <strong><img src={row.badge} alt="" />{row.shortName}</strong>
-                    <span>{row.played}</span>
-                    <b>{row.points}</b>
-                    <div aria-label={`Formă: ${row.form.join(', ')}`}>
-                      {row.form.map((result, index) => (
-                        <i
-                          key={`${result}-${index}`}
-                          className={result === 'V' ? styles.formWin : result === 'E' ? styles.formDraw : styles.formLoss}
-                          title={result === 'V' ? 'Victorie' : result === 'E' ? 'Egal' : 'Înfrângere'}
-                        >{result}</i>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </motion.div>
+    <section className={`${styles.view} ${styles.seasonView}`}>
+      <ViewIntro code="L2–05" label="Liga a II-a / centrul sezonului" title="Fiecare etapă." accent="Un nou asediu." />
 
-        <motion.aside className={styles.seasonVector} variants={reveal} initial="hidden" animate="visible" custom={0.13}>
-          <HudLabel value="DUPĂ 2 ETAPE">Cetatea în clasament</HudLabel>
-          <strong className={styles.rankNumber}>10</strong>
-          <span>Locul actual · 3 puncte · golaveraj 0</span>
-          <div className={styles.formSummary}>
-            <i className={styles.formLoss}>Î</i>
-            <i className={styles.formWin}>V</i>
-            <strong>Prima victorie: 2–0 la Târgu Mureș</strong>
+      <div className={styles.seasonHub}>
+        <motion.nav className={styles.seasonModes} variants={reveal} initial="hidden" animate="visible" aria-label="Modurile centrului sezonului">
+          {seasonModes.map((item, index) => {
+            const Icon = item.icon
+            return (
+              <button
+                type="button"
+                key={item.id}
+                className={mode === item.id ? styles.seasonModeActive : ''}
+                onClick={() => { setMode(item.id); play('navigate') }}
+                aria-pressed={mode === item.id}
+              >
+                <span>0{index + 1}</span><Icon aria-hidden="true" />
+                <div><strong>{item.label}</strong><small>{item.meta}</small></div><i />
+              </button>
+            )
+          })}
+          <div className={styles.seasonSignal}>
+            <span><i /> Date oficiale</span>
+            <strong>ACTUALIZAT DUPĂ E2</strong>
           </div>
-          <div className={styles.fixturePreview}>
-            <small>Următoarele etape</small>
-            {upcomingFixtures.slice(0, 3).map((fixture) => (
-              <span key={`${fixture.date}-${fixture.home}`}>
-                <b>{fixture.date}</b>
-                <em>{fixture.home} — {fixture.away}</em>
-              </span>
-            ))}
-          </div>
-          <p>Date actualizate din clasamentul și programul publicate de club.</p>
-        </motion.aside>
+        </motion.nav>
+
+        <div className={styles.seasonScene}>
+          <AnimatePresence mode="wait" initial={false}>
+            {mode === 'clasament' && (
+              <motion.div
+                key="clasament"
+                className={styles.seasonStandingsExperience}
+                initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -22 }}
+                transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div className={styles.seasonTableCommand}>
+                  <header>
+                    <div><small>Clasament complet</small><strong>Liga a II-a · 2026/27</strong></div>
+                    <div className={styles.seasonLegend}><span><i /> Promovare</span><span><i /> Cetatea</span></div>
+                  </header>
+                  <div className={styles.seasonStandingColumns}>
+                    {standingColumns.map((column, columnIndex) => (
+                      <div className={styles.seasonStandingColumn} key={columnIndex}>
+                        <div className={styles.seasonTableHead}><span>#</span><span>Club</span><span>M</span><span>±</span><span>P</span></div>
+                        {column.map((row) => (
+                          <button
+                            type="button"
+                            className={`${row.name === club.name ? styles.seasonOurTeam : ''} ${selectedTeam.position === row.position ? styles.seasonTeamSelected : ''}`}
+                            key={row.position}
+                            onClick={() => selectTeam(row.position)}
+                            aria-pressed={selectedTeam.position === row.position}
+                          >
+                            <span>{String(row.position).padStart(2, '0')}</span>
+                            <strong><img src={row.badge} alt="" />{row.shortName}</strong>
+                            <small>{row.played}</small><small>{row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}</small><b>{row.points}</b><i />
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <aside className={styles.seasonInspector}>
+                  <header><span>Club inspectat</span><strong>POZIȚIA {String(selectedTeam.position).padStart(2, '0')}</strong></header>
+                  <div className={styles.inspectedClub}>
+                    <span><img src={selectedTeam.badge} alt="" /><b>{String(selectedTeam.position).padStart(2, '0')}</b></span>
+                    <small>{selectedTeam.name === club.name ? 'Cetatea noastră' : 'Adversar în campionat'}</small>
+                    <h2>{selectedTeam.shortName}</h2>
+                  </div>
+                  <div className={styles.inspectedStats}>
+                    <span><small>Meciuri</small><strong>{selectedTeam.played}</strong></span>
+                    <span><small>Golaveraj</small><strong>{selectedTeam.goalDifference > 0 ? `+${selectedTeam.goalDifference}` : selectedTeam.goalDifference}</strong></span>
+                    <span><small>Puncte</small><strong>{selectedTeam.points}</strong></span>
+                  </div>
+                  <div className={styles.inspectedForm}><small>Forma recentă</small><div>{selectedTeam.form.map((result, index) => <i key={`${result}-${index}`} className={result === 'V' ? styles.formWin : result === 'E' ? styles.formDraw : styles.formLoss}>{result}</i>)}</div></div>
+
+                  <div className={styles.seasonSimulator}>
+                    <header><span>Simulator Cetatea · Etapa 3</span><small>SCENARIU</small></header>
+                    <div>{(['V', 'E', 'Î'] as FormResult[]).map((result) => <button type="button" key={result} className={simulation === result ? styles.simulationActive : ''} onClick={() => { setSimulation(result); play('toggle') }}>{result}</button>)}</div>
+                    <p>Dacă următorul meci se încheie cu <strong>{simulation === 'V' ? 'victorie' : simulation === 'E' ? 'egal' : 'înfrângere'}</strong>:</p>
+                    <footer><span><small>Poziție estimată</small><strong>#{projectedPosition}</strong></span><span><small>Puncte</small><strong>{projectedPoints}</strong></span></footer>
+                  </div>
+                </aside>
+              </motion.div>
+            )}
+
+            {mode === 'forma' && (
+              <motion.div
+                key="forma"
+                className={styles.seasonFormExperience}
+                initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -22 }}
+                transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <article className={styles.formSpotlight}>
+                  <header><span><Activity aria-hidden="true" /> Radarul campionatului</span><small>După etapa a II-a</small></header>
+                  <div className={styles.formClubIdentity}>
+                    <span><img src={selectedTeam.badge} alt="" /><strong>{String(selectedTeam.position).padStart(2, '0')}</strong></span>
+                    <div><small>Club selectat</small><h2>{selectedTeam.shortName}</h2><p>{selectedTeam.wins} victorii · {selectedTeam.draws} egaluri · {selectedTeam.losses} înfrângeri</p></div>
+                  </div>
+                  <div className={styles.formTrajectory}>
+                    <span>ETAPA</span>{Array.from({ length: 5 }, (_, index) => <b key={index}>0{index + 1}</b>)}
+                    <small>REZULTAT</small>
+                    {Array.from({ length: 5 }, (_, index) => {
+                      const result = selectedTeam.form[index]
+                      return <i key={index} className={result === 'V' ? styles.formWin : result === 'E' ? styles.formDraw : result === 'Î' ? styles.formLoss : styles.formPending}>{result ?? '·'}</i>
+                    })}
+                  </div>
+                  <div className={styles.formBars}>
+                    <span><small>Randament</small><i><b style={{ '--form-width': `${Math.min(100, selectedTeam.points / Math.max(1, selectedTeam.played * 3) * 100)}%` } as CSSProperties} /></i><strong>{Math.round(selectedTeam.points / Math.max(1, selectedTeam.played * 3) * 100)}%</strong></span>
+                    <span><small>Ofensivă</small><i><b style={{ '--form-width': `${55 + Math.max(0, selectedTeam.goalDifference) * 7}%` } as CSSProperties} /></i><strong>{55 + Math.max(0, selectedTeam.goalDifference) * 7}</strong></span>
+                    <span><small>Impuls</small><i><b style={{ '--form-width': `${selectedTeam.form.at(-1) === 'V' ? 86 : selectedTeam.form.at(-1) === 'E' ? 61 : 38}%` } as CSSProperties} /></i><strong>{selectedTeam.form.at(-1) === 'V' ? '↑' : selectedTeam.form.at(-1) === 'E' ? '→' : '↓'}</strong></span>
+                  </div>
+                  <footer><span>Indicatori calculați din rezultatele oficiale disponibile</span><strong>{selectedTeam.points - cetateaStanding.points === 0 ? 'LA EGALITATE CU CETATEA' : `${Math.abs(selectedTeam.points - cetateaStanding.points)} PCT. ${selectedTeam.points > cetateaStanding.points ? 'PESTE' : 'SUB'} CETATEA`}</strong></footer>
+                </article>
+
+                <aside className={styles.formMatrix}>
+                  <header><div><small>Toată liga</small><strong>Matricea formei</strong></div><span>V · E · Î</span></header>
+                  <div>
+                    {standings.map((row) => (
+                      <button type="button" key={row.position} className={`${row.name === club.name ? styles.formMatrixOurTeam : ''} ${selectedTeam.position === row.position ? styles.formMatrixSelected : ''}`} onClick={() => selectTeam(row.position)}>
+                        <span>{String(row.position).padStart(2, '0')}</span><img src={row.badge} alt="" /><strong>{row.shortName}</strong>
+                        <div>{row.form.map((result, index) => <i key={`${result}-${index}`} className={result === 'V' ? styles.formWin : result === 'E' ? styles.formDraw : styles.formLoss}>{result}</i>)}</div>
+                      </button>
+                    ))}
+                  </div>
+                </aside>
+              </motion.div>
+            )}
+
+            {mode === 'calendar' && (
+              <motion.div
+                key="calendar"
+                className={styles.seasonCalendarExperience}
+                initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -22 }}
+                transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div className={styles.fixtureTimeline}>
+                  <header><div><small>Drumul Cetății</small><strong>Următoarele confruntări</strong></div><span>6 MECIURI</span></header>
+                  <div>
+                    {upcomingFixtures.map((fixture, index) => (
+                      <button type="button" key={`${fixture.date}-${fixture.home}`} className={selectedFixtureIndex === index ? styles.fixtureTimelineActive : ''} onClick={() => { setSelectedFixtureIndex(index); play('navigate') }}>
+                        <span><small>ETAPA</small><strong>0{index + 3}</strong></span>
+                        <time><strong>{fixture.date}</strong><small>{fixture.time}</small></time>
+                        <div><strong>{fixture.home}</strong><i /><strong>{fixture.away}</strong><small>{fixture.venue}</small></div>
+                        {reminders.includes(index) && <Bell aria-label="Alertă activă" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <aside className={styles.fixtureFocus}>
+                  <header><span><i /> Meci selectat</span><strong>ETAPA {String(selectedFixtureIndex + 3).padStart(2, '0')}</strong></header>
+                  <div className={styles.fixtureDuel}>
+                    <span><img src={badgeForTeam(selectedFixture.home)} alt="" /><strong>{selectedFixture.home}</strong></span>
+                    <b>VS<small>{selectedFixture.time}</small></b>
+                    <span><img src={badgeForTeam(selectedFixture.away)} alt="" /><strong>{selectedFixture.away}</strong></span>
+                  </div>
+                  <div className={styles.fixtureCoordinates}>
+                    <span><CalendarDays aria-hidden="true" /><small>Data</small><strong>{selectedFixture.date}</strong></span>
+                    <span><CircleDot aria-hidden="true" /><small>Stadion</small><strong>{selectedFixture.venue}</strong></span>
+                  </div>
+                  <button type="button" className={reminders.includes(selectedFixtureIndex) ? styles.fixtureReminderActive : ''} onClick={() => toggleReminder(selectedFixtureIndex)} aria-pressed={reminders.includes(selectedFixtureIndex)}>
+                    <Bell aria-hidden="true" /><span><strong>{reminders.includes(selectedFixtureIndex) ? 'Alerta este activă' : 'Activează alerta de meci'}</strong><small>Primești noutățile înainte de start</small></span><i />
+                  </button>
+                  <footer><span>Program publicat de club</span><strong>ORE LOCALE</strong></footer>
+                </aside>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </section>
   )
@@ -854,6 +1033,18 @@ type NewsArticle = {
   image: string
   imagePosition: string
   tone: string
+}
+
+type NewsReaction = 'inima' | 'foc' | 'forta'
+
+type NewsComment = {
+  id: string
+  articleId: number
+  author: string
+  initials: string
+  message: string
+  time: string
+  verified?: boolean
 }
 
 const newsArticles: NewsArticle[] = [
@@ -937,9 +1128,75 @@ const newsArticles: NewsArticle[] = [
     imagePosition: 'center',
     tone: 'var(--tone-rose)',
   },
+  {
+    id: 6,
+    category: 'Meci',
+    kicker: 'Drumul alb-albastru',
+    title: 'Ghidul suporterului pentru deplasarea de la Ștefănești.',
+    summary: 'Program, stadion și reperele utile pentru fanii care vor să ducă vocea Cetății în următoarea deplasare.',
+    body: [
+      'Următorul meci din deplasare este programat pe 22 august, de la ora 11:00, la Stadionul Dumitru Mătărau. În centrul de sezon poți activa alerta și păstra toate coordonatele partidei aproape.',
+      'Clubul suporterilor va reuni într-un singur flux informațiile confirmate despre acces și punctele de întâlnire. Verifică aplicația înainte de plecare pentru eventualele actualizări ale programului.',
+    ],
+    date: '5 august 2026',
+    readTime: '4 min.',
+    image: arenaBackground,
+    imagePosition: '35% center',
+    tone: 'var(--tone-cyan)',
+  },
+  {
+    id: 7,
+    category: 'Comunitate',
+    kicker: 'Oameni de Cetate',
+    title: 'Poveștile din tribună primesc un loc al lor în aplicație.',
+    summary: 'O serie nouă dedicată suporterilor care duc identitatea alb-albastră mai departe, generație după generație.',
+    body: [
+      'Fiecare meci are vocile sale, iar în spatele fiecărei voci există o poveste. Noua serie va aduce în față suporteri, familii și grupuri care au rămas aproape de fotbalul sucevean.',
+      'Comunitatea va putea propune povești și reacționa la fiecare episod. Cele mai apreciate mărturii vor rămâne în arhiva digitală a Cetății.',
+    ],
+    date: '4 august 2026',
+    readTime: '5 min.',
+    image: fanEmblem,
+    imagePosition: 'center',
+    tone: 'var(--tone-green)',
+  },
+  {
+    id: 8,
+    category: 'Club',
+    kicker: 'Harta Cetății',
+    title: 'Suceava se conectează într-o singură rețea alb-albastră.',
+    summary: 'Cartierele, diaspora și tribuna se întâlnesc într-o hartă vie a comunității Cetatea.',
+    body: [
+      'Harta Cetății va arăta energia comunității fără să expună locații personale. Fiecare suporter va putea alege zona pe care o reprezintă și va contribui la pulsul colectiv.',
+      'Obiectivul este simplu: să vedem cât de departe ajunge identitatea alb-albastră și să transformăm conexiunile digitale în inițiative pentru oraș și stadion.',
+    ],
+    date: '3 august 2026',
+    readTime: '4 min.',
+    image: arenaBackground,
+    imagePosition: 'center 68%',
+    tone: 'var(--tone-violet)',
+  },
 ]
 
 const newsCategories: NewsCategory[] = ['Toate', 'Meci', 'Echipă', 'Comunitate', 'Club']
+
+const newsReactionOptions = [
+  { id: 'inima' as const, label: 'Alb-albastru', icon: Heart, base: 126 },
+  { id: 'foc' as const, label: 'Foc în tribună', icon: Flame, base: 84 },
+  { id: 'forta' as const, label: 'Forța Cetății', icon: ThumbsUp, base: 63 },
+]
+
+const seededNewsComments: NewsComment[] = [
+  { id: 'c-1', articleId: 1, author: 'Mihai S.', initials: 'MS', message: 'Areniul trebuie să fie plin. Venim devreme și cântăm până la final!', time: 'acum 8 min.', verified: true },
+  { id: 'c-2', articleId: 1, author: 'Andreea C.', initials: 'AC', message: 'Foarte utile informațiile despre acces. Hai, Cetatea!', time: 'acum 21 min.' },
+  { id: 'c-3', articleId: 2, author: 'Radu din Burdujeni', initials: 'RB', message: 'Victoria asta ne-a dat încredere. Continuăm la fel pe Areni.', time: 'acum 34 min.', verified: true },
+  { id: 'c-4', articleId: 3, author: 'Peluza Nord', initials: 'PN', message: 'Vocile suporterilor trebuie să se audă și aici, și pe stadion.', time: 'acum 1 oră', verified: true },
+  { id: 'c-5', articleId: 4, author: 'Sorin 1932', initials: 'S2', message: 'Aștept cu nerăbdare arhiva și fotografiile vechi ale Areniului.', time: 'acum 2 ore' },
+  { id: 'c-6', articleId: 5, author: 'Ioana M.', initials: 'IM', message: 'Mult succes întregului lot în săptămâna care urmează!', time: 'acum 3 ore' },
+  { id: 'c-7', articleId: 6, author: 'George din Centru', initials: 'GC', message: 'Foarte bună ideea cu toate detaliile deplasării într-un singur loc.', time: 'acum 4 ore' },
+  { id: 'c-8', articleId: 7, author: 'Familia Alb-Albastră', initials: 'FA', message: 'Avem trei generații care merg împreună la Areni. Trimitem povestea!', time: 'acum 5 ore', verified: true },
+  { id: 'c-9', articleId: 8, author: 'Cetățean din diaspora', initials: 'CD', message: 'Suceava se simte aproape chiar și de la mii de kilometri.', time: 'acum 6 ore' },
+]
 
 export function NewsView() {
   const { play } = useSound()
@@ -956,6 +1213,25 @@ export function NewsView() {
     }
   })
   const [readerArticle, setReaderArticle] = useState<NewsArticle | null>(null)
+  const [conversationArticle, setConversationArticle] = useState<NewsArticle | null>(null)
+  const [commentDraft, setCommentDraft] = useState('')
+  const [likedComments, setLikedComments] = useState<string[]>([])
+  const [reactions, setReactions] = useState<Record<number, NewsReaction>>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('cetatea-news-reactions') ?? '{}')
+      return stored && typeof stored === 'object' ? stored : {}
+    } catch {
+      return {}
+    }
+  })
+  const [userComments, setUserComments] = useState<NewsComment[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('cetatea-news-comments') ?? '[]')
+      return Array.isArray(stored) ? stored : []
+    } catch {
+      return []
+    }
+  })
 
   const visibleArticles = useMemo(
     () => category === 'Toate'
@@ -974,21 +1250,31 @@ export function NewsView() {
   }, [saved])
 
   useEffect(() => {
-    if (!autoplay || hovering || readerArticle || visibleArticles.length < 2) return
+    localStorage.setItem('cetatea-news-reactions', JSON.stringify(reactions))
+  }, [reactions])
+
+  useEffect(() => {
+    localStorage.setItem('cetatea-news-comments', JSON.stringify(userComments))
+  }, [userComments])
+
+  useEffect(() => {
+    if (!autoplay || hovering || readerArticle || conversationArticle || visibleArticles.length < 2) return
     const timer = window.setInterval(() => {
       setActiveIndex((current) => (current + 1) % visibleArticles.length)
     }, 7000)
     return () => window.clearInterval(timer)
-  }, [autoplay, hovering, readerArticle, visibleArticles.length])
+  }, [autoplay, conversationArticle, hovering, readerArticle, visibleArticles.length])
 
   useEffect(() => {
-    if (!readerArticle) return
-    const closeReader = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setReaderArticle(null)
+    if (!readerArticle && !conversationArticle) return
+    const closeOverlay = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setReaderArticle(null)
+      setConversationArticle(null)
     }
-    document.addEventListener('keydown', closeReader)
-    return () => document.removeEventListener('keydown', closeReader)
-  }, [readerArticle])
+    document.addEventListener('keydown', closeOverlay)
+    return () => document.removeEventListener('keydown', closeOverlay)
+  }, [conversationArticle, readerArticle])
 
   const moveCarousel = (direction: number) => {
     setActiveIndex((current) => (
@@ -1006,6 +1292,53 @@ export function NewsView() {
     setSaved((current) => current.includes(id)
       ? current.filter((item) => item !== id)
       : [...current, id])
+    play('success')
+  }
+
+  const commentsForArticle = (articleId: number) => [
+    ...seededNewsComments.filter((comment) => comment.articleId === articleId),
+    ...userComments.filter((comment) => comment.articleId === articleId),
+  ]
+
+  const reactionCount = (articleId: number, reactionIndex: number, reaction: NewsReaction) => (
+    newsReactionOptions[reactionIndex].base
+      + articleId * (reactionIndex + 3)
+      + (reactions[articleId] === reaction ? 1 : 0)
+  )
+
+  const reactToArticle = (articleId: number, reaction: NewsReaction) => {
+    setReactions((current) => {
+      const next = { ...current }
+      if (next[articleId] === reaction) delete next[articleId]
+      else next[articleId] = reaction
+      return next
+    })
+    play('success')
+  }
+
+  const openConversation = (article: NewsArticle) => {
+    setReaderArticle(null)
+    setConversationArticle(article)
+    setAutoplay(false)
+    play('navigate')
+  }
+
+  const submitComment = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const message = commentDraft.trim()
+    if (!message || !conversationArticle) return
+    setUserComments((current) => [
+      ...current,
+      {
+        id: `user-${Date.now()}`,
+        articleId: conversationArticle.id,
+        author: 'Suporter Cetatea',
+        initials: 'CS',
+        message,
+        time: 'acum câteva secunde',
+      },
+    ])
+    setCommentDraft('')
     play('success')
   }
 
@@ -1086,6 +1419,9 @@ export function NewsView() {
                   <button type="button" onClick={() => void shareArticle(activeArticle)} aria-label="Distribuie articolul">
                     <Share2 aria-hidden="true" />
                   </button>
+                  <button type="button" onClick={() => openConversation(activeArticle)} aria-label="Deschide conversația">
+                    <MessageCircle aria-hidden="true" />
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -1125,10 +1461,35 @@ export function NewsView() {
                 aria-current={activeIndex === index ? 'true' : undefined}
               >
                 <span>0{index + 1}</span>
-                <div><small>{article.category} · {article.readTime}</small><strong>{article.title}</strong></div>
+                <div><small>{article.category} · {article.readTime} · {commentsForArticle(article.id).length} mesaje</small><strong>{article.title}</strong></div>
                 <i />
               </button>
             ))}
+          </div>
+
+          <div className={styles.newsCommunityPulse} style={{ '--news-tone': activeArticle.tone } as CSSProperties}>
+            <header><span><MessageCircle aria-hidden="true" /> Pulsul știrii</span><small>{commentsForArticle(activeArticle.id).length} mesaje</small></header>
+            <div>
+              {newsReactionOptions.map((reaction, reactionIndex) => {
+                const Icon = reaction.icon
+                const active = reactions[activeArticle.id] === reaction.id
+                return (
+                  <button
+                    type="button"
+                    key={reaction.id}
+                    className={active ? styles.newsReactionActive : ''}
+                    onClick={() => reactToArticle(activeArticle.id, reaction.id)}
+                    aria-pressed={active}
+                    title={reaction.label}
+                  >
+                    <Icon aria-hidden="true" /><span>{reactionCount(activeArticle.id, reactionIndex, reaction.id)}</span>
+                  </button>
+                )
+              })}
+              <button type="button" className={styles.openConversation} onClick={() => openConversation(activeArticle)}>
+                Intră în conversație <ArrowRight aria-hidden="true" />
+              </button>
+            </div>
           </div>
 
           <button
@@ -1171,8 +1532,103 @@ export function NewsView() {
               <div>
                 <button type="button" onClick={() => toggleSaved(readerArticle.id)}><Bookmark aria-hidden="true" /> {saved.includes(readerArticle.id) ? 'Salvat' : 'Salvează'}</button>
                 <button type="button" onClick={() => void shareArticle(readerArticle)}><Share2 aria-hidden="true" /> Distribuie</button>
+                <button type="button" onClick={() => openConversation(readerArticle)}><MessageCircle aria-hidden="true" /> Conversație</button>
               </div>
             </footer>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {conversationArticle && (
+          <motion.div
+            className={styles.newsConversationLayer}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <button type="button" className={styles.newsConversationBackdrop} onClick={() => setConversationArticle(null)} aria-label="Închide conversația" />
+            <motion.aside
+              className={styles.newsConversation}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="news-conversation-title"
+              style={{ '--news-tone': conversationArticle.tone } as CSSProperties}
+              initial={{ x: '108%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '108%' }}
+              transition={{ duration: .5, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <header>
+                <div><small>Conversația Cetății</small><strong id="news-conversation-title">Pulsul comunității</strong></div>
+                <button type="button" onClick={() => setConversationArticle(null)} aria-label="Închide conversația"><X aria-hidden="true" /></button>
+              </header>
+
+              <div className={styles.conversationArticle}>
+                <span>{conversationArticle.category} · {conversationArticle.date}</span>
+                <strong>{conversationArticle.title}</strong>
+              </div>
+
+              <div className={styles.conversationReactions}>
+                {newsReactionOptions.map((reaction, reactionIndex) => {
+                  const Icon = reaction.icon
+                  const active = reactions[conversationArticle.id] === reaction.id
+                  return (
+                    <button
+                      type="button"
+                      key={reaction.id}
+                      className={active ? styles.conversationReactionActive : ''}
+                      onClick={() => reactToArticle(conversationArticle.id, reaction.id)}
+                      aria-pressed={active}
+                    >
+                      <Icon aria-hidden="true" /><span><strong>{reaction.label}</strong><small>{reactionCount(conversationArticle.id, reactionIndex, reaction.id)} reacții</small></span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className={styles.commentThread} aria-live="polite">
+                {commentsForArticle(conversationArticle.id).slice(-4).map((comment) => (
+                  <article key={comment.id} className={comment.id.startsWith('user-') ? styles.ownComment : ''}>
+                    <span>{comment.initials}</span>
+                    <div>
+                      <header><strong>{comment.author}{comment.verified && <BadgeCheck aria-label="Suporter verificat" />}</strong><small>{comment.time}</small></header>
+                      <p>{comment.message}</p>
+                      <footer>
+                        <button
+                          type="button"
+                          className={likedComments.includes(comment.id) ? styles.commentLiked : ''}
+                          onClick={() => {
+                            setLikedComments((current) => current.includes(comment.id) ? current.filter((id) => id !== comment.id) : [...current, comment.id])
+                            play('toggle')
+                          }}
+                          aria-pressed={likedComments.includes(comment.id)}
+                        >
+                          <Heart aria-hidden="true" /> {likedComments.includes(comment.id) ? 'Apreciat' : 'Apreciază'}
+                        </button>
+                        <button type="button" onClick={() => setCommentDraft(`@${comment.author} `)}>Răspunde</button>
+                      </footer>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <form className={styles.commentComposer} onSubmit={submitComment}>
+                <span>CS</span>
+                <label>
+                  <input
+                    autoFocus
+                    value={commentDraft}
+                    onChange={(event) => setCommentDraft(event.target.value)}
+                    maxLength={220}
+                    placeholder="Scrie un mesaj pentru Cetate..."
+                  />
+                  <small>{commentDraft.length}/220</small>
+                </label>
+                <button type="submit" disabled={!commentDraft.trim()} aria-label="Publică mesajul"><Send aria-hidden="true" /></button>
+              </form>
+              <footer className={styles.conversationRules}><BadgeCheck aria-hidden="true" /> Respect, pasiune și dialog alb-albastru.</footer>
+            </motion.aside>
           </motion.div>
         )}
       </AnimatePresence>
