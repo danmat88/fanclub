@@ -1378,6 +1378,20 @@
   box-shadow: 0 0 7px var(--control-tone);
 }
 
+.themeControlActive {
+  color: var(--text-primary);
+}
+
+.themeControlActive .controlGlyph {
+  color: var(--tone-violet);
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--tone-violet) 72%, transparent));
+}
+
+.themeControlActive .controlNode {
+  background: var(--tone-cyan);
+  box-shadow: 0 0 8px var(--tone-cyan);
+}
+
 .profileControl b {
   display: grid;
   width: 20px;
@@ -1879,4 +1893,46 @@
   .railCountdown { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; }
   .railCountdown > span { padding-inline: 1px; }
   .railCountdown small { font-size: .36rem; letter-spacing: .02em; }
+}
+
+/* Dock utilitar: dimensiuni egale, fără etichete care lărgesc headerul. */
+.controls {
+  display: grid;
+  grid-template-columns: repeat(5, 42px);
+  gap: 7px;
+  padding-left: clamp(10px, 1vw, 17px);
+}
+
+.control,
+.profileControl {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  width: 42px;
+  min-height: 40px;
+  padding: 0;
+  justify-items: center;
+}
+
+.controlLabel { display: none; }
+
+.controlNode {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 4px;
+  height: 4px;
+}
+
+@media (max-width: 1120px) {
+  .controls { grid-template-columns: repeat(5, 36px); gap: 5px; padding-left: 9px; }
+  .control,
+  .profileControl { width: 36px; min-height: 36px; }
+}
+
+@media (max-width: 720px) {
+  .controls { grid-template-columns: repeat(4, 32px); gap: 3px; padding-left: 5px; }
+  .control,
+  .profileControl { width: 32px; min-height: 34px; }
+  .controls .control:nth-child(4) { display: none; }
 }

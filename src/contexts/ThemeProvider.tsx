@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { ThemeContext, type Theme } from './theme-context'
+import { ThemeContext, themeOrder, type Theme } from './theme-context'
 
 const getInitialTheme = (): Theme => {
   let savedTheme: string | null = null
@@ -10,21 +10,16 @@ const getInitialTheme = (): Theme => {
     return 'nocturna'
   }
 
-  if (
-    savedTheme === 'nocturna' ||
-    savedTheme === 'zi-de-meci' ||
-    savedTheme === 'asediu' ||
-    savedTheme === 'bucovina'
-  ) {
-    document.documentElement.dataset.theme = savedTheme
-    return savedTheme
+  if (themeOrder.includes(savedTheme as Theme)) {
+    document.documentElement.dataset.theme = savedTheme as Theme
+    return savedTheme as Theme
   }
 
   return 'nocturna'
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme)
+  const [theme, setActiveTheme] = useState<Theme>(getInitialTheme)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -32,14 +27,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [theme])
 
   const toggleTheme = useCallback(() => {
-    const themes: Theme[] = ['nocturna', 'zi-de-meci', 'asediu', 'bucovina']
-    setTheme((currentTheme) => {
-      const currentIndex = themes.indexOf(currentTheme)
-      return themes[(currentIndex + 1) % themes.length]
+    setActiveTheme((currentTheme) => {
+      const currentIndex = themeOrder.indexOf(currentTheme)
+      return themeOrder[(currentIndex + 1) % themeOrder.length]
     })
   }, [])
 
-  const value = useMemo(() => ({ theme, toggleTheme }), [theme, toggleTheme])
+  const setTheme = useCallback((nextTheme: Theme) => setActiveTheme(nextTheme), [])
+  const value = useMemo(() => ({ theme, setTheme, toggleTheme }), [theme, setTheme, toggleTheme])
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }

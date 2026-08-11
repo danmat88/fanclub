@@ -1,7 +1,6 @@
 import {
   Megaphone,
   Newspaper,
-  RadioTower,
   Trophy,
   UsersRound,
   type LucideIcon,
@@ -17,18 +16,18 @@ export type NavigationItem = {
 
 export const navigationItems: NavigationItem[] = [
   {
-    path: '/meci-direct',
-    label: 'Meci live',
-    meta: 'Fază cu fază',
-    badge: 'LIVE',
-    icon: RadioTower,
+    path: '/',
+    label: 'Tribuna',
+    meta: 'Comunitatea Cetății',
+    badge: 'ACTIV',
+    icon: Megaphone,
   },
   {
-    path: '/tribuna',
-    label: 'Peluza',
-    meta: 'Mesaje și scandări',
-    badge: '284',
-    icon: Megaphone,
+    path: '/stiri',
+    label: 'Știri',
+    meta: 'Noutăți și povești',
+    badge: 'NOU',
+    icon: Newspaper,
   },
   {
     path: '/lot',
@@ -43,12 +42,5 @@ export const navigationItems: NavigationItem[] = [
     meta: 'Clasament și rezultate',
     badge: 'LOC 10',
     icon: Trophy,
-  },
-  {
-    path: '/stiri',
-    label: 'Știri',
-    meta: 'Noutăți și povești',
-    badge: 'NOU',
-    icon: Newspaper,
   },
 ]

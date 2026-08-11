@@ -33,7 +33,7 @@ export function Navigation({ activePath, collapsed, onNavigate }: NavigationProp
     >
       <div className={styles.navHub} aria-hidden="true">
         <span>Explorează Cetatea</span>
-        <strong><i /> 5 destinații</strong>
+        <strong><i /> {navigationItems.length} destinații</strong>
       </div>
       <div className={styles.items}>
         {navigationItems.map((item, index) => {

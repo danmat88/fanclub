@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
+  BarChart3,
   Bell,
   Bookmark,
   CalendarPlus,
@@ -12,11 +13,13 @@ import {
   ChevronRight,
   CircleDot,
   Clock3,
+  Crown,
   Eye,
   Flame,
   GitCompareArrows,
   GripHorizontal,
   Heart,
+  ImagePlus,
   LayoutDashboard,
   MapPin,
   Maximize2,
@@ -51,6 +54,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ChangeEvent,
   type FormEvent,
   type PointerEvent as ReactPointerEvent,
   type RefCallback,
@@ -58,7 +62,7 @@ import {
 import fanEmblem from '../assets/brand/cetatea-fan-emblem.webp'
 import arenaBackground from '../assets/brand/loading-cetatea-arena.webp'
 import { useSound } from '../contexts/useSound'
-import { club, nextMatch, squad, standings, technicalStaff, upcomingFixtures, type FormResult, type PlayerPosition } from '../data/clubData'
+import { club, latestResult, nextMatch, squad, standings, technicalStaff, upcomingFixtures, type FormResult, type PlayerPosition } from '../data/clubData'
 import { useMatchCountdown } from '../hooks/useMatchCountdown'
 import styles from './Views.module.css'
 
@@ -1143,45 +1147,685 @@ export function LiveCenterView() {
   )
 }
 
-const chantOptions = ['Cetatea nu cade', 'Suceava, luptă!', 'Alb-albastru până la capăt']
+type TribuneFilter = 'Toate' | 'Oficial' | 'Suporteri' | 'Media'
+type TribunePostLabel = 'Discuție' | 'Din tribună' | 'Analiză'
+type ComposerMode = 'mesaj' | 'fotografie'
+
+type TribunePost = {
+  id: string
+  author: string
+  initials: string
+  role: string
+  time: string
+  text: string
+  official?: boolean
+  image?: string
+  label?: string
+  reactionBase: number
+  commentBase: number
+  tone: string
+  userCreated?: boolean
+}
+
+type TribuneComment = {
+  id: string
+  author: string
+  text: string
+  time: string
+}
+
+const tribuneFilters: TribuneFilter[] = ['Toate', 'Oficial', 'Suporteri', 'Media']
+const tribunePostLabels: TribunePostLabel[] = ['Discuție', 'Din tribună', 'Analiză']
+
+const seedTribunePosts: TribunePost[] = [
+  {
+    id: 'oficial-victorie',
+    author: 'Cetatea Suceava',
+    initials: 'CS',
+    role: 'Canal oficial',
+    time: 'astăzi · 09:32',
+    text: `Trei puncte câștigate la Târgu Mureș. Victoria cu ${latestResult.score} rămâne în urmă; de acum, toată energia merge spre Areni. Ce păstrăm din ultimul meci?`,
+    official: true,
+    label: 'După meci',
+    reactionBase: 86,
+    commentBase: 14,
+    tone: 'var(--tone-cyan)',
+  },
+  {
+    id: 'suporter-areni',
+    author: 'Mara S.',
+    initials: 'MS',
+    role: 'Tribuna a II-a',
+    time: 'acum 34 min.',
+    text: 'Areniul are o liniște aparte înainte de meci. Sâmbătă îl umplem din nou cu alb și albastru.',
+    image: arenaBackground,
+    label: 'Din oraș',
+    reactionBase: 39,
+    commentBase: 7,
+    tone: 'var(--tone-violet)',
+  },
+  {
+    id: 'suporter-intrebare',
+    author: 'Andrei / Burdujeni',
+    initials: 'AB',
+    role: 'Membru din 2026',
+    time: 'acum 51 min.',
+    text: 'Care a fost momentul în care ați simțit că echipa nu mai poate pierde la Târgu Mureș? Sunt curios cum s-a văzut meciul din fiecare colț al orașului.',
+    label: 'Discuție',
+    reactionBase: 22,
+    commentBase: 11,
+    tone: 'var(--tone-amber)',
+  },
+]
+
+const tribunePollOptions = [
+  'Disciplina echipei',
+  'Curajul în atac',
+  'Unitatea grupului',
+]
+
+const motmCandidates = [73, 10, 9]
+  .map((number) => squad.find((player) => player.number === number))
+  .filter((player): player is (typeof squad)[number] => Boolean(player))
+
+const radarItems = [
+  {
+    eyebrow: 'Ultimul rezultat',
+    value: latestResult.score,
+    title: 'Victorie în deplasare',
+    copy: `${latestResult.home} · ${latestResult.round}`,
+    tone: 'var(--tone-cyan)',
+  },
+  {
+    eyebrow: 'Poziția actuală',
+    value: `#${standings.find((team) => team.name === club.name)?.position ?? 10}`,
+    title: 'Cetatea în clasament',
+    copy: '3 puncte după două etape',
+    tone: 'var(--tone-violet)',
+  },
+  {
+    eyebrow: 'Vestiarul Cetății',
+    value: String(squad.length),
+    title: 'Jucători în lot',
+    copy: `${technicalStaff.length} oameni în staff-ul tehnic`,
+    tone: 'var(--tone-green)',
+  },
+  {
+    eyebrow: 'Rădăcini',
+    value: String(club.founded),
+    title: 'Anul de pe stemă',
+    copy: 'O identitate dusă mai departe de oraș',
+    tone: 'var(--tone-amber)',
+  },
+]
+
+const initialTribuneComments: Record<string, TribuneComment[]> = {
+  'oficial-victorie': [
+    { id: 'c-1', author: 'Ioana P.', text: 'Atitudinea. Echipa a rămas compactă până la final.', time: '09:41' },
+    { id: 'c-2', author: 'Radu / George Enescu', text: 'Rezultatul ne dă exact energia de care aveam nevoie pentru Areni.', time: '09:48' },
+  ],
+  'suporter-areni': [
+    { id: 'c-3', author: 'Mihai C.', text: 'Ne vedem în tribuna a doua. Toți în alb-albastru!', time: 'acum 21 min.' },
+  ],
+}
+
+function readStoredPosts() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('cetatea-tribune-posts') ?? '[]')
+    return Array.isArray(stored) ? stored as TribunePost[] : []
+  } catch {
+    return []
+  }
+}
+
+function readStoredRecord<T>(key: string, fallback: T): T {
+  try {
+    const stored = localStorage.getItem(key)
+    return stored ? JSON.parse(stored) as T : fallback
+  } catch {
+    return fallback
+  }
+}
 
 export function CommunityView() {
   const { play } = useSound()
-  const [vote, setVote] = useState(0)
+  const [filter, setFilter] = useState<TribuneFilter>('Toate')
+  const [posts, setPosts] = useState<TribunePost[]>(() => [...readStoredPosts(), ...seedTribunePosts])
+  const [reactions, setReactions] = useState<Record<string, boolean>>(
+    () => readStoredRecord('cetatea-tribune-reactions', {}),
+  )
+  const [comments, setComments] = useState<Record<string, TribuneComment[]>>(
+    () => readStoredRecord('cetatea-tribune-comments', initialTribuneComments),
+  )
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [composerText, setComposerText] = useState(() => localStorage.getItem('cetatea-tribune-draft') ?? '')
+  const [composerImage, setComposerImage] = useState('')
+  const [composerError, setComposerError] = useState('')
+  const [composerMode, setComposerMode] = useState<ComposerMode>('mesaj')
+  const [composerLabel, setComposerLabel] = useState<TribunePostLabel>('Discuție')
+  const [activePostId, setActivePostId] = useState<string | null>(null)
+  const [commentDraft, setCommentDraft] = useState('')
+  const [pollVote, setPollVote] = useState<number | null>(() => {
+    const stored = localStorage.getItem('cetatea-tribune-poll')
+    return stored === null ? null : Number(stored)
+  })
+  const [motmVote, setMotmVote] = useState<number | null>(() => {
+    const stored = localStorage.getItem('cetatea-motm-vote')
+    return stored === null ? null : Number(stored)
+  })
+  const [radarIndex, setRadarIndex] = useState(0)
+
+  const visiblePosts = useMemo(() => posts.filter((post) => {
+    if (filter === 'Oficial') return post.official
+    if (filter === 'Suporteri') return !post.official
+    if (filter === 'Media') return Boolean(post.image)
+    return true
+  }), [filter, posts])
+
+  const activePost = posts.find((post) => post.id === activePostId)
+  const activePostComments = activePost ? comments[activePost.id] ?? [] : []
+  const activePostReacted = activePost ? Boolean(reactions[activePost.id]) : false
+  const pollScores = [52, 31, 17].map((score, index) => score + (pollVote === index ? 1 : 0))
+  const pollTotal = pollScores.reduce((sum, score) => sum + score, 0)
+  const motmScores = [41, 35, 24].map((score, index) => score + (motmVote === motmCandidates[index]?.number ? 1 : 0))
+  const motmTotal = motmScores.reduce((sum, score) => sum + score, 0)
+
+  useEffect(() => {
+    localStorage.setItem('cetatea-tribune-reactions', JSON.stringify(reactions))
+  }, [reactions])
+
+  useEffect(() => {
+    localStorage.setItem('cetatea-tribune-comments', JSON.stringify(comments))
+  }, [comments])
+
+  useEffect(() => {
+    if (composerText.trim()) localStorage.setItem('cetatea-tribune-draft', composerText)
+    else localStorage.removeItem('cetatea-tribune-draft')
+  }, [composerText])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setComposerOpen(false)
+      setActivePostId(null)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setRadarIndex((current) => (current + 1) % radarItems.length)
+    }, 6500)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  const persistUserPosts = (nextPosts: TribunePost[]) => {
+    const userPosts = nextPosts.filter((post) => post.userCreated)
+    try {
+      localStorage.setItem('cetatea-tribune-posts', JSON.stringify(userPosts))
+    } catch {
+      const withoutImages = userPosts.map((post) => ({ ...post, image: undefined }))
+      localStorage.setItem('cetatea-tribune-posts', JSON.stringify(withoutImages))
+    }
+  }
+
+  const openComposer = () => {
+    setActivePostId(null)
+    setComposerOpen(true)
+    play('toggle')
+  }
+
+  const handlePhoto = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (file.size > 900_000) {
+      setComposerError('Imaginea poate avea maximum 900 KB în această versiune locală.')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      setComposerImage(typeof reader.result === 'string' ? reader.result : '')
+      setComposerMode('fotografie')
+      setComposerError('')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const publishPost = (event: FormEvent) => {
+    event.preventDefault()
+    const text = composerText.trim()
+    if (!text) return
+
+    const newPost: TribunePost = {
+      id: `suporter-${Date.now()}`,
+      author: 'Suporter Cetatea',
+      initials: 'SC',
+      role: 'Membru al Tribunei',
+      time: 'acum',
+      text,
+      image: composerImage || undefined,
+      label: composerLabel,
+      reactionBase: 0,
+      commentBase: 0,
+      tone: 'var(--tone-green)',
+      userCreated: true,
+    }
+    const nextPosts = [newPost, ...posts]
+    setPosts(nextPosts)
+    persistUserPosts(nextPosts)
+    setComposerText('')
+    setComposerImage('')
+    setComposerMode('mesaj')
+    setComposerLabel('Discuție')
+    localStorage.removeItem('cetatea-tribune-draft')
+    setComposerOpen(false)
+    setFilter('Toate')
+    play('success')
+  }
+
+  const toggleReaction = (postId: string) => {
+    setReactions((current) => ({ ...current, [postId]: !current[postId] }))
+    play('toggle')
+  }
+
+  const submitComment = (event: FormEvent) => {
+    event.preventDefault()
+    if (!activePostId || !commentDraft.trim()) return
+    const newComment: TribuneComment = {
+      id: `comentariu-${Date.now()}`,
+      author: 'Tu',
+      text: commentDraft.trim(),
+      time: 'acum',
+    }
+    setComments((current) => ({
+      ...current,
+      [activePostId]: [...(current[activePostId] ?? []), newComment],
+    }))
+    setCommentDraft('')
+    play('success')
+  }
+
+  const selectPollVote = (index: number) => {
+    setPollVote(index)
+    localStorage.setItem('cetatea-tribune-poll', String(index))
+    play('toggle')
+  }
+
+  const selectMotm = (number: number) => {
+    setMotmVote(number)
+    localStorage.setItem('cetatea-motm-vote', String(number))
+    play('toggle')
+  }
+
+  const moveRadar = (direction: number) => {
+    setRadarIndex((current) => (current + direction + radarItems.length) % radarItems.length)
+    play('toggle')
+  }
 
   return (
-    <section className={styles.view}>
-      <ViewIntro code="TRI–03" label="Zidul Cetății" title="O mie de voci." accent="Un singur puls." />
-      <div className={styles.communityLayout}>
-        <motion.div className={styles.chantVote} variants={reveal} initial="hidden" animate="visible" custom={0.05}>
-          <HudLabel value="Sondaj activ">Vocea meciului</HudLabel>
-          <h2>Ce scandăm la intrarea echipei?</h2>
-          <div className={styles.chantOptions}>
-            {chantOptions.map((chant, index) => (
-              <button
-                key={chant}
-                className={vote === index ? styles.chantSelected : ''}
-                onClick={() => { setVote(index); play('toggle') }}
-              >
-                <span>0{index + 1}</span><strong>{chant}</strong><i style={{ '--vote': `${[68, 21, 11][index]}%` } as CSSProperties} />
-                <small>{[68, 21, 11][index]}%</small>
-              </button>
-            ))}
-          </div>
-        </motion.div>
+    <section className={`${styles.view} ${styles.tribuneView}`}>
+      <ViewIntro code="TRI–01" label="Comunitatea Cetății" title="Aici vorbește" accent="Suceava." />
 
-        <motion.div className={styles.fanRadar} variants={reveal} initial="hidden" animate="visible" custom={0.13}>
-          <div className={styles.wallHeading}><div><span>Radar suporteri</span><strong>Suceava este conectată.</strong></div><em><i /> 284</em></div>
-          <div className={styles.radarVisual}>
-            <span /><span /><span />
-            {Array.from({ length: 18 }, (_, index) => (
-              <i key={index} style={{ '--dot-angle': `${index * 47}deg`, '--dot-distance': `${24 + (index % 5) * 8}%` } as CSSProperties} />
-            ))}
-            <strong>SV</strong>
+      <div className={styles.tribuneLayout}>
+        <motion.section className={styles.tribuneFeedColumn} variants={reveal} initial="hidden" animate="visible" custom={0.05}>
+          <header className={styles.tribuneFeedHeader}>
+            <div>
+              <span><i /> Zidul Cetății</span>
+              <strong>Tot ce contează pentru suporteri.</strong>
+            </div>
+            <div className={styles.tribuneFilters} role="group" aria-label="Filtrează mesajele">
+              {tribuneFilters.map((item) => (
+                <button
+                  type="button"
+                  key={item}
+                  className={filter === item ? styles.tribuneFilterActive : ''}
+                  onClick={() => { setFilter(item); play('toggle') }}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </header>
+
+          <button type="button" className={styles.tribuneComposerTrigger} onClick={openComposer}>
+            <span className={styles.tribuneAvatar}>SC</span>
+            <span><small>Ai ceva de spus?</small><strong>Scrie pe Zidul Cetății</strong></span>
+            <span className={styles.tribuneComposeAction}><Plus aria-hidden="true" /> Publică</span>
+          </button>
+
+          <div className={styles.tribuneFeed}>
+            {(filter === 'Toate' || filter === 'Oficial') && (
+              <article className={styles.tribunePollPost}>
+                <header>
+                  <span><BarChart3 aria-hidden="true" /> Sondajul Tribunei</span>
+                  <small>un singur vot</small>
+                </header>
+                <div className={styles.tribunePollBody}>
+                  <div><strong>Ce a definit victoria de la Târgu Mureș?</strong><small>Rezultatele apar imediat după vot.</small></div>
+                  <div className={styles.tribunePollOptions}>
+                    {tribunePollOptions.map((option, index) => {
+                      const percentage = Math.round((pollScores[index] / pollTotal) * 100)
+                      return (
+                        <button
+                          type="button"
+                          key={option}
+                          className={pollVote === index ? styles.tribunePollSelected : ''}
+                          onClick={() => selectPollVote(index)}
+                        >
+                          <i style={{ '--poll-width': pollVote === null ? '0%' : `${percentage}%` } as CSSProperties} />
+                          <span>{option}</span>
+                          <b>{pollVote === null ? 'VOTEAZĂ' : `${percentage}%`}</b>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </article>
+            )}
+
+            <AnimatePresence initial={false}>
+              {visiblePosts.map((post, index) => {
+                const postComments = comments[post.id] ?? []
+                const reacted = Boolean(reactions[post.id])
+                return (
+                  <motion.article
+                    layout
+                    key={post.id}
+                    className={styles.tribunePost}
+                    style={{ '--post-tone': post.tone } as CSSProperties}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ delay: Math.min(index * 0.035, 0.12) }}
+                  >
+                    <header className={styles.tribunePostHeader}>
+                      <span className={styles.tribunePostAvatar}>{post.official ? <img src={fanEmblem} alt="" /> : post.initials}</span>
+                      <span className={styles.tribunePostAuthor}>
+                        <strong>{post.author}{post.official && <BadgeCheck aria-label="Cont oficial" />}</strong>
+                        <small>{post.role} · {post.time}</small>
+                      </span>
+                      {post.label && <em>{post.label}</em>}
+                    </header>
+                    <p>{post.text}</p>
+                    {post.image && (
+                      <div className={styles.tribunePostMedia}>
+                        <img src={post.image} alt="Atmosferă alb-albastră la Stadionul Areni" />
+                        <span><ImagePlus aria-hidden="true" /> Din comunitate</span>
+                      </div>
+                    )}
+                    <footer>
+                      <button
+                        type="button"
+                        className={reacted ? styles.tribuneReacted : ''}
+                        aria-pressed={reacted}
+                        onClick={() => toggleReaction(post.id)}
+                      >
+                        <Heart aria-hidden="true" fill={reacted ? 'currentColor' : 'none'} />
+                        <span>{reacted ? 'Susții' : 'Susține'}</span>
+                        <b>{post.reactionBase + (reacted ? 1 : 0)}</b>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setComposerOpen(false); setActivePostId(post.id); play('toggle') }}
+                      >
+                        <MessageCircle aria-hidden="true" />
+                        <span>Discuție</span>
+                        <b>{post.commentBase + postComments.length}</b>
+                      </button>
+                    </footer>
+                  </motion.article>
+                )
+              })}
+            </AnimatePresence>
+
+            {visiblePosts.length === 0 && (
+              <div className={styles.tribuneEmpty}>
+                <Search aria-hidden="true" />
+                <strong>Niciun mesaj în filtrul acesta.</strong>
+                <button type="button" onClick={() => setFilter('Toate')}>Vezi tot Zidul</button>
+              </div>
+            )}
           </div>
-          <div className={styles.radarStats}><span><b>68%</b> oraș</span><span><b>32%</b> diaspora</span></div>
-        </motion.div>
+        </motion.section>
+
+        <motion.aside className={styles.tribuneActiveRail} variants={reveal} initial="hidden" animate="visible" custom={0.13}>
+          <section className={styles.motmModule}>
+            <header>
+              <span><Crown aria-hidden="true" /> Vot activ</span>
+              <small>{latestResult.score} · {latestResult.round}</small>
+            </header>
+            <div className={styles.motmTitle}>
+              <small>Alege un singur jucător</small>
+              <strong>Omul meciului</strong>
+            </div>
+            <div className={styles.motmCandidates}>
+              {motmCandidates.map((player, index) => {
+                const percentage = Math.round((motmScores[index] / motmTotal) * 100)
+                return (
+                  <button
+                    type="button"
+                    key={player.number}
+                    className={motmVote === player.number ? styles.motmSelected : ''}
+                    onClick={() => selectMotm(player.number)}
+                  >
+                    <span><b>{player.number}</b></span>
+                    <span><strong>{player.name}</strong><small>{player.position}</small></span>
+                    <em>{motmVote === null ? 'ALEGE' : `${percentage}%`}</em>
+                    <i style={{ '--motm-width': motmVote === null ? '0%' : `${percentage}%` } as CSSProperties} />
+                  </button>
+                )
+              })}
+            </div>
+            <footer><i /> {motmVote === null ? 'Votul tău rămâne privat.' : 'Vot înregistrat · îl poți schimba.'}</footer>
+          </section>
+
+          <section className={styles.tribuneRadar} style={{ '--radar-tone': radarItems[radarIndex].tone } as CSSProperties}>
+            <header>
+              <span><Sparkles aria-hidden="true" /> Radar Cetatea</span>
+              <div>
+                <button type="button" onClick={() => moveRadar(-1)} aria-label="Informația anterioară"><ChevronLeft /></button>
+                <button type="button" onClick={() => moveRadar(1)} aria-label="Informația următoare"><ChevronRight /></button>
+              </div>
+            </header>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={radarIndex}
+                initial={{ opacity: 0, x: 14 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -14 }}
+                transition={{ duration: 0.28 }}
+              >
+                <small>{radarItems[radarIndex].eyebrow}</small>
+                <b>{radarItems[radarIndex].value}</b>
+                <strong>{radarItems[radarIndex].title}</strong>
+                <p>{radarItems[radarIndex].copy}</p>
+              </motion.div>
+            </AnimatePresence>
+            <footer>
+              {radarItems.map((item, index) => (
+                <button
+                  type="button"
+                  key={item.eyebrow}
+                  className={index === radarIndex ? styles.radarDotActive : ''}
+                  onClick={() => setRadarIndex(index)}
+                  aria-label={`Arată: ${item.eyebrow}`}
+                />
+              ))}
+            </footer>
+          </section>
+        </motion.aside>
       </div>
+
+      <AnimatePresence>
+        {composerOpen && (
+          <motion.div
+            className={styles.tribuneOverlay}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onMouseDown={(event) => { if (event.target === event.currentTarget) setComposerOpen(false) }}
+          >
+            <motion.form
+              className={styles.tribuneComposer}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Publică pe Zidul Cetății"
+              onSubmit={publishPost}
+              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.98 }}
+            >
+              <header>
+                <div><small>Postare nouă</small><strong>Vorbește cu Tribuna.</strong></div>
+                <button type="button" onClick={() => setComposerOpen(false)} aria-label="Închide"><X /></button>
+              </header>
+              <div className={styles.tribuneComposerModes} role="group" aria-label="Tipul postării">
+                <button
+                  type="button"
+                  className={composerMode === 'mesaj' ? styles.tribuneComposerModeActive : ''}
+                  aria-pressed={composerMode === 'mesaj'}
+                  onClick={() => setComposerMode('mesaj')}
+                >
+                  <MessageCircle aria-hidden="true" /><span><strong>Mesaj</strong><small>Pornește o discuție</small></span>
+                </button>
+                <button
+                  type="button"
+                  className={composerMode === 'fotografie' ? styles.tribuneComposerModeActive : ''}
+                  aria-pressed={composerMode === 'fotografie'}
+                  onClick={() => setComposerMode('fotografie')}
+                >
+                  <ImagePlus aria-hidden="true" /><span><strong>Fotografie</strong><small>Arată atmosfera</small></span>
+                </button>
+              </div>
+              <div className={styles.tribuneComposerIdentity}>
+                <span>SC</span><div><strong>Suporter Cetatea</strong><small>Vizibil întregii comunități</small></div>
+              </div>
+              <div className={styles.tribuneComposerField}>
+                <textarea
+                  autoFocus
+                  value={composerText}
+                  maxLength={420}
+                  onChange={(event) => setComposerText(event.target.value)}
+                  placeholder="Ce trebuie să audă Cetatea?"
+                />
+                <small>{composerText.trim() ? 'Ciornă salvată pe acest dispozitiv' : 'Scrie clar, respectă comunitatea.'}</small>
+              </div>
+              <div className={styles.tribuneComposerTags}>
+                <span>Despre ce este postarea?</span>
+                <div>
+                  {tribunePostLabels.map((label) => (
+                    <button
+                      type="button"
+                      key={label}
+                      className={composerLabel === label ? styles.tribuneComposerTagActive : ''}
+                      onClick={() => setComposerLabel(label)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {composerMode === 'fotografie' && !composerImage && (
+                <label className={styles.tribunePhotoDrop} htmlFor="tribune-photo-input">
+                  <ImagePlus aria-hidden="true" />
+                  <span><strong>Alege o fotografie</strong><small>JPG, PNG sau WEBP · maximum 900 KB</small></span>
+                </label>
+              )}
+              {composerImage && (
+                <div className={styles.tribuneComposerPreview}>
+                  <img src={composerImage} alt="Previzualizarea fotografiei selectate" />
+                  <button type="button" onClick={() => setComposerImage('')} aria-label="Elimină fotografia"><X /></button>
+                </div>
+              )}
+              {composerError && <p className={styles.tribuneComposerError}>{composerError}</p>}
+              <footer>
+                <label htmlFor="tribune-photo-input"><ImagePlus aria-hidden="true" /> {composerImage ? 'Schimbă fotografia' : 'Adaugă fotografie'}</label>
+                <input id="tribune-photo-input" className={styles.tribuneFileInput} type="file" accept="image/*" onChange={handlePhoto} />
+                <span><small>CARACTERE</small><b>{composerText.length} / 420</b></span>
+                <button type="submit" disabled={!composerText.trim()}><Send aria-hidden="true" /> Publică</button>
+              </footer>
+            </motion.form>
+          </motion.div>
+        )}
+
+        {activePost && (
+          <motion.div
+            className={styles.tribuneOverlay}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onMouseDown={(event) => { if (event.target === event.currentTarget) setActivePostId(null) }}
+          >
+            <motion.aside
+              className={styles.tribuneThread}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Discuție: ${activePost.author}`}
+              initial={{ opacity: 0, x: 42 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 42 }}
+            >
+              <header>
+                <div><small>Fir de discuție</small><strong>Vocile Tribunei</strong></div>
+                <button type="button" onClick={() => setActivePostId(null)} aria-label="Închide"><X /></button>
+              </header>
+              <section className={styles.tribuneThreadSource} style={{ '--post-tone': activePost.tone } as CSSProperties}>
+                <header>
+                  <span className={styles.tribunePostAvatar}>{activePost.official ? <img src={fanEmblem} alt="" /> : activePost.initials}</span>
+                  <span>
+                    <strong>{activePost.author}{activePost.official && <BadgeCheck aria-label="Cont oficial" />}</strong>
+                    <small>{activePost.role} · {activePost.time}</small>
+                  </span>
+                  {activePost.label && <em>{activePost.label}</em>}
+                </header>
+                <p>{activePost.text}</p>
+                <footer>
+                  <button
+                    type="button"
+                    className={activePostReacted ? styles.tribuneReacted : ''}
+                    aria-pressed={activePostReacted}
+                    onClick={() => toggleReaction(activePost.id)}
+                  >
+                    <Heart aria-hidden="true" fill={activePostReacted ? 'currentColor' : 'none'} />
+                    {activePostReacted ? 'Susții' : 'Susține'}
+                    <b>{activePost.reactionBase + (activePostReacted ? 1 : 0)}</b>
+                  </button>
+                  <span><MessageCircle aria-hidden="true" /> {activePost.commentBase + activePostComments.length} contribuții</span>
+                </footer>
+              </section>
+              <div className={styles.tribuneThreadHeading}>
+                <span>Răspunsurile comunității</span>
+                <small>{activePostComments.length === 1 ? '1 răspuns afișat' : `${activePostComments.length} răspunsuri afișate`}</small>
+              </div>
+              <div className={styles.tribuneComments}>
+                {activePostComments.map((comment) => (
+                  <article key={comment.id}>
+                    <span>{comment.author.slice(0, 2).toUpperCase()}</span>
+                    <div><strong>{comment.author}<small>{comment.time}</small></strong><p>{comment.text}</p></div>
+                  </article>
+                ))}
+                {activePostComments.length === 0 && (
+                  <div className={styles.tribuneNoComments}><MessageCircle /><span><strong>Deschide tu discuția.</strong><small>Primul comentariu poate da tonul.</small></span></div>
+                )}
+              </div>
+              <form onSubmit={submitComment}>
+                <div className={styles.tribuneReplyField}>
+                  <input
+                    autoFocus
+                    value={commentDraft}
+                    onChange={(event) => setCommentDraft(event.target.value)}
+                    placeholder="Scrie un răspuns…"
+                    maxLength={240}
+                  />
+                  <small>{commentDraft.length}/240</small>
+                </div>
+                <button type="submit" disabled={!commentDraft.trim()} aria-label="Trimite comentariul"><Send /></button>
+              </form>
+            </motion.aside>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   )
 }

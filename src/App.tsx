@@ -14,7 +14,6 @@ import {
   Palette,
   PanelLeftClose,
   PanelLeftOpen,
-  RadioTower,
   Swords,
   Trophy,
   UsersRound,
@@ -31,6 +30,7 @@ import arenaBackground from './assets/brand/loading-cetatea-arena.webp'
 import { LoadingScreen } from './components/LoadingScreen'
 import { Navigation } from './components/Navigation'
 import { ProfilePanel } from './components/ProfilePanel'
+import { ThemePanel } from './components/ThemePanel'
 import { navigationItems } from './components/navigationItems'
 import {
   performanceModeLabels,
@@ -46,7 +46,6 @@ import { firebaseConfigured } from './lib/firebaseConfig'
 import {
   CommunityView,
   LeagueTableView,
-  LiveCenterView,
   MatchBroadcast,
   NextMatchView,
   NewsView,
@@ -54,17 +53,16 @@ import {
 } from './views/Views'
 
 const viewMap: Record<string, React.ComponentType> = {
-  '/': NextMatchView,
-  '/meci-direct': LiveCenterView,
+  '/': CommunityView,
+  '/meci': NextMatchView,
+  '/meci-direct': NextMatchView,
   '/tribuna': CommunityView,
   '/lot': SquadView,
   '/clasament': LeagueTableView,
   '/stiri': NewsView,
 }
 
-const routeOrder = ['/', ...navigationItems.map((item) => item.path)]
-const themeOrder: Theme[] = ['nocturna', 'zi-de-meci', 'asediu', 'bucovina']
-
+const routeOrder = [...navigationItems.map((item) => item.path), '/meci']
 type HeaderView = {
   label: string
   eyebrow: string
@@ -75,25 +73,32 @@ type HeaderView = {
 
 const headerViews: Record<string, HeaderView> = {
   '/': {
+    label: 'Tribuna',
+    eyebrow: 'Comunitatea alb-albastră',
+    detail: 'Zidul Cetății · activ acum',
+    tone: 'var(--tone-green)',
+    icon: Megaphone,
+  },
+  '/meci': {
     label: 'Următorul meci',
     eyebrow: 'Centrul confruntării',
     detail: `${nextMatch.round} · ${nextMatch.timeLabel}`,
     tone: 'var(--tone-cyan)',
     icon: Swords,
   },
-  '/meci-direct': {
-    label: 'Meci live',
-    eyebrow: 'Fiecare fază, împreună',
-    detail: 'Semnal · scor · tribună',
-    tone: 'var(--tone-violet)',
-    icon: RadioTower,
-  },
   '/tribuna': {
-    label: 'Peluza',
-    eyebrow: 'Vocea suporterilor',
-    detail: '284 conectați',
+    label: 'Tribuna',
+    eyebrow: 'Comunitatea alb-albastră',
+    detail: 'Zidul Cetății · activ acum',
     tone: 'var(--tone-green)',
     icon: Megaphone,
+  },
+  '/meci-direct': {
+    label: 'Următorul meci',
+    eyebrow: 'Centrul confruntării',
+    detail: `${nextMatch.round} · ${nextMatch.timeLabel}`,
+    tone: 'var(--tone-cyan)',
+    icon: Swords,
   },
   '/lot': {
     label: 'Echipa',
@@ -206,10 +211,16 @@ function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
   const countdown = useMatchCountdown()
-  const { theme, toggleTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
   const { mode: performanceMode, resolvedMode, isEconomy, cycleMode } = usePerformance()
   const { isMuted, play, toggleMute } = useSound()
-  const currentIndex = Math.max(0, routeOrder.indexOf(location.pathname))
+  const canonicalPath = location.pathname === '/tribuna'
+    ? '/'
+    : location.pathname === '/meci-direct'
+      ? '/meci'
+      : location.pathname
+  const isMatchRoute = canonicalPath === '/meci'
+  const currentIndex = Math.max(0, routeOrder.indexOf(canonicalPath))
   const [direction, setDirection] = useState(1)
   const [lastIndex, setLastIndex] = useState(currentIndex)
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement))
@@ -220,15 +231,15 @@ function AppShell() {
     () => localStorage.getItem('cetatea-rail') === 'restrans',
   )
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isThemePanelOpen, setIsThemePanelOpen] = useState(false)
   const [broadcastAnchor, setBroadcastAnchor] = useState<HTMLDivElement | null>(null)
   const [broadcastActive, setBroadcastActive] = useState(false)
   const [broadcastStarted, setBroadcastStarted] = useState(false)
   const [broadcastDismissed, setBroadcastDismissed] = useState(false)
   const [broadcastRequestToken, setBroadcastRequestToken] = useState(0)
-  const ActiveView = viewMap[location.pathname] ?? NextMatchView
-  const currentHeader = headerViews[location.pathname] ?? headerViews['/']
+  const ActiveView = viewMap[location.pathname] ?? CommunityView
+  const currentHeader = headerViews[canonicalPath] ?? headerViews['/']
   const HeaderIcon = currentHeader.icon
-  const nextTheme = themeOrder[(themeOrder.indexOf(theme) + 1) % themeOrder.length]
   const nextPerformanceMode =
     performanceModeOrder[
       (performanceModeOrder.indexOf(performanceMode) + 1) % performanceModeOrder.length
@@ -248,6 +259,7 @@ function AppShell() {
   }, [location.pathname, navigate])
 
   const closeProfilePanel = useCallback(() => setIsProfileOpen(false), [])
+  const closeThemePanel = useCallback(() => setIsThemePanelOpen(false), [])
 
   const handleBroadcastActiveChange = useCallback((active: boolean) => {
     setBroadcastActive(active)
@@ -266,13 +278,13 @@ function AppShell() {
   }
 
   const goToMatch = () => {
-    handleNavigate('/')
-    void navigate('/')
+    handleNavigate('/meci')
+    void navigate('/meci')
   }
 
   const goToCommunity = () => {
-    handleNavigate('/tribuna')
-    void navigate('/tribuna')
+    handleNavigate('/')
+    void navigate('/')
   }
 
   const returnToBroadcast = () => {
@@ -286,8 +298,14 @@ function AppShell() {
     play('toggle')
   }
 
-  const handleTheme = () => {
-    toggleTheme()
+  const openThemePanel = () => {
+    setIsThemePanelOpen(true)
+    setIsProfileOpen(false)
+    play('toggle')
+  }
+
+  const selectTheme = (nextTheme: Theme) => {
+    setTheme(nextTheme)
     play('toggle')
   }
 
@@ -369,8 +387,8 @@ function AppShell() {
           </button>
         </motion.div>
 
-        <motion.section className={`${styles.railMatch} ${location.pathname === '/' ? styles.railMatchActive : ''}`} variants={interfaceReveal}>
-          <button className={styles.railMatchOpen} onClick={goToMatch} aria-current={location.pathname === '/' ? 'page' : undefined}>
+        <motion.section className={`${styles.railMatch} ${isMatchRoute ? styles.railMatchActive : ''}`} variants={interfaceReveal}>
+          <button className={styles.railMatchOpen} onClick={goToMatch} aria-current={isMatchRoute ? 'page' : undefined}>
             <span className={styles.collapsedMatch} aria-hidden={!isRailCollapsed}>
               <CalendarDays strokeWidth={1.8} />
               <span><strong>{countdown.days}</strong><small>zile</small></span>
@@ -434,7 +452,7 @@ function AppShell() {
 
         <motion.div className={styles.navigationSlot} variants={interfaceReveal}>
           <Navigation
-            activePath={location.pathname}
+            activePath={canonicalPath}
             collapsed={isRailCollapsed}
             onNavigate={handleNavigate}
           />
@@ -472,19 +490,21 @@ function AppShell() {
             </span>
           </div>
 
-          <button type="button" className={styles.communityPulse} onClick={goToCommunity} aria-label="Deschide Pulsul Cetății: 12 reacții noi în comunitate">
+          <button type="button" className={styles.communityPulse} onClick={goToCommunity} aria-label="Deschide Tribuna Cetății: 12 reacții noi în comunitate">
             <span className={styles.pulseMark} aria-hidden="true"><Activity strokeWidth={1.9} /></span>
-            <span className={styles.pulseCopy}><small>Pulsul Cetății</small><strong>Tribuna este activă</strong></span>
+            <span className={styles.pulseCopy}><small>Tribuna Cetății</small><strong>Zidul este activ</strong></span>
             <span className={styles.pulseWave} aria-hidden="true"><i /><i /><i /><i /><i /><i /></span>
             <span className={styles.pulseUpdates}><MessageCircle strokeWidth={1.8} aria-hidden="true" /><b>12</b><small>noi</small></span>
           </button>
 
           <div className={styles.controls} role="group" aria-label="Comenzile aplicației">
             <button
-              className={styles.control}
-              onClick={handleTheme}
-              aria-label={`Schimbă tema. Tema curentă: ${themeLabels[theme]}`}
-              title={`Următoarea temă: ${themeLabels[nextTheme]}`}
+              className={`${styles.control} ${isThemePanelOpen ? styles.themeControlActive : ''}`}
+              onClick={openThemePanel}
+              aria-label={`Deschide galeria de teme. Tema curentă: ${themeLabels[theme]}`}
+              aria-expanded={isThemePanelOpen}
+              aria-controls="theme-panel"
+              title="Alege tema aplicației"
             >
               <Palette className={styles.controlGlyph} strokeWidth={1.8} aria-hidden="true" />
               <span className={styles.controlLabel}>{themeLabels[theme]}</span>
@@ -531,6 +551,7 @@ function AppShell() {
               aria-expanded={isProfileOpen}
               aria-controls="profile-panel"
               onClick={() => {
+                setIsThemePanelOpen(false)
                 setIsProfileOpen((current) => !current)
                 play('toggle')
               }}
@@ -558,7 +579,7 @@ function AppShell() {
                   : { duration: 0.56, ease: [0.76, 0, 0.24, 1] }
               }
             >
-              {location.pathname === '/' ? (
+              {isMatchRoute ? (
                 <NextMatchView
                   broadcastAnchorRef={setBroadcastAnchor}
                   broadcastRequestToken={broadcastRequestToken}
@@ -571,17 +592,26 @@ function AppShell() {
           </AnimatePresence>
         </motion.div>
 
-        <motion.div className={styles.viewportIndex} variants={interfaceReveal}>0{currentIndex + 1} / 06</motion.div>
+        <motion.div className={styles.viewportIndex} variants={interfaceReveal}>
+          {String(currentIndex + 1).padStart(2, '0')} / {String(routeOrder.length).padStart(2, '0')}
+        </motion.div>
       </motion.main>
 
       {broadcastStarted && !broadcastDismissed && (
         <MatchBroadcast
           anchor={broadcastAnchor}
-          docked={location.pathname === '/' && broadcastActive}
+          docked={isMatchRoute && broadcastActive}
           onClose={closeBroadcast}
           onReturnToMatch={returnToBroadcast}
         />
       )}
+
+      <ThemePanel
+        open={isThemePanelOpen}
+        activeTheme={theme}
+        onClose={closeThemePanel}
+        onSelect={selectTheme}
+      />
 
       <ProfilePanel
         open={isProfileOpen}
@@ -591,7 +621,7 @@ function AppShell() {
         themeLabel={themeLabels[theme]}
         onClose={closeProfilePanel}
         onCyclePerformance={handlePerformance}
-        onCycleTheme={handleTheme}
+        onCycleTheme={openThemePanel}
         onToggleSound={toggleMute}
       />
     </motion.div>
