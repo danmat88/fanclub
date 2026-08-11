@@ -6,23 +6,33 @@ import {
   BadgeCheck,
   BarChart3,
   Bell,
+  BookOpen,
   Bookmark,
   CalendarPlus,
   CalendarDays,
+  Castle,
   ChevronLeft,
   ChevronRight,
   CircleDot,
   Clock3,
+  Crosshair,
   Eye,
+  ExternalLink,
+  Flag,
   Flame,
+  Gamepad2,
   GitCompareArrows,
   GripHorizontal,
   Heart,
+  Headphones,
+  History,
   ImagePlus,
   LayoutDashboard,
   MapPin,
   Maximize2,
+  Medal,
   MessageCircle,
+  Mic2,
   Minus,
   Newspaper,
   Pause,
@@ -34,6 +44,8 @@ import {
   Shield,
   Sparkles,
   Star,
+  Swords,
+  Quote,
   ThumbsUp,
   TicketCheck,
   Trophy,
@@ -1152,7 +1164,23 @@ type TribunePostLabel = 'Discuție' | 'Din tribună' | 'Analiză'
 type ComposerMode = 'mesaj' | 'fotografie'
 type TribuneSort = 'Pentru tine' | 'Recente' | 'Populare'
 type TribuneReaction = 'inima' | 'foc' | 'forta'
-type TribuneDebateChoice = 'presing' | 'control'
+type TribuneArenaGame = 'penalty' | 'quiz' | 'jucator' | 'cronologie'
+type PenaltyOpponent = 'suporter' | 'calculator'
+type PenaltyRole = 'executant' | 'portar'
+type PenaltyTechnique = 'plasat' | 'putere' | 'panenka'
+type PenaltyZone = 'stanga-sus' | 'stanga-jos' | 'centru' | 'dreapta-sus' | 'dreapta-jos'
+
+type PenaltyResolution = {
+  userChoice: PenaltyZone
+  opponentChoice: PenaltyZone
+  role: PenaltyRole
+  goal: boolean
+}
+
+type PenaltyHistoryItem = {
+  side: 'user' | 'opponent'
+  goal: boolean
+}
 
 type TribunePost = {
   id: string
@@ -1254,22 +1282,49 @@ const tribunePollOptions = [
   'Unitatea grupului',
 ]
 
-const fanDistricts = [
-  { id: 'burdujeni', name: 'Burdujeni', voices: 38 },
-  { id: 'obcini', name: 'Obcini', voices: 27 },
-  { id: 'centru', name: 'Centru', voices: 24 },
-  { id: 'areni', name: 'Areni', voices: 31 },
+const penaltyZones: Array<{ id: PenaltyZone; label: string; x: number; y: number }> = [
+  { id: 'stanga-sus', label: 'Stânga sus', x: 18, y: 22 },
+  { id: 'stanga-jos', label: 'Stânga jos', x: 20, y: 68 },
+  { id: 'centru', label: 'Centru', x: 50, y: 48 },
+  { id: 'dreapta-sus', label: 'Dreapta sus', x: 82, y: 22 },
+  { id: 'dreapta-jos', label: 'Dreapta jos', x: 80, y: 68 },
 ]
 
-const tribuneDebateOptions: Array<{ id: TribuneDebateChoice; title: string; detail: string }> = [
-  { id: 'presing', title: 'Presing sus', detail: 'Atacăm din primul minut' },
-  { id: 'control', title: 'Control și răbdare', detail: 'Ținem mingea, alegem momentul' },
+const penaltyTechniques: Array<{ id: PenaltyTechnique; label: string; detail: string; hint: string; points: number }> = [
+  { id: 'plasat', label: 'Plasat', detail: 'Sigur', hint: 'Execuție sigură: dacă portarul ghicește colțul, apără.', points: 15 },
+  { id: 'putere', label: 'Putere', detail: 'Risc', hint: 'Poate învinge portarul pe același colț, dar poate rata poarta.', points: 20 },
+  { id: 'panenka', label: 'Panenka', detail: 'Curaj', hint: 'Bonus maxim dacă tragi pe centru și portarul pleacă.', points: 30 },
 ]
 
-const chantSeedLines = [
-  'Sub ziduri alb-albastre,',
-  'orașul cântă iar,',
-  'Cetatea merge înainte!',
+const tribuneArenaGames = [
+  { id: 'penalty' as const, label: 'Penalty-uri', detail: 'Atacant contra portar', icon: Crosshair, tone: 'var(--tone-cyan)' },
+  { id: 'quiz' as const, label: 'Quiz Blitz', detail: 'Patru variante, una corectă', icon: Zap, tone: 'var(--tone-amber)' },
+  { id: 'jucator' as const, label: 'Ghicește jucătorul', detail: 'Indiciile dezvăluie omul', icon: Shield, tone: 'var(--tone-green)' },
+  { id: 'cronologie' as const, label: 'Cronologia', detail: 'Pune istoria în ordine', icon: History, tone: 'var(--tone-violet)' },
+]
+
+const tribuneQuiz = {
+  question: 'În ce an a fost fondat clubul Cetatea Suceava?',
+  options: ['1924', '1932', '1948', '2024'],
+  correct: 1,
+}
+
+const arenaPlayerChallenge = {
+  clues: ['Poartă numărul 10.', 'Joacă la mijloc.', 'Prenumele său este Ilie.'],
+  options: ['Ilie Marian', 'Mario Bai', 'Andrei Bugeac', 'Radu Ungurianu'],
+  correct: 0,
+}
+
+const arenaTimelineEvents = [
+  { id: 'reinfiintare', label: 'Clubul este reînființat', year: 2024 },
+  { id: 'victorie', label: 'Victoria cu 2–0 la Târgu Mureș', year: 2026 },
+  { id: 'fondare', label: 'Este fondată Cetatea Suceava', year: 1932 },
+]
+
+const arenaLeaderboard = [
+  { position: 1, name: 'Mara / Areni', points: 1280 },
+  { position: 2, name: 'Radu / Burdujeni', points: 1175 },
+  { position: 3, name: 'Ioana / Centru', points: 1090 },
 ]
 
 const initialTribuneComments: Record<string, TribuneComment[]> = {
@@ -1327,19 +1382,21 @@ export function CommunityView() {
   const [bookmarks, setBookmarks] = useState<Record<string, boolean>>(
     () => readStoredRecord('cetatea-tribune-bookmarks', {}),
   )
-  const [debateVote, setDebateVote] = useState<TribuneDebateChoice | null>(
-    () => readStoredRecord('cetatea-tribune-dezbatere', null),
+  const [activeArenaGame, setActiveArenaGame] = useState<TribuneArenaGame>('penalty')
+  const [arenaPoints, setArenaPoints] = useState(
+    () => readStoredRecord('cetatea-arena-puncte', 640),
   )
-  const [districtCheckIn, setDistrictCheckIn] = useState<string | null>(
-    () => readStoredRecord('cetatea-tribune-cartier', null),
-  )
-  const [chantLines, setChantLines] = useState<string[]>(
-    () => readStoredRecord('cetatea-tribune-scandare', []),
-  )
-  const [chantDraft, setChantDraft] = useState('')
-  const [chantLifted, setChantLifted] = useState(
-    () => readStoredRecord('cetatea-tribune-scandare-sustinuta', false),
-  )
+  const [penaltyOpponent, setPenaltyOpponent] = useState<PenaltyOpponent>('suporter')
+  const [penaltyTechnique, setPenaltyTechnique] = useState<PenaltyTechnique>('plasat')
+  const [penaltyTurn, setPenaltyTurn] = useState(0)
+  const [penaltyScore, setPenaltyScore] = useState({ user: 0, opponent: 0 })
+  const [penaltyResolution, setPenaltyResolution] = useState<PenaltyResolution | null>(null)
+  const [penaltyHistory, setPenaltyHistory] = useState<PenaltyHistoryItem[]>([])
+  const [quizAnswer, setQuizAnswer] = useState<number | null>(null)
+  const [playerGuess, setPlayerGuess] = useState<number | null>(null)
+  const [revealedClues, setRevealedClues] = useState(1)
+  const [timelineOrder, setTimelineOrder] = useState<string[]>([])
+  const [timelineChecked, setTimelineChecked] = useState(false)
   const [quickCommentDrafts, setQuickCommentDrafts] = useState<Record<string, string>>({})
   const [activePostId, setActivePostId] = useState<string | null>(null)
   const [commentDraft, setCommentDraft] = useState('')
@@ -1374,10 +1431,28 @@ export function CommunityView() {
   ), 0)
   const pollScores = [52, 31, 17].map((score, index) => score + (pollVote === index ? 1 : 0))
   const pollTotal = pollScores.reduce((sum, score) => sum + score, 0)
-  const debateScores = [64 + (debateVote === 'presing' ? 1 : 0), 46 + (debateVote === 'control' ? 1 : 0)]
-  const debateTotal = debateScores[0] + debateScores[1]
-  const districtTotal = fanDistricts.reduce((sum, district) => sum + district.voices + (districtCheckIn === district.id ? 1 : 0), 0)
-  const allChantLines = [...chantSeedLines, ...chantLines].slice(-5)
+  const penaltyRole: PenaltyRole = penaltyTurn % 2 === 0 ? 'executant' : 'portar'
+  const penaltyRound = Math.min(5, Math.floor(penaltyTurn / 2) + 1)
+  const penaltyComplete = penaltyTurn >= 10
+  const timelineCorrect = timelineOrder.join('|') === 'fondare|reinfiintare|victorie'
+  const activeArenaDefinition = tribuneArenaGames.find((game) => game.id === activeArenaGame) ?? tribuneArenaGames[0]
+  const ActiveArenaIcon = activeArenaDefinition.icon
+  const penaltyBallZone = penaltyResolution
+    ? penaltyZones.find((zone) => zone.id === (penaltyResolution.role === 'executant' ? penaltyResolution.userChoice : penaltyResolution.opponentChoice))
+    : null
+  const penaltyKeeperZone = penaltyResolution
+    ? penaltyZones.find((zone) => zone.id === (penaltyResolution.role === 'portar' ? penaltyResolution.userChoice : penaltyResolution.opponentChoice))
+    : null
+  const penaltyPositiveMoments = penaltyHistory.filter((item) => item.side === 'user' ? item.goal : !item.goal).length
+  const penaltyMomentum = Math.min(100, 28 + (penaltyPositiveMoments * 14))
+  const penaltyStreakBreak = [...penaltyHistory].reverse().findIndex((item) => item.side === 'user' ? !item.goal : item.goal)
+  const penaltyStreak = penaltyStreakBreak === -1 ? penaltyHistory.length : penaltyStreakBreak
+  const arenaMissionProgress = [
+    penaltyHistory.length > 0,
+    quizAnswer !== null,
+    playerGuess === arenaPlayerChallenge.correct || (timelineChecked && timelineCorrect),
+  ].filter(Boolean).length
+  const arenaUserRank = arenaPoints >= 1280 ? 1 : arenaPoints >= 1175 ? 2 : arenaPoints >= 1090 ? 3 : arenaPoints >= 900 ? 8 : arenaPoints >= 760 ? 10 : 12
 
   useEffect(() => {
     localStorage.setItem('cetatea-tribune-reactions', JSON.stringify(reactions))
@@ -1390,6 +1465,10 @@ export function CommunityView() {
   useEffect(() => {
     localStorage.setItem('cetatea-tribune-bookmarks', JSON.stringify(bookmarks))
   }, [bookmarks])
+
+  useEffect(() => {
+    localStorage.setItem('cetatea-arena-puncte', JSON.stringify(arenaPoints))
+  }, [arenaPoints])
 
   useEffect(() => {
     if (composerText.trim()) localStorage.setItem('cetatea-tribune-draft', composerText)
@@ -1540,33 +1619,90 @@ export function CommunityView() {
     play('toggle')
   }
 
-  const selectDebateVote = (choice: TribuneDebateChoice) => {
-    setDebateVote(choice)
-    localStorage.setItem('cetatea-tribune-dezbatere', JSON.stringify(choice))
+  const selectArenaGame = (game: TribuneArenaGame) => {
+    setActiveArenaGame(game)
     play('toggle')
   }
 
-  const selectDistrict = (districtId: string) => {
-    setDistrictCheckIn(districtId)
-    localStorage.setItem('cetatea-tribune-cartier', JSON.stringify(districtId))
+  const resetPenaltyDuel = (opponent: PenaltyOpponent = penaltyOpponent) => {
+    setPenaltyOpponent(opponent)
+    setPenaltyTurn(0)
+    setPenaltyScore({ user: 0, opponent: 0 })
+    setPenaltyResolution(null)
+    setPenaltyHistory([])
+    setPenaltyTechnique('plasat')
     play('toggle')
   }
 
-  const submitChantLine = (event: FormEvent) => {
-    event.preventDefault()
-    const line = chantDraft.trim()
-    if (!line) return
-    const nextLines = [...chantLines, line].slice(-2)
-    setChantLines(nextLines)
-    localStorage.setItem('cetatea-tribune-scandare', JSON.stringify(nextLines))
-    setChantDraft('')
-    play('success')
+  const playPenaltyZone = (userChoice: PenaltyZone) => {
+    if (penaltyResolution || penaltyComplete) return
+    const opponentChoice = penaltyZones[Math.floor(Math.random() * penaltyZones.length)]?.id ?? 'centru'
+    const chance = Math.random()
+    let goal = userChoice !== opponentChoice
+    if (penaltyRole === 'executant' && penaltyTechnique === 'putere') {
+      goal = userChoice === opponentChoice ? chance < .28 : chance > .12
+    }
+    if (penaltyRole === 'executant' && penaltyTechnique === 'panenka') {
+      goal = userChoice === 'centru' ? opponentChoice !== 'centru' : userChoice !== opponentChoice && chance > .42
+    }
+    const resolution: PenaltyResolution = { userChoice, opponentChoice, role: penaltyRole, goal }
+
+    setPenaltyResolution(resolution)
+    setPenaltyHistory((current) => [...current, { side: penaltyRole === 'executant' ? 'user' : 'opponent', goal }])
+    if (goal) {
+      setPenaltyScore((current) => penaltyRole === 'executant'
+        ? { ...current, user: current.user + 1 }
+        : { ...current, opponent: current.opponent + 1 })
+    }
+    const positiveResult = penaltyRole === 'executant' ? goal : !goal
+    const techniquePoints = penaltyTechniques.find((technique) => technique.id === penaltyTechnique)?.points ?? 15
+    setArenaPoints((current) => current + (positiveResult ? (penaltyRole === 'portar' ? 20 : techniquePoints) : 3))
+    play(positiveResult ? 'success' : 'toggle')
   }
 
-  const toggleChantSupport = () => {
-    const next = !chantLifted
-    setChantLifted(next)
-    localStorage.setItem('cetatea-tribune-scandare-sustinuta', JSON.stringify(next))
+  const continuePenaltyDuel = () => {
+    setPenaltyResolution(null)
+    setPenaltyTurn((current) => Math.min(10, current + 1))
+    play('toggle')
+  }
+
+  const answerArenaQuiz = (answer: number) => {
+    if (quizAnswer !== null) return
+    setQuizAnswer(answer)
+    if (answer === tribuneQuiz.correct) setArenaPoints((current) => current + 40)
+    play(answer === tribuneQuiz.correct ? 'success' : 'toggle')
+  }
+
+  const guessArenaPlayer = (answer: number) => {
+    if (playerGuess === arenaPlayerChallenge.correct) return
+    setPlayerGuess(answer)
+    if (answer === arenaPlayerChallenge.correct) {
+      setArenaPoints((current) => current + Math.max(15, 50 - ((revealedClues - 1) * 15)))
+      play('success')
+      return
+    }
+    setRevealedClues((current) => Math.min(arenaPlayerChallenge.clues.length, current + 1))
+    play('toggle')
+  }
+
+  const selectTimelineEvent = (eventId: string) => {
+    setTimelineChecked(false)
+    setTimelineOrder((current) => current.includes(eventId)
+      ? current.filter((id) => id !== eventId)
+      : [...current, eventId])
+    play('toggle')
+  }
+
+  const checkArenaTimeline = () => {
+    if (timelineOrder.length !== arenaTimelineEvents.length) return
+    setTimelineChecked(true)
+    if (timelineCorrect) setArenaPoints((current) => current + 45)
+    play(timelineCorrect ? 'success' : 'toggle')
+  }
+
+  const resetArenaTimeline = () => {
+    setTimelineOrder([])
+    setTimelineChecked(false)
     play('toggle')
   }
 
@@ -1776,83 +1912,235 @@ export function CommunityView() {
         </motion.section>
 
         <motion.div className={styles.tribuneArenaShell} variants={reveal} initial="hidden" animate="visible" custom={0.13}>
-          <AppScrollArea className={styles.tribuneArenaScroll} contentClassName={styles.tribuneActiveRail} label="Laboratorul Tribunei">
-          <header className={styles.tribuneArenaHeader}>
-            <div>
-              <span><Activity aria-hidden="true" /> Laboratorul Tribunei</span>
-              <strong>Aici comunitatea construiește atmosfera de la Areni.</strong>
-            </div>
-            <span><i /> {districtTotal} voci active</span>
-          </header>
-
-          <section className={styles.tribuneChantLab}>
-            <header>
-              <span><Volume2 aria-hidden="true" /> Scandarea comunității</span>
-              <em>ÎN LUCRU · 07</em>
-            </header>
-            <div className={styles.tribuneChantStage}>
-              <small>Compusă vers cu vers de suporteri</small>
+          <AppScrollArea className={styles.tribuneArenaScroll} contentClassName={styles.tribuneActiveRail} label="Arena Tribunei">
+            <header className={styles.tribuneArenaHeader}>
               <div>
-                {allChantLines.map((line, index) => <strong key={`${line}-${index}`}>{line}</strong>)}
+                <span><Gamepad2 aria-hidden="true" /> Arena Tribunei</span>
+                <strong>Joacă, provoacă și urcă în Liga Suporterilor.</strong>
               </div>
-              <span aria-hidden="true">
-                {[28, 52, 72, 42, 88, 58, 34, 76, 96, 62, 40, 68, 48, 82, 32, 56].map((height, index) => (
-                  <i key={`${height}-${index}`} style={{ '--chant-height': `${height}%` } as CSSProperties} />
+              <span><i /> 126 jucători activi</span>
+            </header>
+
+            <section className={styles.arenaGameStage} style={{ '--arena-game-tone': activeArenaDefinition.tone } as CSSProperties}>
+              <header className={styles.arenaStageHeader}>
+                <span><ActiveArenaIcon aria-hidden="true" /></span>
+                <div><small>Joc activ</small><strong>{activeArenaDefinition.label}</strong></div>
+                <em><Trophy aria-hidden="true" /> {arenaPoints} puncte</em>
+              </header>
+
+              {activeArenaGame === 'penalty' && (
+                <div className={styles.penaltyGame}>
+                  <div className={styles.penaltyModeSwitch} role="group" aria-label="Alege adversarul">
+                    <button type="button" className={penaltyOpponent === 'suporter' ? styles.penaltyModeActive : ''} onClick={() => resetPenaltyDuel('suporter')}><UsersRound aria-hidden="true" /> Suporter</button>
+                    <button type="button" className={penaltyOpponent === 'calculator' ? styles.penaltyModeActive : ''} onClick={() => resetPenaltyDuel('calculator')}><Shield aria-hidden="true" /> Străjerul</button>
+                  </div>
+
+                  <div className={styles.penaltyScoreboard}>
+                    <span><small>Tu</small><strong>{penaltyScore.user}</strong><i>{penaltyHistory.filter((item) => item.side === 'user').map((item, index) => <b key={index} className={item.goal ? styles.penaltyGoalMark : styles.penaltyMissMark} />)}</i></span>
+                    <em><b>Runda {penaltyRound}/5</b><small>{penaltyOpponent === 'suporter' ? 'Duel asincron' : 'Contra calculatorului'}</small></em>
+                    <span><small>{penaltyOpponent === 'suporter' ? 'Mara / Areni' : 'Străjerul'}</small><strong>{penaltyScore.opponent}</strong><i>{penaltyHistory.filter((item) => item.side === 'opponent').map((item, index) => <b key={index} className={item.goal ? styles.penaltyGoalMark : styles.penaltyMissMark} />)}</i></span>
+                  </div>
+
+                  <div className={styles.penaltyPlayOptions}>
+                    {penaltyRole === 'executant' ? (
+                      <div className={styles.penaltyTechniques} role="group" aria-label="Alege tehnica șutului">
+                        {penaltyTechniques.map((technique) => (
+                          <button type="button" key={technique.id} title={technique.hint} disabled={Boolean(penaltyResolution)} className={penaltyTechnique === technique.id ? styles.penaltyTechniqueActive : ''} onClick={() => { setPenaltyTechnique(technique.id); play('toggle') }}>
+                            <strong>{technique.label}</strong><small>{technique.detail} · +{technique.points}</small>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className={styles.penaltyKeeperBrief}><Eye aria-hidden="true" /><span><strong>Citește executantul</strong><small>Alege colțul înaintea șutului.</small></span></div>
+                    )}
+                    <div className={styles.penaltyMomentum}>
+                      <span><small>Pulsul peluzei</small><em>{penaltyMomentum}%</em></span>
+                      <i><b style={{ width: `${penaltyMomentum}%` }} /></i>
+                      <small>Serie personală: <b>{penaltyStreak}</b></small>
+                    </div>
+                  </div>
+
+                  <div className={styles.penaltyGoalScene}>
+                    <div className={styles.penaltyGoalFrame} aria-label={penaltyRole === 'executant' ? 'Alege unde tragi' : 'Alege unde plonjezi'}>
+                      <i className={styles.penaltyNet} aria-hidden="true" />
+                      <span className={styles.penaltyGoalVenue} aria-hidden="true">ARENI · POARTA NORD</span>
+                      <span className={styles.penaltyCrowd} aria-hidden="true">
+                        {[12, 20, 9, 24, 15, 22, 11, 19, 25, 13, 21, 16, 23, 10, 18, 24, 14, 22].map((height, index) => <i key={`${height}-${index}`} style={{ '--fan-height': `${height}px` } as CSSProperties} />)}
+                      </span>
+                      <motion.span
+                        className={styles.penaltyKeeper}
+                        aria-hidden="true"
+                        animate={{ left: `${penaltyKeeperZone?.x ?? 50}%`, top: `${penaltyKeeperZone?.y ?? 68}%`, x: '-50%', y: '-50%', rotate: penaltyKeeperZone ? (penaltyKeeperZone.x - 50) * .28 : 0 }}
+                        transition={{ type: 'spring', stiffness: 260, damping: 21 }}
+                      ><i /><b /></motion.span>
+                      <motion.span
+                        className={styles.penaltyBall}
+                        aria-hidden="true"
+                        animate={{ left: `${penaltyBallZone?.x ?? 50}%`, top: `${penaltyBallZone?.y ?? 88}%`, x: '-50%', y: '-50%', scale: penaltyBallZone ? .7 : 1 }}
+                        transition={{ type: 'spring', stiffness: 310, damping: 24 }}
+                      ><CircleDot /></motion.span>
+                      <div className={styles.penaltyTargets}>
+                        {penaltyZones.map((zone) => (
+                          <button
+                            type="button"
+                            key={zone.id}
+                            disabled={Boolean(penaltyResolution) || penaltyComplete}
+                            className={penaltyResolution?.userChoice === zone.id ? styles.penaltyTargetSelected : ''}
+                            style={{ '--zone-x': `${zone.x}%`, '--zone-y': `${zone.y}%` } as CSSProperties}
+                            onClick={() => playPenaltyZone(zone.id)}
+                            aria-label={`${penaltyRole === 'executant' ? 'Trage' : 'Plonjează'} ${zone.label.toLowerCase()}`}
+                          >
+                            <i /><span>{zone.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className={styles.penaltyInstruction}>
+                      {penaltyComplete ? (
+                        <>
+                          <span><Medal aria-hidden="true" /></span>
+                          <div><small>Duel încheiat</small><strong>{penaltyScore.user === penaltyScore.opponent ? 'Egalitate. Revanșa decide.' : penaltyScore.user > penaltyScore.opponent ? 'Ai câștigat duelul!' : 'Adversarul câștigă de data asta.'}</strong></div>
+                          <button type="button" onClick={() => resetPenaltyDuel()}>Revanșă</button>
+                        </>
+                      ) : penaltyResolution ? (
+                        <>
+                          <span className={penaltyRole === 'executant' ? (penaltyResolution.goal ? styles.penaltyPositive : styles.penaltyNegative) : (!penaltyResolution.goal ? styles.penaltyPositive : styles.penaltyNegative)}>
+                            {penaltyRole === 'executant' ? (penaltyResolution.goal ? <Zap /> : <Shield />) : (!penaltyResolution.goal ? <Shield /> : <CircleDot />)}
+                          </span>
+                          <div>
+                            <small>{penaltyRole === 'executant' ? `Execuție ${penaltyTechnique}` : 'Tu în poartă'}</small>
+                            <strong>{penaltyRole === 'executant' ? (penaltyResolution.goal ? 'GOL!' : 'Portarul a apărat.') : (!penaltyResolution.goal ? 'PARADĂ!' : 'Adversarul a înscris.')}</strong>
+                          </div>
+                          <button type="button" onClick={continuePenaltyDuel}>{penaltyTurn === 9 ? 'Rezultat' : penaltyRole === 'executant' ? 'Acum aperi' : 'Runda următoare'}</button>
+                        </>
+                      ) : (
+                        <>
+                          <span><Crosshair aria-hidden="true" /></span>
+                          <div><small>{penaltyRole === 'executant' ? 'Ești executant' : 'Ești portar'}</small><strong>{penaltyRole === 'executant' ? 'Alege locul șutului.' : 'Anticipează și alege plonjonul.'}</strong></div>
+                          <em>+{penaltyRole === 'executant' ? penaltyTechniques.find((technique) => technique.id === penaltyTechnique)?.points ?? 15 : 20} pct.</em>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeArenaGame === 'quiz' && (
+                <div className={styles.arenaQuickChallenge}>
+                  <span className={styles.arenaChallengeIndex}>01 / 05</span>
+                  <small>Quiz Blitz · întrebarea zilei</small>
+                  <h3>{tribuneQuiz.question}</h3>
+                  <div className={styles.arenaAnswerGrid}>
+                    {tribuneQuiz.options.map((option, index) => (
+                      <button
+                        type="button"
+                        key={option}
+                        className={quizAnswer === null ? '' : index === tribuneQuiz.correct ? styles.arenaAnswerCorrect : quizAnswer === index ? styles.arenaAnswerWrong : ''}
+                        onClick={() => answerArenaQuiz(index)}
+                      ><span>{String.fromCharCode(65 + index)}</span><strong>{option}</strong></button>
+                    ))}
+                  </div>
+                  <footer>{quizAnswer === null ? <><Clock3 /> Răspunde pentru 40 de puncte.</> : quizAnswer === tribuneQuiz.correct ? <><Trophy /> Corect. Ai câștigat 40 de puncte.</> : <><Shield /> Răspunsul corect era 1932.</>}</footer>
+                </div>
+              )}
+
+              {activeArenaGame === 'jucator' && (
+                <div className={styles.arenaQuickChallenge}>
+                  <span className={styles.arenaChallengeIndex}>{revealedClues} / {arenaPlayerChallenge.clues.length} indicii</span>
+                  <small>Dosarul misterios</small>
+                  <h3>Cine este jucătorul?</h3>
+                  <div className={styles.arenaClues}>
+                    {arenaPlayerChallenge.clues.slice(0, revealedClues).map((clue, index) => <span key={clue}><b>{index + 1}</b>{clue}</span>)}
+                  </div>
+                  <div className={styles.arenaAnswerGrid}>
+                    {arenaPlayerChallenge.options.map((option, index) => (
+                      <button
+                        type="button"
+                        key={option}
+                        className={playerGuess === arenaPlayerChallenge.correct && index === arenaPlayerChallenge.correct ? styles.arenaAnswerCorrect : playerGuess === index ? styles.arenaAnswerWrong : ''}
+                        onClick={() => guessArenaPlayer(index)}
+                      ><span>{squad.find((player) => player.name === option)?.number ?? '?'}</span><strong>{option}</strong></button>
+                    ))}
+                  </div>
+                  <footer>{playerGuess === arenaPlayerChallenge.correct ? <><Trophy /> Identificat. Punctele au fost adăugate.</> : <><Eye /> Un răspuns greșit dezvăluie încă un indiciu.</>}</footer>
+                </div>
+              )}
+
+              {activeArenaGame === 'cronologie' && (
+                <div className={styles.arenaQuickChallenge}>
+                  <span className={styles.arenaChallengeIndex}>{timelineOrder.length} / {arenaTimelineEvents.length}</span>
+                  <small>Cronologia Cetății</small>
+                  <h3>Alege evenimentele de la cel mai vechi la cel mai nou.</h3>
+                  <div className={styles.arenaTimelineOrder}>
+                    {timelineOrder.length === 0 && <small>Ordinea ta va apărea aici.</small>}
+                    {timelineOrder.map((eventId, index) => {
+                      const event = arenaTimelineEvents.find((item) => item.id === eventId)
+                      return <span key={eventId}><b>{index + 1}</b>{event?.label}</span>
+                    })}
+                  </div>
+                  <div className={styles.arenaTimelineChoices}>
+                    {arenaTimelineEvents.map((event) => (
+                      <button type="button" key={event.id} disabled={timelineOrder.includes(event.id)} onClick={() => selectTimelineEvent(event.id)}>{event.label}</button>
+                    ))}
+                  </div>
+                  <footer>
+                    <span>{timelineChecked ? (timelineCorrect ? 'Ordine perfectă · +45 puncte' : 'Ordinea nu este corectă.') : 'Completează cele trei poziții.'}</span>
+                    {timelineChecked && !timelineCorrect ? <button type="button" onClick={resetArenaTimeline}>Încearcă din nou</button> : <button type="button" disabled={timelineOrder.length !== arenaTimelineEvents.length || timelineChecked} onClick={checkArenaTimeline}>Verifică</button>}
+                  </footer>
+                </div>
+              )}
+            </section>
+
+            <section className={styles.arenaGameLibrary}>
+              <header><span><Swords aria-hidden="true" /> Alege provocarea</span><em>4 jocuri</em></header>
+              <div>
+                {tribuneArenaGames.map((game) => {
+                  const GameIcon = game.icon
+                  return (
+                    <button type="button" key={game.id} className={activeArenaGame === game.id ? styles.arenaGameSelected : ''} style={{ '--game-tone': game.tone } as CSSProperties} onClick={() => selectArenaGame(game.id)}>
+                      <span><GameIcon aria-hidden="true" /></span>
+                      <strong>{game.label}</strong>
+                      <small>{game.detail}</small>
+                      <i><ChevronRight aria-hidden="true" /></i>
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+
+            <section className={styles.arenaLeague}>
+              <header><span><Medal aria-hidden="true" /> Liga Suporterilor</span><em>Săptămâna 03</em></header>
+              <div>
+                {arenaLeaderboard.map((player) => (
+                  <span key={player.name}><b>{player.position}</b><strong>{player.name}</strong><em>{player.points}</em></span>
                 ))}
-              </span>
-            </div>
-            <div className={styles.tribuneChantActions}>
-              <button type="button" className={chantLifted ? styles.tribuneChantLifted : ''} aria-pressed={chantLifted} onClick={toggleChantSupport}>
-                <Flame aria-hidden="true" /><span>Ridică vocea</span><b>{74 + chantLines.length + (chantLifted ? 1 : 0)}</b>
-              </button>
-              <form onSubmit={submitChantLine}>
-                <input value={chantDraft} maxLength={72} placeholder="Scrie următorul vers..." aria-label="Propune următorul vers" onChange={(event) => setChantDraft(event.target.value)} />
-                <button type="submit" disabled={!chantDraft.trim()} aria-label="Trimite versul"><Send aria-hidden="true" /></button>
-              </form>
-            </div>
-            <footer>
-              <span><Sparkles aria-hidden="true" /><small>Misiunea zilei</small><strong>Spune prima ta amintire de pe Areni.</strong></span>
-              <button type="button" onClick={startMemoryPrompt}>Povestește <ArrowRight aria-hidden="true" /></button>
-            </footer>
-          </section>
+              </div>
+              <footer>
+                <span><b>{arenaUserRank}</b><strong>Tu</strong></span>
+                <em>{arenaPoints} pct.</em>
+                <i><b style={{ width: `${Math.min(100, Math.round((arenaPoints / 900) * 100))}%` }} /></i>
+                <small>{arenaPoints >= 900 ? 'Ai intrat în lupta pentru Top 10.' : `${900 - arenaPoints} pct. până la Top 10`}</small>
+              </footer>
+            </section>
 
-          <section className={styles.tribuneDebate}>
-            <header>
-              <span><GitCompareArrows aria-hidden="true" /> Duel de idei</span>
-              <em>{debateTotal} voturi</em>
-            </header>
-            <h3>Cum abordăm duelul cu {nextMatch.away.name}?</h3>
-            <div>
-              {tribuneDebateOptions.map((option, index) => {
-                const percentage = Math.round((debateScores[index] / debateTotal) * 100)
-                return (
-                  <button type="button" key={option.id} className={debateVote === option.id ? styles.tribuneDebateSelected : ''} onClick={() => selectDebateVote(option.id)}>
-                    <i style={{ '--debate-width': debateVote === null ? '0%' : `${percentage}%` } as CSSProperties} />
-                    <span><strong>{option.title}</strong><small>{option.detail}</small></span>
-                    <b>{debateVote === null ? 'ALEGE' : `${percentage}%`}</b>
-                  </button>
-                )
-              })}
-            </div>
-            <footer>{debateVote === null ? 'Rezultatul rămâne ascuns până votezi.' : 'Poți schimba alegerea oricând.'}</footer>
-          </section>
-
-          <section className={styles.tribuneDistricts}>
-            <header>
-              <span><MapPin aria-hidden="true" /> Orașul în tribună</span>
-              <em>CHECK-IN</em>
-            </header>
-            <h3>Din ce zonă susții Cetatea astăzi?</h3>
-            <div>
-              {fanDistricts.map((district) => (
-                <button type="button" key={district.id} className={districtCheckIn === district.id ? styles.tribuneDistrictSelected : ''} aria-pressed={districtCheckIn === district.id} onClick={() => selectDistrict(district.id)}>
-                  <span><i /><strong>{district.name}</strong></span>
-                  <b>{district.voices + (districtCheckIn === district.id ? 1 : 0)}</b>
+            <section className={styles.arenaMissions}>
+              <header>
+                <span><Star aria-hidden="true" /> Misiunile zilei</span>
+                <em>{arenaMissionProgress}/3</em>
+              </header>
+              <div>
+                <button type="button" className={penaltyHistory.length > 0 ? styles.arenaMissionDone : ''} onClick={() => selectArenaGame('penalty')}>
+                  <CircleDot aria-hidden="true" /><span><strong>Intră într-un duel</strong><small>Joacă prima fază</small></span><em>{penaltyHistory.length > 0 ? 'GATA' : '+20'}</em>
                 </button>
-              ))}
-            </div>
-            <footer><UsersRound aria-hidden="true" /> {districtTotal} suporteri au făcut check-in în Suceava.</footer>
-          </section>
+                <button type="button" className={quizAnswer !== null ? styles.arenaMissionDone : ''} onClick={() => selectArenaGame('quiz')}>
+                  <Zap aria-hidden="true" /><span><strong>Răspuns fulger</strong><small>Încheie Quiz Blitz</small></span><em>{quizAnswer !== null ? 'GATA' : '+40'}</em>
+                </button>
+                <button type="button" className={playerGuess === arenaPlayerChallenge.correct || (timelineChecked && timelineCorrect) ? styles.arenaMissionDone : ''} onClick={() => selectArenaGame('jucator')}>
+                  <Shield aria-hidden="true" /><span><strong>Detectivul lotului</strong><small>Identifică jucătorul</small></span><em>{playerGuess === arenaPlayerChallenge.correct || (timelineChecked && timelineCorrect) ? 'GATA' : '+50'}</em>
+                </button>
+              </div>
+            </section>
           </AppScrollArea>
         </motion.div>
       </div>
@@ -2041,6 +2329,265 @@ export function CommunityView() {
           </motion.div>
         )}
       </AnimatePresence>
+    </section>
+  )
+}
+
+type HeritageEra = {
+  year: string
+  eyebrow: string
+  title: string
+  story: string
+  facts: string[]
+  tone: string
+}
+
+const heritageEras: HeritageEra[] = [
+  {
+    year: '1932',
+    eyebrow: 'Începutul organizat',
+    title: 'Cetatea Sucevei primește un nume și o echipă.',
+    story: 'Numele inspirat de Cetatea de Scaun intră în fotbalul organizat. Echipa pornește în Liga de Est, apoi ajunge în noua Divizie C.',
+    facts: ['Primul club organizat', 'Liga de Est', 'Rădăcini sucevene'],
+    tone: 'var(--tone-cyan)',
+  },
+  {
+    year: '1937–38',
+    eyebrow: 'Prima confirmare',
+    title: 'Locul secund în Seria a II-a Est.',
+    story: 'La numai câțiva ani de la fondare, Cetatea încheie pe poziția a doua și își confirmă statutul de formație competitivă a regiunii.',
+    facts: ['Divizia C', 'Seria a II-a Est', 'Locul 2'],
+    tone: 'var(--tone-green)',
+  },
+  {
+    year: '1950–57',
+    eyebrow: 'Fotbalul renaște',
+    title: 'Din Burdujeni spre centrul Sucevei.',
+    story: 'Spartac Burdujeni promovează în Divizia B în 1954. Trei ani mai târziu se mută la Suceava și devine Progresul, deschizând o nouă etapă.',
+    facts: ['Promovare în 1954', 'Mutare în 1957', 'Progresul Suceava'],
+    tone: 'var(--tone-violet)',
+  },
+  {
+    year: '1972–88',
+    eyebrow: 'Vârful unei generații',
+    title: 'CSM Suceava ajunge pe prima scenă.',
+    story: 'Clubul Sportiv Municipal este înființat la 19 iulie 1972. Apogeul vine în 1987, odată cu promovarea în Divizia A și sezonul jucat între marile echipe ale țării.',
+    facts: ['CSM din 1972', 'Promovare în 1987', 'Divizia A'],
+    tone: 'var(--tone-amber)',
+  },
+  {
+    year: '2004–10',
+    eyebrow: 'Cetatea revine',
+    title: 'Un nou club-fanion, o poveste întreruptă.',
+    story: 'Cetatea Suceava este reînființată în 2004 și ajunge în eșalonul secund. Instabilitatea financiară duce însă la excluderea și dizolvarea clubului în 2010.',
+    facts: ['Reînființare', 'Eșalonul secund', 'Final în 2010'],
+    tone: 'var(--tone-rose)',
+  },
+  {
+    year: '2024–azi',
+    eyebrow: 'Cetatea se ridică din nou',
+    title: 'Orașul își adună fotbalul sub același simbol.',
+    story: 'CSM Cetatea 1932 Suceava renaște în vara lui 2024. Câștigă Liga a IV-a și barajul cu AS Bârsănești în primul sezon, iar în 2026 ajunge din nou în Liga a II-a.',
+    facts: ['Proiect comun', 'Promovare imediată', 'Liga a II-a 2026'],
+    tone: 'var(--tone-cyan)',
+  },
+]
+
+const heritageChants = [
+  {
+    title: 'Sub ziduri alb-albastre',
+    mood: 'Imnul intrării',
+    tempo: '84 BPM',
+    lines: ['Sub ziduri alb-albastre,', 'orașul cântă iar,', 'Cetatea merge înainte,', 'Suceava până la final!'],
+  },
+  {
+    title: 'Din Areni până-n Cetate',
+    mood: 'Chemare și răspuns',
+    tempo: '96 BPM',
+    lines: ['Din Areni până-n Cetate,', 'alb și-albastru peste toate,', 'glasul nostru nu va sta,', 'hai, Suceava, luptă iar!'],
+  },
+  {
+    title: 'Nimeni nu ne frânge',
+    mood: 'Final de meci',
+    tempo: '108 BPM',
+    lines: ['Când Cetatea intră-n joc,', 'toată peluza ia foc,', 'nouăzeci de minute cântăm,', 'lângă tine noi rămânem!'],
+  },
+]
+
+const heritageNames = ['Cetatea Sucevei', 'Spartac', 'Progresul', 'Victoria', 'Dinamo', 'Viitorul', 'Chimia', 'CSM Suceava', 'Bucovina', 'Foresta', 'Cetatea 1932']
+
+export function HeritageView() {
+  const { play } = useSound()
+  const [eraIndex, setEraIndex] = useState(0)
+  const [chantIndex, setChantIndex] = useState(0)
+  const [chantPlaying, setChantPlaying] = useState(false)
+  const [chantLine, setChantLine] = useState(0)
+  const [supportedChants, setSupportedChants] = useState<Record<number, boolean>>(
+    () => readStoredRecord('cetatea-mostenire-cantari', {}),
+  )
+  const [memoryDraft, setMemoryDraft] = useState('')
+  const [savedMemory, setSavedMemory] = useState(() => localStorage.getItem('cetatea-mostenire-amintire') ?? '')
+
+  const activeEra = heritageEras[eraIndex]
+  const activeChant = heritageChants[chantIndex]
+
+  useEffect(() => {
+    if (!chantPlaying) return
+    const lineTimer = window.setInterval(() => {
+      setChantLine((current) => (current + 1) % activeChant.lines.length)
+    }, 1450)
+    return () => window.clearInterval(lineTimer)
+  }, [activeChant.lines.length, chantPlaying])
+
+  const selectHeritageEra = (index: number) => {
+    setEraIndex(index)
+    play('toggle')
+  }
+
+  const selectHeritageChant = (index: number) => {
+    setChantIndex(index)
+    setChantLine(0)
+    setChantPlaying(false)
+    play('toggle')
+  }
+
+  const toggleChant = () => {
+    setChantPlaying((current) => !current)
+    play('toggle')
+  }
+
+  const supportChant = () => {
+    setSupportedChants((current) => {
+      const next = { ...current, [chantIndex]: !current[chantIndex] }
+      localStorage.setItem('cetatea-mostenire-cantari', JSON.stringify(next))
+      return next
+    })
+    play('success')
+  }
+
+  const saveHeritageMemory = (event: FormEvent) => {
+    event.preventDefault()
+    const memory = memoryDraft.trim()
+    if (!memory) return
+    localStorage.setItem('cetatea-mostenire-amintire', memory)
+    setSavedMemory(memory)
+    setMemoryDraft('')
+    play('success')
+  }
+
+  return (
+    <section className={`${styles.view} ${styles.heritageView}`}>
+      <ViewIntro code="MOȘ–1932" label="Arhiva vie a suporterilor" title="Tot ce rămâne" accent="după fluier." />
+
+      <div className={styles.heritageLayout}>
+        <motion.section className={styles.heritageChronicle} variants={reveal} initial="hidden" animate="visible" custom={0.05}>
+          <header className={styles.heritageSectionHeader}>
+            <div><span><BookOpen aria-hidden="true" /> Firul istoriei</span><strong>Șase porți către trecutul fotbalului sucevean.</strong></div>
+            <em>{String(eraIndex + 1).padStart(2, '0')} / {String(heritageEras.length).padStart(2, '0')}</em>
+          </header>
+
+          <div className={styles.heritageEraRail} role="tablist" aria-label="Momentele istoriei Cetății">
+            {heritageEras.map((era, index) => (
+              <button type="button" role="tab" key={era.year} aria-selected={eraIndex === index} className={eraIndex === index ? styles.heritageEraActive : ''} onClick={() => selectHeritageEra(index)}>
+                <i /><strong>{era.year}</strong><small>{era.eyebrow}</small>
+              </button>
+            ))}
+          </div>
+
+          <AnimatePresence mode="wait">
+            <motion.article
+              key={activeEra.year}
+              className={styles.heritageEraStage}
+              style={{ '--heritage-tone': activeEra.tone } as CSSProperties}
+              initial={{ opacity: 0, x: 18 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -14 }}
+              transition={{ duration: .3, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <span className={styles.heritageGhostYear} aria-hidden="true">{activeEra.year}</span>
+              <div className={styles.heritageEraCopy}>
+                <small><Flag aria-hidden="true" /> {activeEra.eyebrow}</small>
+                <strong>{activeEra.title}</strong>
+                <p>{activeEra.story}</p>
+              </div>
+              <div className={styles.heritageEraFacts}>
+                {activeEra.facts.map((fact, index) => <span key={fact}><b>0{index + 1}</b><strong>{fact}</strong></span>)}
+              </div>
+              <footer>
+                <a href="https://cetateasuceava.com/istorie/" target="_blank" rel="noreferrer">Istoria oficială <ExternalLink aria-hidden="true" /></a>
+                <div>
+                  <button type="button" disabled={eraIndex === 0} onClick={() => selectHeritageEra(eraIndex - 1)} aria-label="Momentul anterior"><ChevronLeft /></button>
+                  <i><b style={{ width: `${((eraIndex + 1) / heritageEras.length) * 100}%` }} /></i>
+                  <button type="button" disabled={eraIndex === heritageEras.length - 1} onClick={() => selectHeritageEra(eraIndex + 1)} aria-label="Momentul următor"><ChevronRight /></button>
+                </div>
+              </footer>
+            </motion.article>
+          </AnimatePresence>
+
+          <footer className={styles.heritageNames}>
+            <span><History aria-hidden="true" /> Numele prin timp</span>
+            <div>{heritageNames.map((name, index) => <span key={name}><b>{String(index + 1).padStart(2, '0')}</b>{name}</span>)}</div>
+          </footer>
+        </motion.section>
+
+        <motion.aside className={styles.heritageSideShell} variants={reveal} initial="hidden" animate="visible" custom={0.13}>
+          <AppScrollArea className={styles.heritageSideScroll} contentClassName={styles.heritageSide} label="Cântări, stadion și amintiri">
+            <section className={styles.heritageChantbook}>
+              <header className={styles.heritageSectionHeader}>
+                <div><span><Mic2 aria-hidden="true" /> Caietul peluzei</span><strong>Cântări scrise pentru vocile Cetății.</strong></div>
+                <em>COMUNITAR</em>
+              </header>
+
+              <div className={styles.heritageChantTabs} role="tablist" aria-label="Alege cântarea">
+                {heritageChants.map((chant, index) => (
+                  <button type="button" role="tab" key={chant.title} aria-selected={chantIndex === index} className={chantIndex === index ? styles.heritageChantTabActive : ''} onClick={() => selectHeritageChant(index)}>
+                    <b>0{index + 1}</b><span><strong>{chant.title}</strong><small>{chant.mood}</small></span>
+                  </button>
+                ))}
+              </div>
+
+              <div className={`${styles.heritageChantStage} ${chantPlaying ? styles.heritageChantPlaying : ''}`}>
+                <header><span><Headphones aria-hidden="true" /> Ghid de ritm</span><em>{activeChant.tempo}</em></header>
+                <div className={styles.heritageChantLines} aria-live="polite">
+                  {activeChant.lines.map((line, index) => <strong key={line} className={chantLine === index ? styles.heritageChantLineActive : ''}><b>{index + 1}</b>{line}</strong>)}
+                </div>
+                <span className={styles.heritageEqualizer} aria-hidden="true">
+                  {[36, 72, 48, 92, 58, 81, 44, 68, 96, 52, 77, 41, 88, 61, 74, 46, 84, 56].map((height, index) => <i key={`${height}-${index}`} style={{ '--chant-bar': `${height}%` } as CSSProperties} />)}
+                </span>
+                <footer>
+                  <button type="button" className={styles.heritagePlayButton} onClick={toggleChant}>{chantPlaying ? <Pause /> : <Play />}<span>{chantPlaying ? 'Oprește repetiția' : 'Repetă scandarea'}</span></button>
+                  <button type="button" className={supportedChants[chantIndex] ? styles.heritageChantSupported : ''} aria-pressed={Boolean(supportedChants[chantIndex])} onClick={supportChant}><Heart fill={supportedChants[chantIndex] ? 'currentColor' : 'none'} /><span>{supportedChants[chantIndex] ? 'În caietul meu' : 'Păstrează'}</span></button>
+                </footer>
+              </div>
+            </section>
+
+            <div className={styles.heritageLowerGrid}>
+              <section className={styles.heritageAreni}>
+                <img src={arenaBackground} alt="Atmosferă nocturnă inspirată de Stadionul Areni" />
+                <div>
+                  <span><Castle aria-hidden="true" /> Casa Cetății</span>
+                  <strong>Stadionul Areni</strong>
+                  <p>Inaugurat în 1963. Aici s-a jucat inclusiv sezonul de Divizia A din 1987–1988.</p>
+                  <footer><span><b>1963</b><small>inaugurare</small></span><span><b>≈12.500</b><small>locuri</small></span><a href="https://cetateasuceava.com/stadion/" target="_blank" rel="noreferrer" aria-label="Pagina oficială a Stadionului Areni"><ExternalLink /></a></footer>
+                </div>
+              </section>
+
+              <section className={styles.heritageMemory}>
+                <header><span><Quote aria-hidden="true" /> Arhiva ta</span><em>PE ACEST DISPOZITIV</em></header>
+                {savedMemory ? (
+                  <blockquote><p>„{savedMemory}”</p><footer><span>Amintire păstrată</span><button type="button" onClick={() => { setMemoryDraft(savedMemory); setSavedMemory(''); play('toggle') }}>Editează</button></footer></blockquote>
+                ) : (
+                  <form onSubmit={saveHeritageMemory}>
+                    <label htmlFor="heritage-memory">Care este prima ta amintire de pe Areni?</label>
+                    <textarea id="heritage-memory" value={memoryDraft} maxLength={180} placeholder="Un meci, o voce, o persoană..." onChange={(event) => setMemoryDraft(event.target.value)} />
+                    <footer><small>{memoryDraft.length}/180</small><button type="submit" disabled={!memoryDraft.trim()}>Păstrează în arhivă</button></footer>
+                  </form>
+                )}
+              </section>
+            </div>
+          </AppScrollArea>
+        </motion.aside>
+      </div>
     </section>
   )
 }

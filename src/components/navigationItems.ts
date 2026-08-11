@@ -1,4 +1,5 @@
 import {
+  Landmark,
   Megaphone,
   Newspaper,
   Trophy,
@@ -42,5 +43,12 @@ export const navigationItems: NavigationItem[] = [
     meta: 'Clasament și rezultate',
     badge: 'LOC 10',
     icon: Trophy,
+  },
+  {
+    path: '/mostenire',
+    label: 'Moștenirea',
+    meta: 'Istorie și cântări',
+    badge: '1932',
+    icon: Landmark,
   },
 ]

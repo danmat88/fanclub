@@ -3,8 +3,8 @@ import {
   Activity,
   BellRing,
   CalendarDays,
-  Clock3,
   Gauge,
+  Landmark,
   Maximize2,
   MapPin,
   Megaphone,
@@ -40,11 +40,12 @@ import { themeLabels, type Theme } from './contexts/theme-context'
 import { usePerformance } from './contexts/usePerformance'
 import { useSound } from './contexts/useSound'
 import { useTheme } from './contexts/useTheme'
-import { latestResult, nextMatch } from './data/clubData'
+import { nextMatch } from './data/clubData'
 import { useMatchCountdown } from './hooks/useMatchCountdown'
 import { firebaseConfigured } from './lib/firebaseConfig'
 import {
   CommunityView,
+  HeritageView,
   LeagueTableView,
   MatchBroadcast,
   NextMatchView,
@@ -60,6 +61,7 @@ const viewMap: Record<string, React.ComponentType> = {
   '/lot': SquadView,
   '/clasament': LeagueTableView,
   '/stiri': NewsView,
+  '/mostenire': HeritageView,
 }
 
 const routeOrder = [...navigationItems.map((item) => item.path), '/meci']
@@ -120,6 +122,13 @@ const headerViews: Record<string, HeaderView> = {
     detail: 'Noutăți · reacții · conversații',
     tone: 'var(--tone-cyan)',
     icon: Newspaper,
+  },
+  '/mostenire': {
+    label: 'Moștenirea',
+    eyebrow: 'Identitatea Cetății',
+    detail: 'Istorie · Areni · cântări',
+    tone: 'var(--tone-violet)',
+    icon: Landmark,
   },
 }
 
@@ -398,45 +407,36 @@ function AppShell() {
               <em>{nextMatch.round}</em>
             </span>
 
-            <span className={styles.railTeams}>
-              <span>
+            <span className={styles.slimFixture}>
+              <span className={styles.slimTeam}>
                 <img src={nextMatch.home.badge} alt="Sigla Cetatea Suceava" />
                 <span><b>{nextMatch.home.name}</b><small>{nextMatch.home.city}</small></span>
               </span>
-              <span className={styles.versus} aria-label="contra">
-                <Swords strokeWidth={1.8} aria-hidden="true" />
-                <small>VS</small>
+              <span className={styles.kickoffNode} aria-label={`${nextMatch.compactDateLabel}, ora ${nextMatch.timeLabel}`}>
+                <small>{nextMatch.compactDateLabel}</small>
+                <strong>{nextMatch.timeLabel}</strong>
+                <em>VS</em>
               </span>
-              <span>
+              <span className={`${styles.slimTeam} ${styles.slimTeamAway}`}>
                 <img src={nextMatch.away.badge} alt="Sigla CSM Satu Mare" />
                 <span><b>{nextMatch.away.name}</b><small>{nextMatch.away.city}</small></span>
               </span>
             </span>
 
-            <span className={styles.railDate}>
-              <span className={styles.matchDateMain}>
-                <CalendarDays strokeWidth={1.8} aria-hidden="true" />
-                <b>{nextMatch.dateLabel}</b>
+            <span className={styles.matchQuickInfo}>
+              <span className={styles.matchVenue} title={nextMatch.venue}>
+                <MapPin strokeWidth={2} aria-hidden="true" />
+                <span>{nextMatch.venue}</span>
               </span>
-              <span className={styles.matchMeta}>
-                <span><Clock3 strokeWidth={2} aria-hidden="true" /> {nextMatch.timeLabel}</span>
-                <span><MapPin strokeWidth={2} aria-hidden="true" /> {nextMatch.venue}</span>
+              <span className={styles.railCountdown} aria-label="Timp rămas până la meci">
+                <span><b>{countdown.days}</b><small>z</small></span>
+                <i>:</i>
+                <span><b>{countdown.hours}</b><small>h</small></span>
+                <i>:</i>
+                <span><b>{countdown.minutes}</b><small>m</small></span>
+                <i>:</i>
+                <span><b>{countdown.seconds}</b><small>s</small></span>
               </span>
-            </span>
-
-            <span className={styles.railCountdown} aria-label="Timp rămas până la meci">
-              <span><b>{countdown.days}</b><small>zile</small></span>
-              <i>:</i>
-              <span><b>{countdown.hours}</b><small>ore</small></span>
-              <i>:</i>
-              <span><b>{countdown.minutes}</b><small>min.</small></span>
-              <i>:</i>
-              <span><b>{countdown.seconds}</b><small>sec.</small></span>
-            </span>
-
-            <span className={styles.lastResult}>
-              <small><Trophy strokeWidth={1.8} aria-hidden="true" /> Ultimul rezultat</small>
-              <b>{latestResult.home} <strong>{latestResult.score}</strong> Cetatea</b>
             </span>
           </button>
 
@@ -445,8 +445,8 @@ function AppShell() {
             onClick={toggleMatchAlert}
             aria-pressed={matchAlert}
           >
-            <span><BellRing strokeWidth={1.9} aria-hidden="true" /> {matchAlert ? 'Alerta este activă' : 'Activează alerta'}</span>
-            <b>{matchAlert ? 'ACTIVĂ' : 'OPRITĂ'}</b>
+            <span><BellRing strokeWidth={1.9} aria-hidden="true" /> {matchAlert ? 'Alertă activă' : 'Anunță-mă'}</span>
+            <b>{matchAlert ? 'PORNITĂ' : 'OPRITĂ'}</b>
           </button>
         </motion.section>
 
