@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Check, MoonStar, Palette, Sun, X } from 'lucide-react'
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { themeOptions, type Theme } from '../contexts/theme-context'
+import { AppScrollArea } from './AppScrollArea'
 import styles from './ThemePanel.module.css'
 
 type ThemePanelProps = {
@@ -88,7 +89,7 @@ export function ThemePanel({ open, activeTheme, onClose, onSelect }: ThemePanelP
               </button>
             </header>
 
-            <div className={styles.themeGrid}>
+            <AppScrollArea className={styles.themeScroll} contentClassName={styles.themeGrid} label="Temele aplicației">
               {themeOptions.map((option, index) => {
                 const active = option.id === activeTheme
                 const ModeIcon = option.mode === 'Luminoasă' ? Sun : MoonStar
@@ -121,7 +122,7 @@ export function ThemePanel({ open, activeTheme, onClose, onSelect }: ThemePanelP
                   </button>
                 )
               })}
-            </div>
+            </AppScrollArea>
 
             <footer className={styles.footer}>
               <span><i /> Tema activă</span>

@@ -354,6 +354,14 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-width: none;
+}
+
+/* Scrollbarurile native sunt ascunse complet; aplicația desenează propriile track-uri. */
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 html,
@@ -413,11 +421,19 @@ textarea,
 }
 
 button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
+a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
+}
+
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 ::selection {

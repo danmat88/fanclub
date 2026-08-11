@@ -25,6 +25,7 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(690px, calc(100vw - 32px));
+  height: min(720px, calc(100dvh - clamp(84px, 11vh, 112px)));
   max-height: calc(100dvh - clamp(84px, 11vh, 112px));
   padding: clamp(17px, 2vw, 25px);
   overflow: hidden;
@@ -72,15 +73,17 @@
 .header > button:focus-visible { color: var(--tone-rose); outline: 1px solid var(--tone-rose); }
 .header > button svg { width: 18px; height: 18px; }
 
+.themeScroll {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
 .themeGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 7px;
-  min-height: 0;
-  padding: 14px 3px 14px 0;
-  overflow-y: auto;
-  scrollbar-color: color-mix(in srgb, var(--tone-violet) 55%, transparent) transparent;
-  scrollbar-width: thin;
+  padding: 14px 8px 14px 0;
 }
 
 .themeOption {
@@ -135,7 +138,7 @@
 .footer small { color: var(--text-dim); font-size: .61rem; text-align: right; }
 
 @media (max-width: 720px) {
-  .panel { top: 56px; right: 8px; width: calc(100vw - 16px); max-height: calc(100dvh - 64px); padding: 14px; }
+  .panel { top: 56px; right: 8px; width: calc(100vw - 16px); height: calc(100dvh - 64px); max-height: calc(100dvh - 64px); padding: 14px; }
   .themeGrid { grid-template-columns: 1fr; }
   .themeOption { min-height: 75px; }
   .header p { display: none; }
@@ -144,7 +147,7 @@
 }
 
 @media (max-height: 670px) and (min-width: 721px) {
-  .panel { top: 58px; max-height: calc(100dvh - 70px); padding: 14px 17px; }
+  .panel { top: 58px; height: calc(100dvh - 70px); max-height: calc(100dvh - 70px); padding: 14px 17px; }
   .header { padding-bottom: 10px; }
   .header p { display: none; }
   .themeGrid { gap: 5px; padding-block: 9px; }
