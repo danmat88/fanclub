@@ -74,7 +74,7 @@ import fanEmblem from '../assets/brand/cetatea-fan-emblem.webp'
 import arenaBackground from '../assets/brand/loading-cetatea-arena.webp'
 import { AppScrollArea } from '../components/AppScrollArea'
 import { useSound } from '../contexts/useSound'
-import { club, latestResult, nextMatch, squad, standings, technicalStaff, upcomingFixtures, type FormResult, type PlayerPosition } from '../data/clubData'
+import { club, latestResult, nextMatch, squad, standings, technicalStaff, upcomingFixtures, type FormResult, type Player, type PlayerPosition } from '../data/clubData'
 import { useMatchCountdown } from '../hooks/useMatchCountdown'
 import styles from './Views.module.css'
 
@@ -1311,7 +1311,7 @@ const tribuneQuiz = {
 
 const arenaPlayerChallenge = {
   clues: ['Poartă numărul 10.', 'Joacă la mijloc.', 'Prenumele său este Ilie.'],
-  options: ['Ilie Marian', 'Mario Bai', 'Andrei Bugeac', 'Radu Ungurianu'],
+  options: ['Ilie Marian', 'Mario Bai', 'Gabriel David', 'Cosmin Tucaliuc'],
   correct: 0,
 }
 
@@ -2595,8 +2595,8 @@ export function HeritageView() {
 type TeamMode = 'lot' | 'asezare' | 'staff'
 
 const teamModes = [
-  { id: 'lot' as const, label: 'Lot interactiv', meta: '26 jucători', icon: UsersRound },
-  { id: 'asezare' as const, label: 'Așezare tactică', meta: '4–4–2', icon: LayoutDashboard },
+  { id: 'lot' as const, label: 'Lot & statistici', meta: `${squad.length} jucători · 2026/27`, icon: UsersRound },
+  { id: 'asezare' as const, label: 'Ultimul 11', meta: 'Etapa 1 · campionat', icon: LayoutDashboard },
   { id: 'staff' as const, label: 'Staff tehnic', meta: `${technicalStaff.length} membri`, icon: UserRoundCog },
 ]
 
@@ -2617,40 +2617,56 @@ const positionRole: Record<PlayerPosition, string> = {
 }
 
 const formationSlots = [
-  { number: 1, x: 50, y: 88 },
-  { number: 24, x: 17, y: 67 },
-  { number: 5, x: 39, y: 72 },
-  { number: 21, x: 61, y: 72 },
-  { number: 6, x: 83, y: 67 },
-  { number: 14, x: 16, y: 42 },
-  { number: 73, x: 39, y: 49 },
-  { number: 10, x: 61, y: 49 },
-  { number: 7, x: 84, y: 42 },
-  { number: 25, x: 37, y: 19 },
-  { number: 9, x: 63, y: 19 },
+  { name: 'Alin Ciobanu', label: 'Ciobanu', x: 50, y: 89 },
+  { name: 'Ilie', label: 'Ilie', x: 14, y: 69 },
+  { name: 'Ciprian Perju', label: 'Perju', x: 38, y: 72 },
+  { name: 'Vlăduț Cimbru', label: 'Cimbru', x: 62, y: 72 },
+  { name: 'Cătălin Golofca', label: 'Golofca', x: 86, y: 69 },
+  { name: 'Gabriel David', label: 'David', x: 37, y: 49 },
+  { name: 'Ricardo Farcaș', label: 'Farcaș', x: 63, y: 49 },
+  { name: 'Andrei Cerlincă', label: 'Cerlincă', x: 16, y: 29 },
+  { name: 'Denis Bujor', label: 'Bujor', x: 50, y: 32 },
+  { name: 'Stéphane Ferhaoui', label: 'Ferhaoui', x: 84, y: 29 },
+  { name: 'Gabriel Răducan', label: 'Răducan', x: 50, y: 11 },
 ]
 
-function playerRadar(number: number, position: PlayerPosition) {
-  const positionBoost = { Portar: 4, Fundaș: 7, Mijlocaș: 11, Atacant: 14 }[position]
-  return [
-    { label: 'Energie', value: 68 + ((number * 3 + positionBoost) % 27) },
-    { label: 'Tehnică', value: 64 + ((number * 5 + positionBoost) % 31) },
-    { label: 'Impact', value: 61 + ((number * 7 + positionBoost) % 34) },
-  ]
+const displayPlayerNumber = (number: number | null, padded = false) => number === null
+  ? '—'
+  : padded ? String(number).padStart(2, '0') : String(number)
+
+const playerInitials = (name: string) => name
+  .split(' ')
+  .map((part) => part[0])
+  .join('')
+  .slice(0, 2)
+  .toLocaleUpperCase('ro')
+
+function SquadPortrait({ player, alt = '', lazy = false }: { player: Player; alt?: string; lazy?: boolean }) {
+  if (player.image) {
+    return <img className={styles.playerPortraitAsset} src={player.image} alt={alt} loading={lazy ? 'lazy' : 'eager'} decoding="async" />
+  }
+
+  return (
+    <span className={styles.playerPortraitPlaceholder} role={alt ? 'img' : undefined} aria-label={alt || undefined} aria-hidden={alt ? undefined : true}>
+      <img src={fanEmblem} alt="" />
+      <em>{playerInitials(player.name)}</em>
+      <small>{player.number === null ? 'CSM' : `#${displayPlayerNumber(player.number, true)}`}</small>
+    </span>
+  )
 }
 
 export function SquadView() {
   const { play } = useSound()
   const [mode, setMode] = useState<TeamMode>('lot')
   const [position, setPosition] = useState<'Toți' | PlayerPosition>('Toți')
-  const [selectedNumber, setSelectedNumber] = useState(10)
+  const [selectedId, setSelectedId] = useState('andrei-cerlinca')
   const [query, setQuery] = useState('')
-  const [comparison, setComparison] = useState<number[]>([])
+  const [comparison, setComparison] = useState<string[]>([])
   const [showComparison, setShowComparison] = useState(false)
-  const [favorites, setFavorites] = useState<number[]>(() => {
+  const [favorites, setFavorites] = useState<string[]>(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('cetatea-favorite-players') ?? '[]')
-      return Array.isArray(stored) ? stored.filter((value): value is number => typeof value === 'number') : []
+      return Array.isArray(stored) ? stored.filter((value): value is string => typeof value === 'string') : []
     } catch {
       return []
     }
@@ -2659,16 +2675,23 @@ export function SquadView() {
   const filteredSquad = useMemo(() => squad.filter((player) => {
     const matchesPosition = position === 'Toți' || player.position === position
     const normalizedQuery = query.trim().toLocaleLowerCase('ro')
-    const matchesQuery = !normalizedQuery || player.name.toLocaleLowerCase('ro').includes(normalizedQuery) || String(player.number).includes(normalizedQuery)
+    const matchesQuery = !normalizedQuery || player.name.toLocaleLowerCase('ro').includes(normalizedQuery) || (player.number !== null && String(player.number).includes(normalizedQuery))
     return matchesPosition && matchesQuery
   }), [position, query])
 
-  const selectedPlayer = squad.find((player) => player.number === selectedNumber) ?? squad[0]
-  const selectedIndex = squad.findIndex((player) => player.number === selectedPlayer.number)
-  const radar = playerRadar(selectedPlayer.number, selectedPlayer.position)
+  const selectedPlayer = squad.find((player) => player.id === selectedId) ?? squad[0]
+  const selectedIndex = squad.findIndex((player) => player.id === selectedPlayer.id)
   const comparisonPlayers = comparison
-    .map((number) => squad.find((player) => player.number === number))
+    .map((id) => squad.find((player) => player.id === id))
     .filter((player): player is (typeof squad)[number] => Boolean(player))
+  const comparisonRows = comparisonPlayers.length === 2 ? [
+    { label: 'Apariții confirmate', values: comparisonPlayers.map((player) => player.appearances ?? 0) },
+    { label: 'Titularizări publicate', values: comparisonPlayers.map((player) => player.starts ?? 0) },
+    { label: 'Goluri', values: comparisonPlayers.map((player) => player.goals ?? 0) },
+    { label: 'Pase decisive', values: comparisonPlayers.map((player) => player.assists ?? 0) },
+    { label: 'Cartonașe galbene', values: comparisonPlayers.map((player) => player.yellowCards ?? 0) },
+    { label: 'Minute documentate', values: comparisonPlayers.map((player) => player.documentedMinutes ?? 0) },
+  ] : []
 
   useEffect(() => {
     localStorage.setItem('cetatea-favorite-players', JSON.stringify(favorites))
@@ -2683,28 +2706,28 @@ export function SquadView() {
     return () => document.removeEventListener('keydown', close)
   }, [showComparison])
 
-  const selectPlayer = (number: number) => {
-    setSelectedNumber(number)
+  const selectPlayer = (id: string) => {
+    setSelectedId(id)
     play('navigate')
   }
 
   const stepPlayer = (direction: number) => {
     const nextIndex = (selectedIndex + direction + squad.length) % squad.length
-    selectPlayer(squad[nextIndex].number)
+    selectPlayer(squad[nextIndex].id)
   }
 
-  const toggleFavorite = (number: number) => {
-    setFavorites((current) => current.includes(number)
-      ? current.filter((item) => item !== number)
-      : [...current, number])
+  const toggleFavorite = (id: string) => {
+    setFavorites((current) => current.includes(id)
+      ? current.filter((item) => item !== id)
+      : [...current, id])
     play('success')
   }
 
-  const toggleComparison = (number: number) => {
+  const toggleComparison = (id: string) => {
     setComparison((current) => {
-      if (current.includes(number)) return current.filter((item) => item !== number)
-      if (current.length < 2) return [...current, number]
-      return [current[1], number]
+      if (current.includes(id)) return current.filter((item) => item !== id)
+      if (current.length < 2) return [...current, id]
+      return [current[1], id]
     })
     play('toggle')
   }
@@ -2732,7 +2755,12 @@ export function SquadView() {
               </button>
             )
           })}
-          <div className={styles.teamPulse}><span><i /> Lot verificat</span><strong>SEZON 26/27</strong></div>
+          <div className={styles.teamPulse} aria-label="Rezumatul echipei după două etape">
+            <header><span><Activity aria-hidden="true" /> Forma Cetății</span><small>după etapa a II-a</small></header>
+            <div><b>Î</b><b>V</b><strong>3 PCT.</strong></div>
+            <dl><div><dt>Meciuri</dt><dd>2</dd></div><div><dt>Goluri</dt><dd>3–3</dd></div><div><dt>Lot</dt><dd>{squad.length}</dd></div></dl>
+            <p><span>Lideri ofensivi</span><b>Răducan 2G · David 1G</b></p>
+          </div>
         </motion.nav>
 
         <div className={styles.teamScene}>
@@ -2750,20 +2778,25 @@ export function SquadView() {
                   <header>
                     <span><i /> Jucător selectat</span>
                     <strong>{positionRole[selectedPlayer.position]}</strong>
-                    <em>DISPONIBIL</em>
+                    <em><BadgeCheck aria-hidden="true" /> LOT 2026/27</em>
                   </header>
 
                   <div className={styles.playerHero}>
-                    <span className={styles.playerWatermark}>{String(selectedPlayer.number).padStart(2, '0')}</span>
+                    <span className={styles.playerWatermark}>{displayPlayerNumber(selectedPlayer.number, true)}</span>
                     <div className={styles.playerSigil}>
                       <i /><i />
-                      <img src={club.badge} alt="Sigla Cetatea Suceava" />
-                      <b>{String(selectedPlayer.number).padStart(2, '0')}</b>
+                      <SquadPortrait player={selectedPlayer} alt={selectedPlayer.image ? `Portret oficial ${selectedPlayer.name}` : `Identitate vizuală ${selectedPlayer.name}`} />
+                      <b>{displayPlayerNumber(selectedPlayer.number, true)}</b>
                     </div>
                     <div className={styles.playerIdentity}>
-                      <small>{selectedPlayer.position} · CSM Cetatea 1932</small>
+                      <small>{selectedPlayer.role} · CSM Cetatea 1932</small>
                       <h2>{selectedPlayer.name}</h2>
-                      <span><Shield aria-hidden="true" /> Român · Prima echipă</span>
+                      <span><BadgeCheck aria-hidden="true" /> {selectedPlayer.captain ? 'Căpitanul Cetății · ' : ''}lotul actual al primei echipe</span>
+                      <div className={styles.playerIdentityFacts}>
+                        <span><CalendarDays aria-hidden="true" /> {selectedPlayer.birthDate}</span>
+                        <span>{selectedPlayer.height ?? 'Înălțime nepublicată'}</span>
+                        <span>{selectedPlayer.foot ?? 'Picior nedeclarat'}</span>
+                      </div>
                     </div>
                     <div className={styles.playerStepper}>
                       <button type="button" onClick={() => stepPlayer(-1)} aria-label="Jucătorul precedent"><ChevronLeft aria-hidden="true" /></button>
@@ -2772,38 +2805,43 @@ export function SquadView() {
                     </div>
                   </div>
 
-                  <div className={styles.playerRadar}>
-                    <div className={styles.radarHeading}><span><Activity aria-hidden="true" /> Radar comunitar</span><small>Indicator vizual · neoficial</small></div>
-                    {radar.map((metric) => (
-                      <span key={metric.label}><small>{metric.label}</small><i><b style={{ '--metric': `${metric.value}%` } as CSSProperties} /></i><strong>{metric.value}</strong></span>
-                    ))}
+                  <div className={styles.playerCredentials}>
+                    <div className={styles.credentialsHeading}><span><BarChart3 aria-hidden="true" /> Sezon 2026/27</span><small>Doar cifre confirmate public</small></div>
+                    <span><small>Apariții</small><strong>{selectedPlayer.appearances ?? 0}</strong></span>
+                    <span><small>Titular</small><strong>{selectedPlayer.starts ?? 0}</strong></span>
+                    <span><small>Goluri</small><strong>{selectedPlayer.goals ?? 0}</strong></span>
+                    <span><small>Pase decisive</small><strong>{selectedPlayer.assists ?? 0}</strong></span>
                   </div>
 
                   <footer className={styles.playerActions}>
                     <button
                       type="button"
-                      className={favorites.includes(selectedPlayer.number) ? styles.playerActionActive : ''}
-                      onClick={() => toggleFavorite(selectedPlayer.number)}
-                      aria-pressed={favorites.includes(selectedPlayer.number)}
+                      className={favorites.includes(selectedPlayer.id) ? styles.playerActionActive : ''}
+                      onClick={() => toggleFavorite(selectedPlayer.id)}
+                      aria-pressed={favorites.includes(selectedPlayer.id)}
                     >
                       <Heart aria-hidden="true" />
-                      <span><strong>{favorites.includes(selectedPlayer.number) ? 'Favorit în Cetate' : 'Adaugă la favoriți'}</strong><small>{68 + ((selectedPlayer.number * 11) % 29)}% puls suporteri</small></span>
+                      <span><strong>{favorites.includes(selectedPlayer.id) ? 'Favorit în Cetate' : 'Adaugă la favoriți'}</strong><small>Salvat doar pentru tine</small></span>
                     </button>
                     <button
                       type="button"
-                      className={comparison.includes(selectedPlayer.number) ? styles.playerActionActive : ''}
-                      onClick={() => toggleComparison(selectedPlayer.number)}
-                      aria-pressed={comparison.includes(selectedPlayer.number)}
+                      className={comparison.includes(selectedPlayer.id) ? styles.playerActionActive : ''}
+                      onClick={() => toggleComparison(selectedPlayer.id)}
+                      aria-pressed={comparison.includes(selectedPlayer.id)}
                     >
                       <GitCompareArrows aria-hidden="true" />
-                      <span><strong>{comparison.includes(selectedPlayer.number) ? 'Selectat pentru duel' : 'Adaugă la comparație'}</strong><small>{comparison.length} din 2 selectați</small></span>
+                      <span><strong>{comparison.includes(selectedPlayer.id) ? 'Selectat pentru duel' : 'Adaugă la comparație'}</strong><small>{comparison.length} din 2 selectați</small></span>
                     </button>
+                    <div className={styles.playerDataStamp}>
+                      <Activity aria-hidden="true" />
+                      <span><strong>{selectedPlayer.documentedMinutes ?? 0} minute documentate</strong><small>În lot din {selectedPlayer.joined}</small></span>
+                    </div>
                   </footer>
                 </article>
 
                 <aside className={styles.squadDirectory}>
                   <header>
-                    <div><small>Garda completă</small><strong>Explorează lotul</strong></div>
+                    <div><small>Lotul actual · 2026/27</small><strong>Explorează echipa</strong></div>
                     <button
                       type="button"
                       onClick={() => setShowComparison(true)}
@@ -2850,19 +2888,22 @@ export function SquadView() {
                       return (
                         <button
                           type="button"
-                          key={player.number}
-                          className={`${selectedPlayer.number === player.number ? styles.directoryPlayerActive : ''} ${favorites.includes(player.number) ? styles.directoryPlayerFavorite : ''}`}
+                          key={player.id}
+                          className={`${selectedPlayer.id === player.id ? styles.directoryPlayerActive : ''} ${favorites.includes(player.id) ? styles.directoryPlayerFavorite : ''}`}
                           style={{ '--player-tone': positionTone[player.position] } as CSSProperties}
-                          onClick={() => selectPlayer(player.number)}
-                          aria-pressed={selectedPlayer.number === player.number}
+                          onClick={() => selectPlayer(player.id)}
+                          aria-pressed={selectedPlayer.id === player.id}
                           title={`${player.name} · ${player.position}`}
                         >
-                          <b>{String(player.number).padStart(2, '0')}</b>
+                          <span className={styles.directoryPortrait}>
+                            <SquadPortrait player={player} lazy />
+                            <b>{displayPlayerNumber(player.number, true)}</b>
+                          </span>
                           <span>
                             <strong><span className={styles.playerNameFull}>{player.name}</span><span className={styles.playerNameCompact}>{compactName}</span></strong>
-                            <small>{player.position}</small>
+                            <small>{player.appearances ?? 0} ap. · {(player.goals ?? 0) + (player.assists ?? 0)} contribuții</small>
                           </span>
-                          {favorites.includes(player.number) && <Star aria-label="Favorit" />}
+                          {favorites.includes(player.id) && <Star aria-label="Favorit" />}
                           <i />
                         </button>
                       )
@@ -2883,21 +2924,22 @@ export function SquadView() {
                 transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}
               >
                 <div className={styles.formationBoard}>
-                  <header><span><CircleDot aria-hidden="true" /> Plan tactic interactiv</span><strong>4–4–2 / ECHILIBRAT</strong></header>
+                  <header><span><CircleDot aria-hidden="true" /> Ultimul 11 publicat · 2 august 2026</span><strong>4–2–3–1 / CONCORDIA</strong></header>
                   <div className={styles.formationPitch}>
                     <span className={styles.pitchHalf} /><span className={styles.pitchCircle} /><span className={styles.pitchBoxTop} /><span className={styles.pitchBoxBottom} />
                     {formationSlots.map((slot) => {
-                      const player = squad.find((item) => item.number === slot.number)
-                      if (!player) return null
+                      const player = squad.find((item) => item.name === slot.name)
+                      const initials = slot.name.split(' ').map((part) => part[0]).join('').slice(0, 2)
                       return (
                         <button
                           type="button"
-                          key={slot.number}
-                          className={selectedPlayer.number === player.number ? styles.formationPlayerActive : ''}
-                          style={{ '--x': `${slot.x}%`, '--y': `${slot.y}%`, '--player-tone': positionTone[player.position] } as CSSProperties}
-                          onClick={() => selectPlayer(player.number)}
+                          key={slot.name}
+                          className={`${player && selectedPlayer.id === player.id ? styles.formationPlayerActive : ''} ${!player ? styles.formationPlayerUnlinked : ''}`}
+                          style={{ '--x': `${slot.x}%`, '--y': `${slot.y}%`, '--player-tone': player ? positionTone[player.position] : 'var(--tone-green)' } as CSSProperties}
+                          onClick={() => player ? selectPlayer(player.id) : play('toggle')}
+                          aria-label={player ? `Deschide profilul lui ${player.name}` : `${slot.name}, în formula oficială publicată`}
                         >
-                          <i>{player.number}</i><span>{player.name.split(' ').at(-1)}</span>
+                          <i>{player ? <SquadPortrait player={player} lazy /> : <b>{initials}</b>}</i><span>{slot.label}</span>
                         </button>
                       )
                     })}
@@ -2905,12 +2947,12 @@ export function SquadView() {
                 </div>
 
                 <aside className={styles.formationIntel} style={{ '--player-tone': positionTone[selectedPlayer.position] } as CSSProperties}>
-                  <span className={styles.formationBadge}><img src={club.badge} alt="Sigla Cetatea Suceava" /><b>{selectedPlayer.number}</b></span>
-                  <small>Rol în așezare</small>
+                  <span className={styles.formationBadge}><SquadPortrait player={selectedPlayer} alt={selectedPlayer.image ? `Portret oficial ${selectedPlayer.name}` : `Identitate vizuală ${selectedPlayer.name}`} /><b>{displayPlayerNumber(selectedPlayer.number)}</b></span>
+                  <small>Dosar tactic</small>
                   <h2>{selectedPlayer.name}</h2>
-                  <strong>{positionRole[selectedPlayer.position]}</strong>
-                  <p>Selectează orice poziție de pe teren pentru a explora rapid jucătorul și rolul său în sistem.</p>
-                  <div>{radar.map((metric) => <span key={metric.label}><small>{metric.label}</small><b>{metric.value}</b></span>)}</div>
+                  <strong>{selectedPlayer.role}</strong>
+                  <p>Acesta este ultimul unsprezece de start publicat integral în campionat. În etapa următoare, Cetatea a câștigat cu 2–0 la Târgu Mureș, prin dubla lui Gabriel Răducan.</p>
+                  <div><span><small>Apariții</small><b>{selectedPlayer.appearances ?? 0}</b></span><span><small>G+A</small><b>{(selectedPlayer.goals ?? 0) + (selectedPlayer.assists ?? 0)}</b></span><span><small>Etapa 2</small><b>0–2</b></span></div>
                   <button type="button" onClick={() => { setMode('lot'); play('navigate') }}><UsersRound aria-hidden="true" /> Deschide profilul complet <ArrowRight aria-hidden="true" /></button>
                 </aside>
               </motion.div>
@@ -2930,7 +2972,7 @@ export function SquadView() {
                   <div className={styles.staffGrid}>
                     {technicalStaff.map((member, index) => (
                       <article key={member.name} style={{ '--staff-index': String(index + 1) } as CSSProperties}>
-                        <span><UserRoundCog aria-hidden="true" /></span>
+                        <span className={styles.staffPortrait}>{member.image ? <img src={member.image} alt="" loading="lazy" decoding="async" /> : <UserRoundCog aria-hidden="true" />}</span>
                         <div><small>{member.role}</small><strong>{member.name}</strong></div>
                         <b>0{index + 1}</b>
                         <i />
@@ -2966,22 +3008,38 @@ export function SquadView() {
               <div><small>Laboratorul lotului</small><strong id="team-comparison-title">Comparație directă</strong></div>
               <button type="button" autoFocus onClick={() => setShowComparison(false)} aria-label="Închide comparația"><X aria-hidden="true" /></button>
             </header>
-            <div className={styles.comparisonGrid}>
-              {comparisonPlayers.map((player, playerIndex) => (
-                <article key={player.number} style={{ '--player-tone': positionTone[player.position] } as CSSProperties}>
-                  <span className={styles.comparisonNumber}>{String(player.number).padStart(2, '0')}</span>
-                  <div className={styles.comparisonIdentity}><img src={club.badge} alt="" /><span><small>{player.position}</small><strong>{player.name}</strong></span></div>
-                  <div className={styles.comparisonMetrics}>
-                    {playerRadar(player.number, player.position).map((metric) => (
-                      <span key={metric.label}><small>{metric.label}</small><i><b style={{ '--metric': `${metric.value}%` } as CSSProperties} /></i><strong>{metric.value}</strong></span>
-                    ))}
-                  </div>
-                  <button type="button" onClick={() => { selectPlayer(player.number); setShowComparison(false) }}>Deschide profilul <ArrowRight aria-hidden="true" /></button>
-                  {playerIndex === 0 && <em>VS</em>}
-                </article>
-              ))}
+            <div className={styles.comparisonArena}>
+              <div className={styles.comparisonGrid}>
+                {comparisonPlayers.map((player, playerIndex) => (
+                  <article key={player.id} style={{ '--player-tone': positionTone[player.position] } as CSSProperties}>
+                    <span className={styles.comparisonNumber}>{displayPlayerNumber(player.number, true)}</span>
+                    <div className={styles.comparisonIdentity}><SquadPortrait player={player} alt={player.image ? `Portret oficial ${player.name}` : `Identitate vizuală ${player.name}`} /><span><small>{player.role}</small><strong>{player.name}</strong></span></div>
+                    <div className={styles.comparisonBio}>
+                      <span><small>Vârstă</small><strong>{player.age} ani</strong></span>
+                      <span><small>Înălțime</small><strong>{player.height ?? '—'}</strong></span>
+                      <span><small>Picior</small><strong>{player.foot ?? '—'}</strong></span>
+                    </div>
+                    <button type="button" onClick={() => { selectPlayer(player.id); setShowComparison(false) }}>Deschide profilul <ArrowRight aria-hidden="true" /></button>
+                    {playerIndex === 0 && <em>VS</em>}
+                  </article>
+                ))}
+              </div>
+              <div className={styles.comparisonBattle} aria-label="Comparația statisticilor confirmate">
+                {comparisonRows.map((row) => {
+                  const maximum = Math.max(row.values[0], row.values[1], 1)
+                  return (
+                    <div className={styles.comparisonMetricDuel} key={row.label}>
+                      <strong>{row.values[0]}</strong>
+                      <span className={styles.comparisonBarLeft}><i style={{ '--metric-width': `${(row.values[0] / maximum) * 100}%` } as CSSProperties} /></span>
+                      <small>{row.label}</small>
+                      <span className={styles.comparisonBarRight}><i style={{ '--metric-width': `${(row.values[1] / maximum) * 100}%` } as CSSProperties} /></span>
+                      <strong>{row.values[1]}</strong>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-            <footer><span>Radar comunitar · indicator conceptual, nu statistică oficială</span><button type="button" onClick={() => { setComparison([]); setShowComparison(false) }}>Golește selecția</button></footer>
+            <footer><span>Portrete exclusiv Cetatea · statistici documentate public, fără completări inventate</span><button type="button" onClick={() => { setComparison([]); setShowComparison(false) }}>Golește selecția</button></footer>
           </motion.div>
         )}
       </AnimatePresence>
