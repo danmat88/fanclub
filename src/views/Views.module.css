@@ -560,10 +560,17 @@
 .dataNotice i { width: 6px; height: 6px; border: 1px solid var(--accent); transform: rotate(45deg); }
 
 .tribuneView {
+  --tribune-feed-safe-edge: 4px;
   --tribune-card-edge: color-mix(in srgb, var(--line-strong) 88%, transparent);
   --tribune-card-highlight: color-mix(in srgb, #ffffff 9%, transparent);
   --tribune-card-depth: color-mix(in srgb, var(--line-strong) 58%, transparent);
+  --tribune-floating-shadow: rgba(0, 0, 0, .28);
   position: relative;
+}
+
+:global(:root[data-theme='zi-de-meci']) .tribuneView,
+:global(:root[data-theme='gheata-albastra']) .tribuneView {
+  --tribune-floating-shadow: rgba(3, 29, 42, .15);
 }
 .tribuneView .viewIntro { margin-bottom: clamp(8px, 1.3vh, 14px); }
 
@@ -661,6 +668,7 @@
   border: 1px solid var(--tribune-card-edge);
   border-radius: 14px;
   background: color-mix(in srgb, var(--surface-solid) 88%, var(--page-bg));
+  background-clip: padding-box;
   box-shadow:
     inset 0 1px 0 var(--tribune-card-highlight),
     inset 0 -1px 0 var(--tribune-card-depth);
@@ -679,12 +687,12 @@
 .tribuneComposerShortcuts button:nth-child(1) svg { color: var(--tone-green); }
 .tribuneComposerShortcuts button:nth-child(2) svg { color: var(--tone-violet); }
 .tribuneComposerShortcuts button:nth-child(3) svg { color: var(--tone-amber); }
-.tribuneFloatingComposer { position: absolute; right: 21px; bottom: 16px; z-index: 14; display: grid; grid-template-columns: 18px 0fr; gap: 0; align-items: center; min-width: 48px; height: 48px; overflow: hidden; padding: 0 15px; border: 1px solid color-mix(in srgb, var(--tone-green) 58%, var(--line)); border-radius: 50%; background: color-mix(in srgb, var(--tone-green) 90%, #ffffff 10%); color: #06130e; box-shadow: 0 14px 38px rgba(0, 0, 0, .38), 0 0 24px color-mix(in srgb, var(--tone-green) 22%, transparent); cursor: pointer; transition: grid-template-columns 220ms cubic-bezier(.16, 1, .3, 1), gap 220ms ease, border-radius 220ms ease; }
+.tribuneFloatingComposer { position: absolute; right: 18px; bottom: 18px; z-index: 14; display: grid; grid-template-columns: 18px 0fr; gap: 0; align-items: center; min-width: 48px; height: 48px; overflow: hidden; padding: 0 15px; border: 1px solid color-mix(in srgb, var(--tone-green) 58%, var(--line)); border-radius: 50%; background: color-mix(in srgb, var(--tone-green) 90%, #ffffff 10%); color: #06130e; box-shadow: 0 7px 16px var(--tribune-floating-shadow), 0 0 14px color-mix(in srgb, var(--tone-green) 18%, transparent); cursor: pointer; transition: grid-template-columns 220ms cubic-bezier(.16, 1, .3, 1), gap 220ms ease, border-radius 220ms ease; }
 .tribuneFloatingComposer:hover,
 .tribuneFloatingComposer:focus-visible { grid-template-columns: 18px 1fr; gap: 7px; border-radius: 10px; outline: none; }
 .tribuneFloatingComposer svg { width: 18px; }
 .tribuneFloatingComposer span { overflow: hidden; font-family: var(--font-game); font-size: .56rem; font-weight: 850; white-space: nowrap; }
-.tribuneFeedNotice { position: absolute; right: 21px; bottom: 72px; z-index: 17; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; min-width: 250px; gap: 9px; align-items: center; padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: 10px; background: color-mix(in srgb, var(--surface-solid) 96%, var(--page-bg)); color: var(--text-subtle); box-shadow: 0 18px 48px rgba(0, 0, 0, .42); }
+.tribuneFeedNotice { position: absolute; right: 18px; bottom: 72px; z-index: 17; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; min-width: 250px; gap: 9px; align-items: center; padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: 10px; background: color-mix(in srgb, var(--surface-solid) 96%, var(--page-bg)); color: var(--text-subtle); box-shadow: 0 10px 24px var(--tribune-floating-shadow); }
 .tribuneFeedNotice > svg { width: 17px; justify-self: center; color: var(--tone-green); }
 .tribuneFeedNotice > span { display: grid; gap: 2px; }
 .tribuneFeedNotice strong { color: var(--text-primary); font-family: var(--font-game); font-size: .58rem; }
@@ -702,7 +710,7 @@
 .tribuneArenaScroll { height: 100%; }
 
 .tribuneFeed {
-  padding: 9px 0 68px;
+  padding: 9px var(--tribune-feed-safe-edge) 68px;
 }
 .tribuneFeedLoader { display: flex; min-height: 66px; gap: 11px; align-items: center; justify-content: center; margin: 2px 0 10px; color: var(--text-subtle); }
 .tribuneFeedLoader > svg { width: 20px; height: 20px; color: var(--tone-cyan); animation: tribuneMediaSpin .82s linear infinite; }
@@ -739,6 +747,7 @@
   border: 1px solid var(--tribune-card-edge);
   border-radius: 13px;
   background: color-mix(in srgb, var(--surface-solid) 88%, var(--post-tone) 3%);
+  background-clip: padding-box;
   box-shadow:
     inset 0 1px 0 var(--tribune-card-highlight),
     inset 0 -1px 0 var(--tribune-card-depth);
@@ -5457,7 +5466,7 @@
     white-space: nowrap;
   }
 
-  .tribuneFeed { padding: 8px 0 68px; }
+  .tribuneFeed { padding: 8px 3px 68px; }
   .tribuneReactionPicker { max-width: calc(100vw - 42px); }
 }
 
