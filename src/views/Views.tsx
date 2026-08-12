@@ -31,6 +31,7 @@ import {
   History,
   ImagePlus,
   LayoutDashboard,
+  LoaderCircle,
   MapPin,
   Maximize2,
   Medal,
@@ -78,6 +79,7 @@ import {
   type FormEvent,
   type PointerEvent as ReactPointerEvent,
   type RefCallback,
+  type SyntheticEvent,
   type UIEvent,
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -1406,6 +1408,127 @@ function readStoredReactions() {
   }))
 }
 
+type TribuneMediaMosaicProps = {
+  author: string
+  images: string[]
+  onOpen: (index: number) => void
+  onPromote?: (index: number) => void
+  onRemove?: (index: number) => void
+  variant: 'composer' | 'feed' | 'thread'
+}
+
+function markTribuneImageReady(event: SyntheticEvent<HTMLImageElement>) {
+  const image = event.currentTarget
+  const tile = image.closest<HTMLElement>('[data-media-tile]')
+  if (!tile) return
+  const ratio = image.naturalWidth / Math.max(1, image.naturalHeight)
+  tile.dataset.orientation = ratio > 1.28 ? 'landscape' : ratio < 0.82 ? 'portrait' : 'square'
+  tile.dataset.loaded = 'true'
+}
+
+function TribuneMediaMosaic({ author, images, onOpen, onPromote, onRemove, variant }: TribuneMediaMosaicProps) {
+  const visibleImages = variant === 'thread' ? images.slice(0, 1) : images.slice(0, 4)
+  const variantClass = variant === 'composer'
+    ? styles.tribuneMediaComposer
+    : variant === 'thread'
+      ? styles.tribuneMediaThread
+      : styles.tribuneMediaFeed
+
+  return (
+    <div
+      className={`${styles.tribuneMediaMosaic} ${variantClass}`}
+      data-count={visibleImages.length}
+      aria-label={images.length === 1 ? 'O fotografie' : `${images.length} fotografii`}
+    >
+      {visibleImages.map((image, index) => {
+        const remainingImages = index === visibleImages.length - 1 ? images.length - visibleImages.length : 0
+        return (
+          <div key={`${image.slice(0, 32)}-${index}`} className={styles.tribuneMediaTile} data-media-tile>
+            <button
+              type="button"
+              className={styles.tribuneMediaOpen}
+              onClick={() => onOpen(index)}
+              aria-label={`Deschide fotografia ${index + 1} publicată de ${author}`}
+            >
+              <span className={styles.tribuneMediaBackdrop} aria-hidden="true"><img src={image} alt="" /></span>
+              <img
+                className={styles.tribuneMediaImage}
+                src={image}
+                alt={`Fotografia ${index + 1} publicată de ${author}`}
+                loading={variant === 'feed' ? 'lazy' : 'eager'}
+                decoding="async"
+                onLoad={markTribuneImageReady}
+              />
+              {remainingImages > 0 && <span className={styles.tribuneMediaMore}>+{remainingImages}</span>}
+              {variant === 'thread' && images.length > 1 && (
+                <span className={styles.tribuneMediaCount}><ImagePlus aria-hidden="true" /> {images.length}</span>
+              )}
+              {variant !== 'thread' && <span className={styles.tribuneMediaExpand}><Maximize2 aria-hidden="true" /></span>}
+            </button>
+            {onRemove && (
+              <button
+                type="button"
+                className={styles.tribuneMediaRemove}
+                onClick={() => onRemove(index)}
+                aria-label={`Elimină fotografia ${index + 1}`}
+              ><X aria-hidden="true" /></button>
+            )}
+            {onPromote && (
+              index === 0 ? (
+                <span className={styles.tribuneMediaCoverBadge}><Star aria-hidden="true" /> Copertă</span>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.tribuneMediaPromote}
+                  onClick={() => onPromote(index)}
+                  aria-label={`Folosește fotografia ${index + 1} drept copertă`}
+                  title="Folosește drept copertă"
+                ><Star aria-hidden="true" /></button>
+              )
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+const TRIBUNE_IMAGE_MAX_BYTES = 10_000_000
+const TRIBUNE_IMAGE_MAX_EDGE = 1920
+const TRIBUNE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+function optimizeTribuneImage(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const source = URL.createObjectURL(file)
+    const image = new Image()
+    image.onload = () => {
+      const scale = Math.min(1, TRIBUNE_IMAGE_MAX_EDGE / Math.max(image.naturalWidth, image.naturalHeight))
+      const width = Math.max(1, Math.round(image.naturalWidth * scale))
+      const height = Math.max(1, Math.round(image.naturalHeight * scale))
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext('2d')
+      if (!context) {
+        URL.revokeObjectURL(source)
+        reject(new Error('Canvas indisponibil'))
+        return
+      }
+      context.imageSmoothingEnabled = true
+      context.imageSmoothingQuality = 'high'
+      context.drawImage(image, 0, 0, width, height)
+      const optimized = canvas.toDataURL('image/webp', 0.86)
+      URL.revokeObjectURL(source)
+      resolve(optimized)
+    }
+    image.onerror = () => {
+      URL.revokeObjectURL(source)
+      reject(new Error('Imagine invalidă'))
+    }
+    image.src = source
+  })
+}
+
 export function CommunityView() {
   const { play } = useSound()
   const [filter, setFilter] = useState<TribuneFilter>('Toate')
@@ -1421,6 +1544,7 @@ export function CommunityView() {
   const [composerOpen, setComposerOpen] = useState(false)
   const [composerText, setComposerText] = useState(() => localStorage.getItem('cetatea-tribune-draft') ?? '')
   const [composerImages, setComposerImages] = useState<string[]>([])
+  const [processingImages, setProcessingImages] = useState(false)
   const [composerPollOptions, setComposerPollOptions] = useState(['', ''])
   const [attachMatch, setAttachMatch] = useState(false)
   const [composerError, setComposerError] = useState('')
@@ -1464,6 +1588,7 @@ export function CommunityView() {
   )
   const reactionHoldTimerRef = useRef<number | null>(null)
   const reactionHoldOpenedRef = useRef(false)
+  const mediaSwipeStartRef = useRef<{ x: number; y: number } | null>(null)
   const feedViewportRef = useRef<HTMLDivElement>(null)
   const composerDockRef = useRef<HTMLElement>(null)
   const [composerViewport, setComposerViewport] = useState({
@@ -1535,9 +1660,9 @@ export function CommunityView() {
   const activePostComments = activePost ? comments[activePost.id] ?? [] : []
   const activePostReaction = activePost ? reactions[activePost.id] : undefined
   const composerValidPollOptions = composerPollOptions.filter((option) => option.trim()).length
-  const composerCanPublish = composerMode === 'sondaj'
+  const composerCanPublish = !processingImages && (composerMode === 'sondaj'
     ? Boolean(composerText.trim()) && composerValidPollOptions >= 2
-    : Boolean(composerText.trim() || composerImages.length)
+    : Boolean(composerText.trim() || composerImages.length))
   const commentInputRef = useRef<HTMLInputElement>(null)
   const totalContributions = posts.reduce((total, post) => (
     total + post.reactionBase + post.commentBase + (comments[post.id]?.length ?? 0)
@@ -1628,15 +1753,26 @@ export function CommunityView() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      setComposerOpen(false)
-      setActivePostId(null)
-      setMobileTribuneSection('flux')
-      setMediaViewer(null)
-      setPostMenuId(null)
+      if (mediaViewer) {
+        setMediaViewer(null)
+        return
+      }
+      if (composerOpen) {
+        setComposerOpen(false)
+        return
+      }
+      if (postMenuId) {
+        setPostMenuId(null)
+        return
+      }
+      if (activePostId) {
+        setActivePostId(null)
+        setMobileTribuneSection('flux')
+      }
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [activePostId, composerOpen, mediaViewer, postMenuId])
 
   useEffect(() => {
     const closePostMenu = (event: PointerEvent) => {
@@ -1671,6 +1807,16 @@ export function CommunityView() {
     return () => document.removeEventListener('keydown', onMediaKeyDown)
   }, [mediaViewer])
 
+  useEffect(() => {
+    if (!mediaViewer || mediaViewer.images.length < 2) return
+    const previousIndex = (mediaViewer.index - 1 + mediaViewer.images.length) % mediaViewer.images.length
+    const nextIndex = (mediaViewer.index + 1) % mediaViewer.images.length
+    ;[previousIndex, nextIndex].forEach((index) => {
+      const preload = new Image()
+      preload.src = mediaViewer.images[index]
+    })
+  }, [mediaViewer])
+
   const persistUserPosts = (nextPosts: TribunePost[]) => {
     const userPosts = nextPosts.filter((post) => post.userCreated)
     try {
@@ -1696,21 +1842,24 @@ export function CommunityView() {
 
   const handlePhoto = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []).slice(0, Math.max(0, 4 - composerImages.length))
-    if (!files.length) return
-    if (files.some((file) => file.size > 900_000)) {
-      setComposerError('Fiecare imagine poate avea maximum 900 KB în această versiune locală.')
+    event.target.value = ''
+    if (!files.length || processingImages) return
+    if (files.some((file) => !TRIBUNE_IMAGE_TYPES.has(file.type))) {
+      setComposerError('Folosește fotografii JPG, PNG sau WEBP.')
       return
     }
-    Promise.all(files.map((file) => new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    }))).then((images) => {
+    if (files.some((file) => file.size > TRIBUNE_IMAGE_MAX_BYTES)) {
+      setComposerError('Fiecare fotografie poate avea maximum 10 MB.')
+      return
+    }
+    setProcessingImages(true)
+    setComposerError('')
+    Promise.all(files.map(optimizeTribuneImage)).then((images) => {
       setComposerImages((current) => [...current, ...images.filter(Boolean)].slice(0, 4))
       setComposerMode('fotografie')
       setComposerError('')
-    }).catch(() => setComposerError('Imaginea nu a putut fi citită. Încearcă din nou.'))
+    }).catch(() => setComposerError('Fotografia nu a putut fi procesată. Încearcă o altă imagine.'))
+      .finally(() => setProcessingImages(false))
   }
 
   const publishPost = (event: FormEvent) => {
@@ -1862,6 +2011,20 @@ export function CommunityView() {
       index: (current.index + direction + current.images.length) % current.images.length,
     } : null)
     play('navigate')
+  }
+
+  const beginMediaSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    mediaSwipeStartRef.current = { x: event.clientX, y: event.clientY }
+  }
+
+  const finishMediaSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = mediaSwipeStartRef.current
+    mediaSwipeStartRef.current = null
+    if (!start || !mediaViewer || mediaViewer.images.length < 2) return
+    const horizontalDistance = event.clientX - start.x
+    const verticalDistance = event.clientY - start.y
+    if (Math.abs(horizontalDistance) < 48 || Math.abs(horizontalDistance) <= Math.abs(verticalDistance) * 1.15) return
+    moveMediaViewer(horizontalDistance < 0 ? 1 : -1)
   }
 
   const submitComment = (event: FormEvent) => {
@@ -2023,10 +2186,12 @@ export function CommunityView() {
         <div className={styles.tribuneThreadSourceBody}>
           {activePost.text && <p>{activePost.text}</p>}
           {activePostImages.length > 0 && (
-            <button type="button" onClick={() => openMediaViewer(activePostImages, 0, activePost.author)} aria-label="Deschide fotografiile postării">
-              <img src={activePostImages[0]} alt="" />
-              <span><ImagePlus /> {activePostImages.length === 1 ? '1 fotografie' : `${activePostImages.length} fotografii`}</span>
-            </button>
+            <TribuneMediaMosaic
+              author={activePost.author}
+              images={activePostImages}
+              variant="thread"
+              onOpen={(imageIndex) => openMediaViewer(activePostImages, imageIndex, activePost.author)}
+            />
           )}
         </div>
         <div className={styles.tribuneThreadStats}>
@@ -2294,14 +2459,12 @@ export function CommunityView() {
                     <div className={`${styles.tribunePostBody} ${postImages.length ? styles.tribunePostBodyWithMedia : ''}`}>
                       {post.text && <p>{post.text}</p>}
                       {postImages.length > 0 && (
-                        <div className={styles.tribunePostMedia}>
-                          <button type="button" onClick={() => openMediaViewer(postImages, 0, post.author)} aria-label={`Deschide fotografiile publicate de ${post.author}`}>
-                            <img src={postImages[0]} alt={`Fotografie publicată de ${post.author}`} />
-                            {postImages.length > 1 && <span>+{postImages.length - 1}</span>}
-                            <i><Maximize2 aria-hidden="true" /></i>
-                            {postImages.length > 1 && <em>{postImages.slice(0, 4).map((_, dotIndex) => <b key={dotIndex} className={dotIndex === 0 ? styles.tribuneMediaDotActive : ''} />)}</em>}
-                          </button>
-                        </div>
+                        <TribuneMediaMosaic
+                          author={post.author}
+                          images={postImages}
+                          variant="feed"
+                          onOpen={(imageIndex) => openMediaViewer(postImages, imageIndex, post.author)}
+                        />
                       )}
                     </div>
                     {post.poll && (
@@ -2735,19 +2898,22 @@ export function CommunityView() {
                   )}
 
                   {composerMode === 'fotografie' && composerImages.length === 0 && (
-                    <label className={styles.tribunePhotoDrop} htmlFor="tribune-photo-input">
-                      <ImagePlus aria-hidden="true" />
-                      <span><strong>Alege până la patru fotografii</strong><small>JPG, PNG sau WEBP · maximum 900 KB fiecare</small></span>
+                    <label className={`${styles.tribunePhotoDrop} ${processingImages ? styles.tribunePhotoProcessing : ''}`} htmlFor="tribune-photo-input">
+                      {processingImages ? <LoaderCircle aria-hidden="true" /> : <ImagePlus aria-hidden="true" />}
+                      <span><strong>{processingImages ? 'Pregătim fotografiile…' : 'Alege până la patru fotografii'}</strong><small>{processingImages ? 'Redimensionăm fără să stricăm proporțiile' : 'JPG, PNG sau WEBP · optimizate automat pentru postare'}</small></span>
                     </label>
                   )}
                   {composerImages.length > 0 && (
-                    <div className={styles.tribuneComposerPreview}>
-                      {composerImages.map((image, index) => (
-                        <span key={`${image.slice(0, 24)}-${index}`}>
-                          <img src={image} alt={`Previzualizarea fotografiei ${index + 1}`} />
-                          <button type="button" onClick={() => setComposerImages((current) => current.filter((_, imageIndex) => imageIndex !== index))} aria-label={`Elimină fotografia ${index + 1}`}><X /></button>
-                        </span>
-                      ))}
+                    <div className={styles.tribuneComposerMediaBlock}>
+                      <header><span>{processingImages ? <LoaderCircle aria-hidden="true" /> : <ImagePlus aria-hidden="true" />} Previzualizare postare</span><small>{processingImages ? 'Se procesează…' : `${composerImages.length}/4`}</small></header>
+                      <TribuneMediaMosaic
+                        author="Suporter Cetatea"
+                        images={composerImages}
+                        variant="composer"
+                        onOpen={(imageIndex) => openMediaViewer(composerImages, imageIndex, 'Previzualizare postare')}
+                        onPromote={(imageIndex) => setComposerImages((current) => [current[imageIndex], ...current.filter((_, index) => index !== imageIndex)])}
+                        onRemove={(imageIndex) => setComposerImages((current) => current.filter((_, index) => index !== imageIndex))}
+                      />
                     </div>
                   )}
 
@@ -2778,12 +2944,12 @@ export function CommunityView() {
                   )}
                   {composerError && <p className={styles.tribuneComposerError}>{composerError}</p>}
 
-                  <input id="tribune-photo-input" className={styles.tribuneFileInput} type="file" accept="image/*" multiple onChange={handlePhoto} />
+                  <input id="tribune-photo-input" className={styles.tribuneFileInput} type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={processingImages || composerImages.length >= 4} onChange={handlePhoto} />
                   <div className={styles.tribuneComposerTools}>
                     <span><strong>Adaugă</strong><small>Opțional</small></span>
                     <div>
-                      <label className={composerImages.length > 0 || composerMode === 'fotografie' ? styles.tribuneComposerToolActive : ''} htmlFor="tribune-photo-input" title="Adaugă fotografii">
-                        <ImagePlus aria-hidden="true" /><span>Fotografii</span>
+                      <label className={composerImages.length > 0 || composerMode === 'fotografie' ? styles.tribuneComposerToolActive : ''} htmlFor={composerImages.length < 4 && !processingImages ? 'tribune-photo-input' : undefined} title={composerImages.length >= 4 ? 'Ai adăugat numărul maxim de fotografii' : 'Adaugă fotografii'} aria-disabled={processingImages || composerImages.length >= 4}>
+                        {processingImages ? <LoaderCircle aria-hidden="true" /> : <ImagePlus aria-hidden="true" />}<span>{composerImages.length >= 4 ? 'Complet' : 'Fotografii'}</span>
                       </label>
                       <button type="button" className={composerMode === 'sondaj' ? styles.tribuneComposerToolActive : ''} onClick={() => { setComposerMode((current) => current === 'sondaj' ? 'mesaj' : 'sondaj'); setComposerAppearanceOpen(false); setComposerError(''); play('toggle') }} title="Adaugă un sondaj" aria-pressed={composerMode === 'sondaj'}>
                         <BarChart3 aria-hidden="true" /><span>Sondaj</span>
@@ -2819,8 +2985,8 @@ export function CommunityView() {
                   </AnimatePresence>
 
                   <footer className={styles.tribuneComposerActions}>
-                    <span><i /><small>{composerMode === 'sondaj' && composerValidPollOptions < 2 ? 'Completează două variante' : composerText.trim() || composerImages.length ? 'Ciorna este salvată' : 'Vizibilă tuturor suporterilor'}</small></span>
-                    <button type="submit" disabled={!composerCanPublish}><Send /> Publică</button>
+                    <span><i /><small>{processingImages ? 'Pregătim fotografiile' : composerMode === 'sondaj' && composerValidPollOptions < 2 ? 'Completează două variante' : composerText.trim() || composerImages.length ? 'Ciorna este salvată' : 'Vizibilă tuturor suporterilor'}</small></span>
+                    <button type="submit" disabled={!composerCanPublish}>{processingImages ? <LoaderCircle /> : <Send />} {processingImages ? 'Se procesează' : 'Publică'}</button>
                   </footer>
                 </div>
               </form>
@@ -2831,48 +2997,72 @@ export function CommunityView() {
         document.body,
       )}
 
-      <AnimatePresence>
-        {mediaViewer && (
-          <motion.div
-            className={`${styles.tribuneOverlay} ${styles.tribuneMediaOverlay}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onMouseDown={(event) => { if (event.target === event.currentTarget) setMediaViewer(null) }}
-          >
-            <motion.figure
-              className={styles.tribuneMediaViewer}
-              role="dialog"
-              aria-modal="true"
-              aria-label={`Fotografiile publicate de ${mediaViewer.author}`}
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.97 }}
+      {createPortal(
+        <AnimatePresence>
+          {mediaViewer && (
+            <motion.div
+              className={`${styles.tribuneOverlay} ${styles.tribuneMediaOverlay}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onPointerDown={(event) => { if (event.target === event.currentTarget) setMediaViewer(null) }}
             >
-              <header>
-                <span><ImagePlus aria-hidden="true" /><strong>{mediaViewer.author}</strong></span>
-                <small>{mediaViewer.index + 1} / {mediaViewer.images.length}</small>
-                <button type="button" onClick={() => setMediaViewer(null)} aria-label="Închide fotografia"><X /></button>
-              </header>
-              <div>
-                {mediaViewer.images.length > 1 && <button type="button" onClick={() => moveMediaViewer(-1)} aria-label="Fotografia anterioară"><ChevronLeft /></button>}
-                <img src={mediaViewer.images[mediaViewer.index]} alt={`Fotografia ${mediaViewer.index + 1} publicată de ${mediaViewer.author}`} />
-                {mediaViewer.images.length > 1 && <button type="button" onClick={() => moveMediaViewer(1)} aria-label="Fotografia următoare"><ChevronRight /></button>}
-              </div>
-              {mediaViewer.images.length > 1 && (
-                <footer>
-                  {mediaViewer.images.map((image, index) => (
-                    <button type="button" key={`${image.slice(0, 28)}-${index}`} className={mediaViewer.index === index ? styles.tribuneMediaThumbActive : ''} onClick={() => setMediaViewer((current) => current ? { ...current, index } : null)} aria-label={`Vezi fotografia ${index + 1}`}>
-                      <img src={image} alt="" />
-                    </button>
-                  ))}
-                </footer>
-              )}
-            </motion.figure>
-          </motion.div>
-        )}
-
-      </AnimatePresence>
+              <motion.figure
+                className={styles.tribuneMediaViewer}
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Fotografiile publicate de ${mediaViewer.author}`}
+                initial={{ opacity: 0, y: 16, scale: 0.985 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.985 }}
+              >
+                <header>
+                  <span><ImagePlus aria-hidden="true" /><i><small>Galerie foto</small><strong>{mediaViewer.author}</strong></i></span>
+                  <small>{mediaViewer.index + 1} din {mediaViewer.images.length}</small>
+                  <button type="button" onClick={() => setMediaViewer(null)} aria-label="Închide fotografia"><X /></button>
+                </header>
+                <div
+                  className={styles.tribuneMediaStage}
+                  onPointerDown={beginMediaSwipe}
+                  onPointerUp={finishMediaSwipe}
+                  onPointerCancel={() => { mediaSwipeStartRef.current = null }}
+                >
+                  <span className={styles.tribuneMediaStageBackdrop} aria-hidden="true">
+                    <img src={mediaViewer.images[mediaViewer.index]} alt="" />
+                  </span>
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.img
+                      key={`${mediaViewer.images[mediaViewer.index].slice(0, 36)}-${mediaViewer.index}`}
+                      className={styles.tribuneMediaStageImage}
+                      src={mediaViewer.images[mediaViewer.index]}
+                      alt={`Fotografia ${mediaViewer.index + 1} publicată de ${mediaViewer.author}`}
+                      decoding="async"
+                      initial={{ opacity: 0, scale: 0.992 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.992 }}
+                      transition={{ duration: 0.18 }}
+                    />
+                  </AnimatePresence>
+                  {mediaViewer.images.length > 1 && <button type="button" className={styles.tribuneMediaPrevious} onClick={() => moveMediaViewer(-1)} aria-label="Fotografia anterioară"><ChevronLeft /></button>}
+                  {mediaViewer.images.length > 1 && <button type="button" className={styles.tribuneMediaNext} onClick={() => moveMediaViewer(1)} aria-label="Fotografia următoare"><ChevronRight /></button>}
+                  {mediaViewer.images.length > 1 && <small className={styles.tribuneMediaSwipeHint}>Glisează pentru următoarea fotografie</small>}
+                </div>
+                {mediaViewer.images.length > 1 && (
+                  <footer>
+                    {mediaViewer.images.map((image, index) => (
+                      <button type="button" key={`${image.slice(0, 28)}-${index}`} className={mediaViewer.index === index ? styles.tribuneMediaThumbActive : ''} onClick={() => setMediaViewer((current) => current ? { ...current, index } : null)} aria-label={`Vezi fotografia ${index + 1}`} aria-current={mediaViewer.index === index ? 'true' : undefined}>
+                        <img src={image} alt="" decoding="async" />
+                        <span>{index + 1}</span>
+                      </button>
+                    ))}
+                  </footer>
+                )}
+              </motion.figure>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </section>
   )
 }
