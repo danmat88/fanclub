@@ -695,8 +695,16 @@
 .tribuneArenaScroll { height: 100%; }
 
 .tribuneFeed {
-  padding: 9px 11px 68px 3px;
+  padding: 9px 3px 68px;
 }
+.tribuneFeedLoader { display: flex; min-height: 66px; gap: 11px; align-items: center; justify-content: center; margin: 2px 0 10px; color: var(--text-subtle); }
+.tribuneFeedLoader > svg { width: 20px; height: 20px; color: var(--tone-cyan); animation: tribuneMediaSpin .82s linear infinite; }
+.tribuneFeedLoader > span { display: grid; gap: 2px; }
+.tribuneFeedLoader strong { color: var(--text-primary); font-family: var(--font-game); font-size: .58rem; }
+.tribuneFeedLoader small { color: var(--text-dim); font-size: .46rem; }
+.tribuneFeedEnd { display: grid; grid-template-columns: minmax(24px, 1fr) auto minmax(24px, 1fr); gap: 10px; align-items: center; margin: 11px 8px 18px; color: var(--text-dim); font: 720 .45rem/1 var(--font-tech); letter-spacing: .07em; text-transform: uppercase; }
+.tribuneFeedEnd i { height: 1px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--tone-green) 38%, var(--line))); }
+.tribuneFeedEnd i:last-child { background: linear-gradient(90deg, color-mix(in srgb, var(--tone-green) 38%, var(--line)), transparent); }
 
 .tribunePollBlock { display: grid; gap: 7px; margin: 3px 13px 10px; padding: 10px; border: 1px solid color-mix(in srgb, var(--post-tone) 32%, var(--line)); border-radius: 9px; background: linear-gradient(145deg, color-mix(in srgb, var(--post-tone) 13%, var(--surface-faint)), color-mix(in srgb, var(--surface-solid) 52%, transparent)); }
 .tribunePollOptions { display: grid; gap: 4px; }
@@ -5432,7 +5440,7 @@
     white-space: nowrap;
   }
 
-  .tribuneFeed { padding: 8px 8px 68px 2px; }
+  .tribuneFeed { padding: 8px 2px 68px; }
   .tribuneReactionPicker { max-width: calc(100vw - 42px); }
 }
 

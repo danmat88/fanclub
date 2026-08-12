@@ -20,6 +20,7 @@ type AppScrollAreaProps = {
   label?: string
   onScroll?: UIEventHandler<HTMLDivElement>
   scrollToEndKey?: string | number
+  showScrollbar?: boolean
   viewportRef?: RefObject<HTMLDivElement | null>
 }
 
@@ -59,6 +60,7 @@ export function AppScrollArea({
   label,
   onScroll,
   scrollToEndKey,
+  showScrollbar = true,
   viewportRef: forwardedViewportRef,
 }: AppScrollAreaProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -212,7 +214,7 @@ export function AppScrollArea({
     <div className={`${styles.root} ${className}`}>
       <div
         ref={registerViewport}
-        className={`${styles.viewport} ${horizontalScroll ? '' : styles.verticalOnly} ${metrics.verticalVisible ? styles.withVerticalGutter : ''} ${metrics.horizontalVisible ? styles.withHorizontalGutter : ''}`}
+        className={`${styles.viewport} ${horizontalScroll ? '' : styles.verticalOnly} ${showScrollbar && metrics.verticalVisible ? styles.withVerticalGutter : ''} ${showScrollbar && metrics.horizontalVisible ? styles.withHorizontalGutter : ''}`}
         tabIndex={0}
         role="region"
         aria-label={label}
@@ -221,7 +223,7 @@ export function AppScrollArea({
       >
         <div ref={contentRef} className={`${styles.content} ${contentClassName}`}>{children}</div>
       </div>
-      {metrics.verticalVisible && (
+      {showScrollbar && metrics.verticalVisible && (
         <div
           className={`${styles.track} ${styles.verticalTrack}`}
           style={{ bottom: metrics.horizontalVisible ? 15 : 3 }}
@@ -237,7 +239,7 @@ export function AppScrollArea({
           />
         </div>
       )}
-      {metrics.horizontalVisible && (
+      {showScrollbar && metrics.horizontalVisible && (
         <div
           className={`${styles.track} ${styles.horizontalTrack}`}
           style={{ right: metrics.verticalVisible ? 15 : 3 }}

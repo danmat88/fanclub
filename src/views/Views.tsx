@@ -1238,6 +1238,8 @@ type TribuneComment = {
 
 const tribuneFilters: TribuneFilter[] = ['Toate', 'Imagini', 'Sondaje', 'Meci']
 const tribuneSorts: TribuneSort[] = ['Recente', 'În discuție', 'Apreciate', 'Salvate']
+const TRIBUNE_INITIAL_POSTS = 3
+const TRIBUNE_POST_BATCH = 3
 const composerTones: Array<{ id: ComposerTone; label: string; color: string }> = [
   { id: 'verde', label: 'Verde Cetatea', color: 'var(--tone-green)' },
   { id: 'cyan', label: 'Albastru Areni', color: 'var(--tone-cyan)' },
@@ -1535,6 +1537,7 @@ export function CommunityView() {
   const [feedSort, setFeedSort] = useState<TribuneSort>('Recente')
   const [filterOpen, setFilterOpen] = useState(false)
   const [showFloatingComposer, setShowFloatingComposer] = useState(false)
+  const [visiblePostCount, setVisiblePostCount] = useState(TRIBUNE_INITIAL_POSTS)
   const [mobileTribuneSection, setMobileTribuneSection] = useState<'flux' | 'arena' | 'discutie'>('flux')
   const [posts, setPosts] = useState<TribunePost[]>(() => [...readStoredPosts(), ...seedTribunePosts])
   const [reactions, setReactions] = useState<Record<string, TribuneReaction>>(() => readStoredReactions())
@@ -1591,6 +1594,7 @@ export function CommunityView() {
   const mediaSwipeStartRef = useRef<{ x: number; y: number } | null>(null)
   const feedViewportRef = useRef<HTMLDivElement>(null)
   const composerDockRef = useRef<HTMLElement>(null)
+  const feedLoadMoreRef = useRef<HTMLDivElement>(null)
   const [composerViewport, setComposerViewport] = useState({
     height: window.innerHeight,
     keyboardOpen: false,
@@ -1641,6 +1645,31 @@ export function CommunityView() {
       return current
     })
   }, [])
+
+  const renderedPosts = visiblePosts.slice(0, visiblePostCount)
+  const hasMorePosts = visiblePostCount < visiblePosts.length
+
+  useEffect(() => {
+    setVisiblePostCount(TRIBUNE_INITIAL_POSTS)
+  }, [feedSort, filter])
+
+  useEffect(() => {
+    const viewport = feedViewportRef.current
+    const sentinel = feedLoadMoreRef.current
+    if (!viewport || !sentinel || !hasMorePosts) return
+
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries[0]?.isIntersecting) return
+      setVisiblePostCount((current) => Math.min(current + TRIBUNE_POST_BATCH, visiblePosts.length))
+    }, {
+      root: viewport,
+      rootMargin: '0px 0px 280px 0px',
+      threshold: 0.01,
+    })
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMorePosts, visiblePostCount, visiblePosts.length])
 
   useLayoutEffect(() => {
     const viewport = feedViewportRef.current
@@ -1906,6 +1935,7 @@ export function CommunityView() {
     setComposerOpen(false)
     setFilter('Toate')
     setFeedSort('Recente')
+    setVisiblePostCount(TRIBUNE_INITIAL_POSTS)
     setShowFloatingComposer(false)
     play('success')
   }
@@ -2304,6 +2334,7 @@ export function CommunityView() {
                   onClick={() => {
                     if (feedSort !== item) {
                       setFeedSort(item)
+                      setVisiblePostCount(TRIBUNE_INITIAL_POSTS)
                       setShowFloatingComposer(false)
                     }
                     play('toggle')
@@ -2342,6 +2373,7 @@ export function CommunityView() {
                       onClick={() => {
                         if (filter !== item) {
                           setFilter(item)
+                          setVisiblePostCount(TRIBUNE_INITIAL_POSTS)
                           setShowFloatingComposer(false)
                         }
                         play('toggle')
@@ -2383,6 +2415,7 @@ export function CommunityView() {
             horizontalScroll={false}
             label="Fluxul comunității"
             onScroll={handleFeedScroll}
+            showScrollbar={false}
             viewportRef={feedViewportRef}
           >
             <section ref={composerDockRef} className={styles.tribuneComposerDock} aria-label="Creează o postare">
@@ -2401,7 +2434,7 @@ export function CommunityView() {
             </section>
 
             <AnimatePresence initial={false}>
-              {visiblePosts.map((post, index) => {
+              {renderedPosts.map((post, index) => {
                 const postComments = comments[post.id] ?? []
                 const commentPreview = postComments.slice(-1)
                 const reaction = reactions[post.id]
@@ -2576,6 +2609,19 @@ export function CommunityView() {
                 )
               })}
             </AnimatePresence>
+
+            {hasMorePosts && (
+              <div ref={feedLoadMoreRef} className={styles.tribuneFeedLoader} role="status" aria-live="polite">
+                <LoaderCircle aria-hidden="true" />
+                <span><strong>Urmează alte postări</strong><small>Fluxul continuă automat</small></span>
+              </div>
+            )}
+
+            {!hasMorePosts && visiblePosts.length > TRIBUNE_INITIAL_POSTS && (
+              <div className={styles.tribuneFeedEnd} aria-label="Ai ajuns la finalul postărilor disponibile">
+                <i /><span>Ești la zi cu Tribuna</span><i />
+              </div>
+            )}
 
             {visiblePosts.length === 0 && (
               <div className={styles.tribuneEmpty}>
