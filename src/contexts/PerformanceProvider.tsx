@@ -43,19 +43,32 @@ const shouldUseEconomyMode = () => {
 export function PerformanceProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<PerformanceMode>(getInitialMode)
   const [autoEconomy, setAutoEconomy] = useState(shouldUseEconomyMode)
-  const resolvedMode = mode === 'automat' ? (autoEconomy ? 'economie' : 'complet') : mode
+  const [isCompactViewport, setIsCompactViewport] = useState(() =>
+    window.matchMedia('(max-width: 900px)').matches,
+  )
+  const resolvedMode = isCompactViewport
+    ? 'economie'
+    : mode === 'automat'
+      ? autoEconomy
+        ? 'economie'
+        : 'complet'
+      : mode
   const isEconomy = resolvedMode === 'economie'
 
   useEffect(() => {
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const compactViewport = window.matchMedia('(max-width: 900px)')
     const connection = (navigator as NavigatorWithPerformanceHints).connection
     const updateAutomaticMode = () => setAutoEconomy(shouldUseEconomyMode())
+    const updateCompactViewport = () => setIsCompactViewport(compactViewport.matches)
 
     motionPreference.addEventListener('change', updateAutomaticMode)
+    compactViewport.addEventListener('change', updateCompactViewport)
     connection?.addEventListener('change', updateAutomaticMode)
 
     return () => {
       motionPreference.removeEventListener('change', updateAutomaticMode)
+      compactViewport.removeEventListener('change', updateCompactViewport)
       connection?.removeEventListener('change', updateAutomaticMode)
     }
   }, [])

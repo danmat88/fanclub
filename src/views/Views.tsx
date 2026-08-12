@@ -33,6 +33,7 @@ import {
   MapPin,
   Maximize2,
   Medal,
+  Megaphone,
   MessageCircle,
   Mic2,
   Minus,
@@ -599,7 +600,8 @@ export function MatchBroadcast({
   const floatingHeight = floatingWidth * 9 / 16
   const floatingMargin = 12
   const floatingTravelX = Math.max(0, viewport.width - floatingWidth - floatingMargin * 2)
-  const floatingTravelY = Math.max(0, viewport.height - floatingHeight - floatingMargin * 2)
+  const floatingBottomReserve = viewport.width <= 900 ? Math.min(112, viewport.height * .2) : 0
+  const floatingTravelY = Math.max(0, viewport.height - floatingHeight - floatingMargin * 2 - floatingBottomReserve)
   const floatingLeft = floatingMargin + floatingTravelX * floatingPosition.x
   const floatingTop = floatingMargin + floatingTravelY * floatingPosition.y
   const placement = docked && anchorRect
@@ -615,7 +617,7 @@ export function MatchBroadcast({
 
   const clampFloatingPosition = (left: number, top: number) => {
     const maxLeft = Math.max(floatingMargin, viewport.width - floatingWidth - floatingMargin)
-    const maxTop = Math.max(floatingMargin, viewport.height - floatingHeight - floatingMargin)
+    const maxTop = Math.max(floatingMargin, viewport.height - floatingHeight - floatingMargin - floatingBottomReserve)
     return {
       left: Math.min(maxLeft, Math.max(floatingMargin, left)),
       top: Math.min(maxTop, Math.max(floatingMargin, top)),
@@ -1400,6 +1402,7 @@ export function CommunityView() {
   const [feedSort, setFeedSort] = useState<TribuneSort>('Recente')
   const [filterOpen, setFilterOpen] = useState(false)
   const [feedScrolled, setFeedScrolled] = useState(false)
+  const [mobileTribuneSection, setMobileTribuneSection] = useState<'flux' | 'arena'>('flux')
   const [posts, setPosts] = useState<TribunePost[]>(() => [...readStoredPosts(), ...seedTribunePosts])
   const [reactions, setReactions] = useState<Record<string, TribuneReaction>>(() => readStoredReactions())
   const [comments, setComments] = useState<Record<string, TribuneComment[]>>(
@@ -1541,6 +1544,7 @@ export function CommunityView() {
       if (event.key !== 'Escape') return
       setComposerOpen(false)
       setActivePostId(null)
+      setMobileTribuneSection('flux')
       setMediaViewer(null)
       setPostMenuId(null)
     }
@@ -1588,6 +1592,7 @@ export function CommunityView() {
 
   const openComposer = () => {
     setActivePostId(null)
+    setMobileTribuneSection('flux')
     setComposerOpen(true)
     play('toggle')
   }
@@ -1710,6 +1715,7 @@ export function CommunityView() {
   const openPost = (postId: string) => {
     setComposerOpen(false)
     setActivePostId(postId)
+    setMobileTribuneSection('arena')
     play('toggle')
   }
 
@@ -1866,7 +1872,7 @@ export function CommunityView() {
       exit={{ opacity: 0, x: 18 }}
     >
       <header className={styles.tribuneThreadTopbar}>
-        <button type="button" onClick={() => setActivePostId(null)} aria-label="Înapoi la Arena Tribunei"><ArrowLeft /></button>
+        <button type="button" onClick={() => { setActivePostId(null); setMobileTribuneSection('arena') }} aria-label="Înapoi la Arena Tribunei"><ArrowLeft /></button>
         <span>
           <strong>Conversație</strong>
           <small>{activePostCommentCount === 1 ? 'Un răspuns' : `${activePostCommentCount} răspunsuri`} de la suporteri</small>
@@ -1946,7 +1952,38 @@ export function CommunityView() {
     <section className={`${styles.view} ${styles.tribuneView}`}>
       <ViewIntro code="TRI–01" label="Comunitatea Cetății" title="Aici vorbește" accent="Suceava." />
 
-      <div className={styles.tribuneLayout}>
+      <nav className={styles.tribuneMobileSectionTabs} aria-label="Zonele Tribunei">
+        <button
+          type="button"
+          className={mobileTribuneSection === 'flux' ? styles.tribuneMobileSectionActive : ''}
+          aria-pressed={mobileTribuneSection === 'flux'}
+          onClick={() => {
+            setActivePostId(null)
+            setMobileTribuneSection('flux')
+            play('toggle')
+          }}
+        >
+          <Megaphone aria-hidden="true" />
+          <span>Flux</span>
+          <small>{visiblePosts.length}</small>
+        </button>
+        <button
+          type="button"
+          className={mobileTribuneSection === 'arena' ? styles.tribuneMobileSectionActive : ''}
+          aria-pressed={mobileTribuneSection === 'arena'}
+          onClick={() => {
+            setMobileTribuneSection('arena')
+            setComposerOpen(false)
+            play('toggle')
+          }}
+        >
+          {activePost ? <MessageCircle aria-hidden="true" /> : <Gamepad2 aria-hidden="true" />}
+          <span>{activePost ? 'Discuție' : 'Arena'}</span>
+          <small>{activePost ? activePostCommentCount : 'Jocuri'}</small>
+        </button>
+      </nav>
+
+      <div className={styles.tribuneLayout} data-mobile-section={mobileTribuneSection}>
         <motion.section className={styles.tribuneFeedColumn} variants={reveal} initial="hidden" animate="visible" custom={0.05}>
           <header className={styles.tribuneFeedHeader}>
             <div>
@@ -2010,7 +2047,7 @@ export function CommunityView() {
               aria-expanded={filterOpen}
               onClick={() => { setFilterOpen((current) => !current); play('toggle') }}
             >
-              <SlidersHorizontal aria-hidden="true" /> Filtre
+              <SlidersHorizontal aria-hidden="true" /> <span>Filtre</span>
               {filter !== 'Toate' && <b>1</b>}
             </button>
           </div>
@@ -2071,6 +2108,7 @@ export function CommunityView() {
             key={`${feedSort}-${filter}-${posts[0]?.id ?? 'gol'}`}
             className={styles.tribuneFeedScroll}
             contentClassName={styles.tribuneFeed}
+            horizontalScroll={false}
             label="Fluxul comunității"
             onScroll={handleFeedScroll}
           >
@@ -2533,7 +2571,6 @@ export function CommunityView() {
 
                   <div className={styles.tribuneComposerField}>
                     <textarea
-                      autoFocus
                       value={composerText}
                       maxLength={1000}
                       onChange={(event) => setComposerText(event.target.value)}
@@ -3350,7 +3387,7 @@ export function SquadView() {
           >
             <header>
               <div><small>Laboratorul lotului</small><strong id="team-comparison-title">Comparație directă</strong></div>
-              <button type="button" autoFocus onClick={() => setShowComparison(false)} aria-label="Închide comparația"><X aria-hidden="true" /></button>
+              <button type="button" onClick={() => setShowComparison(false)} aria-label="Închide comparația"><X aria-hidden="true" /></button>
             </header>
             <div className={styles.comparisonArena}>
               <div className={styles.comparisonGrid}>
@@ -4139,7 +4176,7 @@ export function NewsView() {
           >
             <header>
               <span>{readerArticle.category} / {readerArticle.date}</span>
-              <button type="button" autoFocus onClick={() => setReaderArticle(null)} aria-label="Închide articolul"><X aria-hidden="true" /></button>
+              <button type="button" onClick={() => setReaderArticle(null)} aria-label="Închide articolul"><X aria-hidden="true" /></button>
             </header>
             <div>
               <small>{readerArticle.kicker}</small>
@@ -4236,7 +4273,6 @@ export function NewsView() {
                 <span>CS</span>
                 <label>
                   <input
-                    autoFocus
                     value={commentDraft}
                     onChange={(event) => setCommentDraft(event.target.value)}
                     maxLength={220}

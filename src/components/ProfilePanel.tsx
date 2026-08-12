@@ -229,7 +229,7 @@ export function ProfilePanel({
                       <span><strong>Sunetele tribunei</strong><small>Feedback pentru acțiuni și navigare</small></span>
                       <b>{isMuted ? 'OPRITE' : 'ACTIVE'}</b>
                     </button>
-                    <button type="button" className={styles.setting} onClick={onCyclePerformance}>
+                    <button type="button" className={`${styles.setting} ${styles.performanceSetting}`} onClick={onCyclePerformance}>
                       <Gauge aria-hidden="true" />
                       <span><strong>Performanță vizuală</strong><small>Nivelul animațiilor și efectelor</small></span>
                       <b>{performanceLabel}</b>

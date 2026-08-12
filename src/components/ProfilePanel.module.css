@@ -488,6 +488,10 @@
 :global(html[data-performance='economie']) .backdrop { backdrop-filter: none; }
 :global(html[data-performance='economie']) .avatar::before { animation: none; }
 
+@media (max-width: 900px) {
+  .performanceSetting { display: none; }
+}
+
 .tabContent:has(.setting),
 .tabContent:has(.missionHeading) { justify-content: center; }
 

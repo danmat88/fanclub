@@ -17,6 +17,10 @@
   transition: right 160ms ease, bottom 160ms ease;
 }
 
+.verticalOnly {
+  overflow-x: hidden;
+}
+
 .withVerticalGutter {
   right: 14px;
 }
@@ -89,4 +93,27 @@
 
 .track:hover {
   background: color-mix(in srgb, var(--line-strong) 82%, transparent);
+}
+
+@media (max-width: 900px) {
+  .withVerticalGutter {
+    right: 7px;
+  }
+
+  .verticalTrack {
+    right: 1px;
+    width: 3px;
+    background: color-mix(in srgb, var(--line-strong) 32%, transparent);
+  }
+
+  .verticalTrack .thumb {
+    min-height: 42px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--tone-cyan) 74%, var(--text-strong));
+    box-shadow: none;
+  }
+
+  .horizontalTrack {
+    display: none;
+  }
 }

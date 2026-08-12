@@ -1879,6 +1879,8 @@
   height: 4px;
 }
 
+.mobileBrand { display: none; }
+
 @media (max-width: 1120px) {
   .controls { grid-template-columns: repeat(5, 36px); gap: 5px; padding-left: 9px; }
   .control,
@@ -1890,4 +1892,115 @@
   .control,
   .profileControl { width: 32px; min-height: 34px; }
   .controls .control:nth-child(4) { display: none; }
+}
+
+/* Pe telefon și tabletă shell-ul devine nativ tactil: conținut pe toată lățimea,
+   header utilitar și navigație persistentă în partea de jos. */
+@media (max-width: 900px) {
+  .app,
+  .app.appRailCollapsed {
+    --rail-width: 0px;
+    --nav-zone: 0px;
+    --mobile-navigation-height: calc(66px + env(safe-area-inset-bottom));
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rail { display: none; }
+
+  .workspace {
+    grid-column: 1;
+    grid-template-rows: calc(54px + env(safe-area-inset-top)) minmax(0, 1fr) var(--mobile-navigation-height);
+    width: 100%;
+  }
+
+  .topbar {
+    grid-template-columns: minmax(48px, 1fr) auto;
+    gap: 10px;
+    min-width: 0;
+    padding: env(safe-area-inset-top) max(10px, env(safe-area-inset-right)) 0 max(10px, env(safe-area-inset-left));
+    background: linear-gradient(180deg, color-mix(in srgb, var(--page-bg-deep) 82%, transparent), transparent);
+  }
+
+  .topbar::before {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: 1px;
+    left: max(10px, env(safe-area-inset-left));
+    background: linear-gradient(90deg, var(--header-tone), color-mix(in srgb, var(--line) 74%, transparent) 28%, transparent 86%);
+    opacity: .58;
+  }
+
+  .topbar::after { right: max(10px, env(safe-area-inset-right)); bottom: 0; width: 48px; height: 3px; }
+
+  .headerContext,
+  .communityPulse { display: none; }
+
+  .mobileBrand {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    place-items: center;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    pointer-events: auto;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobileBrand > span {
+    position: relative;
+    display: grid;
+    width: 38px;
+    height: 42px;
+    place-items: center;
+    filter: drop-shadow(0 5px 11px rgba(0, 0, 0, .34));
+  }
+
+  .mobileBrand img { width: 100%; height: 100%; object-fit: contain; }
+  .mobileBrand i { position: absolute; right: -1px; bottom: 2px; width: 8px; height: 8px; border: 2px solid var(--page-bg-deep); border-radius: 50%; background: var(--signal); box-shadow: 0 0 9px var(--signal); }
+  .mobileBrand:focus-visible { outline: 1px solid var(--tone-cyan); outline-offset: 1px; }
+
+  .controls {
+    grid-column: 2;
+    display: grid;
+    grid-template-columns: repeat(3, 44px);
+    gap: 3px;
+    padding: 0;
+    border: 0;
+  }
+
+  .control,
+  .profileControl {
+    width: 44px;
+    min-height: 44px;
+    border-radius: 11px;
+    clip-path: none;
+    background: transparent;
+  }
+
+  .control::after { right: 50%; bottom: 2px; width: 16px; height: 2px; transform: translateX(50%) scaleX(0); }
+  .control:hover,
+  .control:focus-visible,
+  .control[aria-pressed='true'],
+  .themeControlActive,
+  .profileControlActive {
+    background: color-mix(in srgb, var(--control-tone) 10%, var(--surface-faint));
+    transform: none;
+  }
+  .control:hover::after,
+  .control:focus-visible::after { right: 50%; transform: translateX(50%) scaleX(1); }
+  .controls .mobileSecondaryControl { display: none; }
+  .controlGlyph { width: 19px; height: 19px; }
+  .profileControl b { width: 23px; height: 23px; font-size: .42rem; }
+  .controlNode { right: 7px; bottom: 7px; }
+
+  .stage { width: 100%; }
+  .viewportIndex { display: none; }
+}
+
+@media (max-width: 390px) {
+  .topbar { gap: 4px; padding-inline: max(5px, env(safe-area-inset-left)) max(5px, env(safe-area-inset-right)); }
+  .controls { grid-template-columns: repeat(3, 42px); gap: 1px; }
+  .control,
+  .profileControl { width: 42px; }
 }

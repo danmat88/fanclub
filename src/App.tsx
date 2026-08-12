@@ -28,6 +28,7 @@ import styles from './App.module.css'
 import fanEmblem from './assets/brand/cetatea-fan-emblem.webp'
 import arenaBackground from './assets/brand/loading-cetatea-arena.webp'
 import { LoadingScreen } from './components/LoadingScreen'
+import { MobileNavigation } from './components/MobileNavigation'
 import { Navigation } from './components/Navigation'
 import { ProfilePanel } from './components/ProfilePanel'
 import { ThemePanel } from './components/ThemePanel'
@@ -249,6 +250,11 @@ function AppShell() {
   const ActiveView = viewMap[location.pathname] ?? CommunityView
   const currentHeader = headerViews[canonicalPath] ?? headerViews['/']
   const HeaderIcon = currentHeader.icon
+  const mobileMatchBadge = Number(countdown.days) > 0
+    ? `${countdown.days}z`
+    : Number(countdown.hours) > 0
+      ? `${countdown.hours}h`
+      : 'AZI'
   const nextPerformanceMode =
     performanceModeOrder[
       (performanceModeOrder.indexOf(performanceMode) + 1) % performanceModeOrder.length
@@ -471,6 +477,9 @@ function AppShell() {
           variants={interfaceReveal}
           style={{ '--header-tone': currentHeader.tone } as CSSProperties}
         >
+          <button type="button" className={styles.mobileBrand} onClick={goToCommunity} aria-label="Deschide Tribuna Cetății">
+            <span><img src={fanEmblem} alt="" /><i /></span>
+          </button>
           <div className={styles.headerContext}>
             <span className={styles.headerSequence} aria-hidden="true">0{currentIndex + 1}</span>
             <span className={styles.headerRouteIcon} aria-hidden="true"><HeaderIcon strokeWidth={1.8} /></span>
@@ -524,7 +533,7 @@ function AppShell() {
               <i className={styles.controlNode} aria-hidden="true" />
             </button>
             <button
-              className={styles.control}
+              className={`${styles.control} ${styles.mobileSecondaryControl}`}
               onClick={handlePerformance}
               aria-label={`Mod performanță: ${performanceModeLabels[performanceMode]}. Efecte active: ${performanceModeLabels[resolvedMode]}. Următorul mod: ${performanceModeLabels[nextPerformanceMode]}`}
               title={`Performanță: ${performanceModeLabels[performanceMode]} · efecte ${performanceModeLabels[resolvedMode].toLowerCase()}`}
@@ -534,7 +543,7 @@ function AppShell() {
               <i className={styles.controlNode} aria-hidden="true" />
             </button>
             <button
-              className={styles.control}
+              className={`${styles.control} ${styles.mobileSecondaryControl}`}
               onClick={() => void toggleFullscreen()}
               aria-label={isFullscreen ? 'Ieși din ecran complet' : 'Activează ecranul complet'}
               title={isFullscreen ? 'Ieși din ecran complet' : 'Ecran complet'}
@@ -591,6 +600,12 @@ function AppShell() {
             </motion.div>
           </AnimatePresence>
         </motion.div>
+
+        <MobileNavigation
+          activePath={canonicalPath}
+          matchBadge={mobileMatchBadge}
+          onNavigate={handleNavigate}
+        />
 
         <motion.div className={styles.viewportIndex} variants={interfaceReveal}>
           {String(currentIndex + 1).padStart(2, '0')} / {String(routeOrder.length).padStart(2, '0')}

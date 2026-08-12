@@ -15,6 +15,7 @@ type AppScrollAreaProps = {
   children: ReactNode
   className?: string
   contentClassName?: string
+  horizontalScroll?: boolean
   label?: string
   onScroll?: UIEventHandler<HTMLDivElement>
 }
@@ -47,7 +48,14 @@ const emptyMetrics: ScrollMetrics = {
 const TRACK_INSET = 6
 const MIN_THUMB = 30
 
-export function AppScrollArea({ children, className = '', contentClassName = '', label, onScroll }: AppScrollAreaProps) {
+export function AppScrollArea({
+  children,
+  className = '',
+  contentClassName = '',
+  horizontalScroll = true,
+  label,
+  onScroll,
+}: AppScrollAreaProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
@@ -61,7 +69,7 @@ export function AppScrollArea({ children, className = '', contentClassName = '',
     const verticalTrack = Math.max(0, viewport.clientHeight - TRACK_INSET)
     const horizontalTrack = Math.max(0, viewport.clientWidth - TRACK_INSET)
     const verticalVisible = viewport.scrollHeight > viewport.clientHeight + 1
-    const horizontalVisible = viewport.scrollWidth > viewport.clientWidth + 1
+    const horizontalVisible = horizontalScroll && viewport.scrollWidth > viewport.clientWidth + 1
     const verticalSize = verticalVisible
       ? Math.min(verticalTrack, Math.max(MIN_THUMB, (viewport.clientHeight / viewport.scrollHeight) * verticalTrack))
       : 0
@@ -81,7 +89,7 @@ export function AppScrollArea({ children, className = '', contentClassName = '',
       verticalSize,
       verticalVisible,
     })
-  }, [])
+  }, [horizontalScroll])
 
   const scheduleMetrics = useCallback(() => {
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current)
@@ -173,7 +181,7 @@ export function AppScrollArea({ children, className = '', contentClassName = '',
     <div className={`${styles.root} ${className}`}>
       <div
         ref={viewportRef}
-        className={`${styles.viewport} ${metrics.verticalVisible ? styles.withVerticalGutter : ''} ${metrics.horizontalVisible ? styles.withHorizontalGutter : ''}`}
+        className={`${styles.viewport} ${horizontalScroll ? '' : styles.verticalOnly} ${metrics.verticalVisible ? styles.withVerticalGutter : ''} ${metrics.horizontalVisible ? styles.withHorizontalGutter : ''}`}
         tabIndex={0}
         role="region"
         aria-label={label}
