@@ -563,18 +563,19 @@
 .tribuneView .viewIntro { margin-bottom: clamp(8px, 1.3vh, 14px); }
 
 .tribuneLayout {
-  --tribune-feed-min: 410px;
-  --tribune-arena-min: 500px;
+  --tribune-feed-min: 455px;
+  --tribune-arena-min: 470px;
   display: grid;
-  grid-template-columns: minmax(var(--tribune-feed-min), .9fr) minmax(var(--tribune-arena-min), 1.1fr);
+  grid-template-columns: minmax(var(--tribune-feed-min), .92fr) minmax(var(--tribune-arena-min), 1.08fr);
   flex: 1;
   min-height: 0;
   gap: clamp(18px, 2.2vw, 32px);
 }
 
 .tribuneFeedColumn {
-  display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  position: relative;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
 }
@@ -584,7 +585,7 @@
   align-items: end;
   justify-content: space-between;
   gap: 18px;
-  padding: 0 4px 11px 10px;
+  padding: 0 4px 7px 10px;
   border-bottom: 1px solid var(--line-strong);
 }
 
@@ -630,123 +631,195 @@
 .tribuneFilters .tribuneFilterActive { color: var(--text-primary); outline: none; }
 .tribuneFilters .tribuneFilterActive::after { transform: scaleX(1); }
 .tribuneSorts { display: flex; gap: 3px; align-items: center; min-width: 0; }
-.tribuneSorts > span { margin-right: 2px; color: var(--text-dim); font-family: var(--font-tech); font-size: .42rem; letter-spacing: .08em; text-transform: uppercase; }
-.tribuneSorts button { padding: 5px 6px; border-left: 1px solid transparent; font-size: .47rem; }
+.tribuneSorts button { padding: 7px 8px; border-left: 1px solid transparent; font-size: .49rem; }
 .tribuneSorts button:hover,
 .tribuneSorts button:focus-visible,
 .tribuneSorts .tribuneSortActive { border-left-color: var(--tone-violet); background: linear-gradient(90deg, color-mix(in srgb, var(--tone-violet) 9%, transparent), transparent); color: var(--text-primary); outline: none; }
+.tribuneFilterToggle { position: relative; display: flex; flex: 0 0 auto; min-height: 31px; gap: 6px; align-items: center; padding: 5px 8px; border: 0; border-left: 1px solid var(--line-strong); background: transparent; color: var(--text-subtle); font-family: var(--font-game); font-size: .5rem; font-weight: 720; cursor: pointer; }
+.tribuneFilterToggle svg { width: 14px; height: 14px; color: var(--tone-green); }
+.tribuneFilterToggle b { display: grid; width: 16px; height: 16px; place-items: center; border-radius: 50%; background: var(--tone-green); color: #06130e; font-family: var(--font-tech); font-size: .39rem; }
+.tribuneFilterToggle:hover,
+.tribuneFilterToggleActive { background: color-mix(in srgb, var(--tone-green) 8%, transparent); color: var(--text-primary); }
+.tribuneFilterTray { display: grid; grid-template-columns: auto minmax(0, 1fr) 28px; gap: 10px; align-items: center; overflow: hidden; padding: 6px 4px 6px 11px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--tone-green) 4%, transparent); }
+.tribuneFilterTray > span { color: var(--text-dim); font-family: var(--font-tech); font-size: .43rem; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
+.tribuneFilterTray > button { display: grid; width: 26px; height: 26px; place-items: center; border: 0; background: transparent; color: var(--text-dim); cursor: pointer; }
+.tribuneFilterTray > button:hover { color: var(--text-primary); }
+.tribuneFilterTray > button svg { width: 13px; }
 
 .tribuneComposerDock {
   display: grid;
-  gap: 7px;
-  margin: 10px 0 8px;
-  padding: 11px 12px 7px;
-  border: 1px solid color-mix(in srgb, var(--line-strong) 84%, transparent);
+  grid-template-rows: auto auto;
+  margin: 8px 0 6px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--surface-solid) 52%, transparent);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, .12);
+  background: color-mix(in srgb, var(--surface-solid) 88%, var(--page-bg));
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .16);
 }
-.tribuneComposerPrompt { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 10px; align-items: center; padding-bottom: 9px; border-bottom: 1px solid var(--line); }
-.tribuneAvatar { display: grid; width: 38px; height: 38px; place-items: center; background: var(--tone-green); color: #07150f; clip-path: polygon(50% 0, 93% 21%, 82% 84%, 50% 100%, 18% 84%, 7% 21%); font-family: var(--font-tech); font-size: .54rem; font-weight: 900; }
-.tribuneComposerPrompt > button { min-width: 0; min-height: 38px; overflow: hidden; padding: 0 14px; border: 0; border-radius: 999px; background: var(--surface-faint); color: var(--text-subtle); font: 570 .68rem/1.2 var(--font-body); text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: text; transition: background-color 160ms ease, color 160ms ease; }
-.tribuneComposerPrompt > button:hover { background: color-mix(in srgb, var(--tone-green) 9%, var(--surface-soft)); color: var(--text-primary); }
-.tribuneComposerDock > footer { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding-left: 50px; }
-.tribuneComposerDock > footer button { display: flex; min-width: 0; min-height: 31px; gap: 6px; align-items: center; justify-content: center; padding: 5px 7px; border: 0; border-radius: 7px; background: transparent; color: var(--text-subtle); font-family: var(--font-game); font-size: .5rem; font-weight: 670; white-space: nowrap; cursor: pointer; }
-.tribuneComposerDock > footer button svg { width: 14px; height: 14px; color: var(--tone-green); }
-.tribuneComposerDock > footer button:nth-child(2) svg { color: var(--tone-cyan); }
-.tribuneComposerDock > footer button:nth-child(3) svg { color: var(--tone-amber); }
-.tribuneComposerDock > footer button:hover { background: var(--surface-faint); color: var(--text-primary); }
+.tribuneComposerDockMain { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 10px; align-items: center; padding: 9px 11px 7px; }
+.tribuneAvatar { position: relative; display: grid; width: 38px; height: 38px; place-items: center; border-radius: 50%; background: linear-gradient(145deg, var(--tone-green), color-mix(in srgb, var(--tone-cyan) 60%, var(--tone-green))); color: #07150f; font-family: var(--font-tech); font-size: .5rem; font-weight: 900; box-shadow: inset 0 0 0 2px color-mix(in srgb, #fff 14%, transparent); }
+.tribuneAvatar > i { position: absolute; right: 0; bottom: 0; width: 9px; height: 9px; border: 2px solid color-mix(in srgb, var(--surface-solid) 94%, var(--page-bg)); border-radius: 50%; background: var(--tone-green); }
+.tribuneComposerEntry { display: grid; min-width: 0; min-height: 40px; align-content: center; gap: 1px; overflow: hidden; padding: 5px 14px; border: 1px solid transparent; border-radius: 999px; background: var(--surface-faint); color: var(--text-subtle); text-align: left; cursor: text; transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease; }
+.tribuneComposerEntry span { overflow: hidden; color: var(--text-primary); font: 650 .66rem/1.2 var(--font-body); text-overflow: ellipsis; white-space: nowrap; }
+.tribuneComposerEntry small { overflow: hidden; color: var(--text-dim); font: 520 .45rem/1.2 var(--font-body); text-overflow: ellipsis; white-space: nowrap; }
+.tribuneComposerEntry:hover { border-color: color-mix(in srgb, var(--tone-green) 30%, var(--line)); background: var(--surface-soft); }
+.tribuneComposerShortcuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0 8px 5px; border-top: 1px solid var(--line); }
+.tribuneComposerShortcuts button { display: flex; min-width: 0; min-height: 30px; gap: 6px; align-items: center; justify-content: center; padding: 4px 7px; border: 0; border-radius: 6px; background: transparent; color: var(--text-subtle); font-family: var(--font-body); font-size: .5rem; font-weight: 650; cursor: pointer; transition: background-color 160ms ease, color 160ms ease; }
+.tribuneComposerShortcuts button:hover { background: var(--surface-faint); color: var(--text-primary); }
+.tribuneComposerShortcuts svg { width: 14px; height: 14px; }
+.tribuneComposerShortcuts button:nth-child(1) svg { color: var(--tone-green); }
+.tribuneComposerShortcuts button:nth-child(2) svg { color: var(--tone-violet); }
+.tribuneComposerShortcuts button:nth-child(3) svg { color: var(--tone-amber); }
+.tribuneFloatingComposer { position: absolute; right: 21px; bottom: 16px; z-index: 14; display: grid; grid-template-columns: 18px 0fr; gap: 0; align-items: center; min-width: 48px; height: 48px; overflow: hidden; padding: 0 15px; border: 1px solid color-mix(in srgb, var(--tone-green) 58%, var(--line)); border-radius: 50%; background: color-mix(in srgb, var(--tone-green) 90%, #ffffff 10%); color: #06130e; box-shadow: 0 14px 38px rgba(0, 0, 0, .38), 0 0 24px color-mix(in srgb, var(--tone-green) 22%, transparent); cursor: pointer; transition: grid-template-columns 220ms cubic-bezier(.16, 1, .3, 1), gap 220ms ease, border-radius 220ms ease; }
+.tribuneFloatingComposer:hover,
+.tribuneFloatingComposer:focus-visible { grid-template-columns: 18px 1fr; gap: 7px; border-radius: 10px; outline: none; }
+.tribuneFloatingComposer svg { width: 18px; }
+.tribuneFloatingComposer span { overflow: hidden; font-family: var(--font-game); font-size: .56rem; font-weight: 850; white-space: nowrap; }
+.tribuneFeedNotice { position: absolute; right: 21px; bottom: 72px; z-index: 17; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; min-width: 250px; gap: 9px; align-items: center; padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: 10px; background: color-mix(in srgb, var(--surface-solid) 96%, var(--page-bg)); color: var(--text-subtle); box-shadow: 0 18px 48px rgba(0, 0, 0, .42); }
+.tribuneFeedNotice > svg { width: 17px; justify-self: center; color: var(--tone-green); }
+.tribuneFeedNotice > span { display: grid; gap: 2px; }
+.tribuneFeedNotice strong { color: var(--text-primary); font-family: var(--font-game); font-size: .58rem; }
+.tribuneFeedNotice small { color: var(--text-dim); font-size: .48rem; }
+.tribuneFeedNotice > button { display: flex; gap: 5px; align-items: center; padding: 6px 7px; border: 0; border-bottom: 1px solid var(--tone-green); background: transparent; color: var(--tone-green); font-family: var(--font-game); font-size: .49rem; cursor: pointer; }
+.tribuneFeedNotice > button svg { width: 13px; }
 
 .tribuneFeedScroll,
 .tribuneCommentsScroll,
 .tribuneArenaScroll,
 .tribuneArenaShell { min-width: 0; min-height: 0; }
+.tribuneFeedScroll { flex: 1; }
 .tribuneFeedScroll,
 .tribuneCommentsScroll,
 .tribuneArenaScroll { height: 100%; }
 
 .tribuneFeed {
-  padding: 8px 9px 18px 1px;
+  padding: 9px 11px 68px 3px;
 }
 
-.tribunePost.tribunePollPost { --post-tone: var(--tone-violet); background: linear-gradient(112deg, color-mix(in srgb, var(--tone-violet) 10%, var(--surface-faint)), var(--surface-faint) 58%, transparent); }
-.tribunePollPost .tribunePollOptions { display: grid; gap: 5px; margin: 2px 0 0 47px; }
-.tribunePollOptions button { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 54px; gap: 9px; align-items: center; min-height: 34px; padding: 7px 10px; overflow: hidden; border: 0; border-left: 2px solid var(--line-strong); background: var(--surface-faint); color: var(--text-subtle); text-align: left; cursor: pointer; }
-.tribunePollOptions button i { position: absolute; inset: 0 auto 0 0; width: var(--poll-width); background: linear-gradient(90deg, color-mix(in srgb, var(--tone-violet) 24%, transparent), transparent); transition: width 420ms cubic-bezier(.16, 1, .3, 1); }
+.tribunePollBlock { display: grid; gap: 7px; margin: 3px 13px 10px; padding: 10px; border: 1px solid color-mix(in srgb, var(--post-tone) 32%, var(--line)); border-radius: 9px; background: linear-gradient(145deg, color-mix(in srgb, var(--post-tone) 13%, var(--surface-faint)), color-mix(in srgb, var(--surface-solid) 52%, transparent)); }
+.tribunePollOptions { display: grid; gap: 4px; }
+.tribunePollOptions button { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 54px; gap: 9px; align-items: center; min-height: 30px; padding: 5px 9px; overflow: hidden; border: 0; border-left: 2px solid var(--line-strong); background: var(--surface-faint); color: var(--text-subtle); text-align: left; cursor: pointer; }
+.tribunePollOptions button i { position: absolute; inset: 0 auto 0 0; width: var(--poll-width); background: linear-gradient(90deg, color-mix(in srgb, var(--post-tone) 28%, transparent), transparent); transition: width 420ms cubic-bezier(.16, 1, .3, 1); }
 .tribunePollOptions button span,
 .tribunePollOptions button b { position: relative; z-index: 1; }
 .tribunePollOptions button span { font-size: .62rem; font-weight: 680; white-space: normal; }
 .tribunePollOptions button b { color: var(--text-dim); font-family: var(--font-tech); font-size: .4rem; text-align: right; }
 .tribunePollOptions button:hover,
-.tribunePollOptions .tribunePollSelected { border-left-color: var(--tone-violet); color: var(--text-primary); }
-.tribunePollOptions .tribunePollSelected b { color: var(--tone-violet); }
-.tribunePollMeta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 9px 0 0 47px; padding-top: 8px; border-top: 1px solid var(--line); color: var(--text-dim); }
+.tribunePollOptions .tribunePollSelected { border-left-color: var(--post-tone); color: var(--text-primary); }
+.tribunePollOptions .tribunePollSelected b { color: var(--post-tone); }
+.tribunePollMeta { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 5px; border-top: 1px solid var(--line); color: var(--text-dim); }
 .tribunePollMeta > span { display: flex; gap: 6px; align-items: center; font-family: var(--font-tech); font-size: .48rem; font-weight: 700; text-transform: uppercase; }
-.tribunePollMeta > span svg { width: 13px; height: 13px; color: var(--tone-violet); }
+.tribunePollMeta > span svg { width: 13px; height: 13px; color: var(--post-tone); }
 .tribunePollMeta > small { text-align: right; }
 
 .tribunePost {
   --post-tone: var(--tone-cyan);
   position: relative;
-  margin-bottom: 14px;
-  padding: 14px 15px 12px 17px;
-  overflow: hidden;
-  border: 0;
-  border-top: 1px solid color-mix(in srgb, var(--post-tone) 34%, var(--line));
-  border-bottom: 1px solid var(--line);
-  background: linear-gradient(108deg, color-mix(in srgb, var(--post-tone) 8%, var(--surface-faint)), color-mix(in srgb, var(--surface-solid) 32%, transparent) 46%, transparent 100%);
-  box-shadow: 0 18px 38px rgba(0, 0, 0, .11);
+  margin-bottom: 12px;
+  padding: 0 0 8px;
+  overflow: visible;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 88%, transparent);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--surface-solid) 88%, var(--post-tone) 3%);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .16);
 }
-.tribunePostPinned { background: linear-gradient(108deg, color-mix(in srgb, var(--tone-cyan) 11%, var(--surface-faint)), color-mix(in srgb, var(--surface-solid) 34%, transparent) 50%, transparent); }
-.tribunePinnedFlag { display: flex; gap: 6px; align-items: center; margin: -2px 0 10px 47px; color: var(--tone-cyan); font-family: var(--font-tech); font-size: .46rem; letter-spacing: .07em; text-transform: uppercase; }
-.tribunePinnedFlag svg { width: 13px; height: 13px; }
-.tribunePinnedFlag strong { font-weight: 800; }
-.tribunePinnedFlag span { margin-left: auto; color: var(--text-dim); font-family: var(--font-body); font-size: .45rem; font-weight: 600; letter-spacing: .02em; text-transform: none; }
-.tribunePost::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 3px; background: linear-gradient(180deg, var(--post-tone), color-mix(in srgb, var(--post-tone) 10%, transparent) 82%); opacity: .82; }
-.tribunePost:hover { border-top-color: color-mix(in srgb, var(--post-tone) 58%, var(--line)); background: linear-gradient(108deg, color-mix(in srgb, var(--post-tone) 12%, var(--surface-faint)), color-mix(in srgb, var(--surface-solid) 38%, transparent) 50%, transparent); }
-.tribunePostHeader { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 9px; align-items: center; }
-.tribunePostAvatar { display: grid; width: 35px; height: 35px; place-items: center; overflow: hidden; border: 1px solid color-mix(in srgb, var(--post-tone) 58%, transparent); color: var(--post-tone); clip-path: polygon(50% 0, 93% 20%, 83% 84%, 50% 100%, 17% 84%, 7% 20%); font-family: var(--font-tech); font-size: .48rem; font-weight: 800; }
+.tribunePost::before { content: ''; position: absolute; top: -1px; right: 18px; left: 18px; height: 2px; border-radius: 0 0 3px 3px; background: linear-gradient(90deg, transparent, var(--post-tone), transparent); opacity: .72; }
+.tribunePost:hover { border-color: color-mix(in srgb, var(--post-tone) 25%, var(--line-strong)); box-shadow: 0 16px 34px rgba(0, 0, 0, .2); }
+.tribunePostWithMedia { background: color-mix(in srgb, var(--surface-solid) 92%, var(--post-tone) 3%); }
+.tribunePostWithPoll { background: linear-gradient(150deg, color-mix(in srgb, var(--post-tone) 5%, var(--surface-solid)), color-mix(in srgb, var(--surface-solid) 88%, transparent)); }
+.tribuneReactionBurst { position: absolute; top: 45%; left: 50%; z-index: 30; display: grid; width: 62px; height: 62px; margin: -31px 0 0 -31px; place-items: center; border: 1px solid color-mix(in srgb, currentColor 52%, transparent); border-radius: 50%; background: color-mix(in srgb, var(--surface-solid) 88%, transparent); box-shadow: 0 16px 42px rgba(0, 0, 0, .42), 0 0 32px color-mix(in srgb, currentColor 28%, transparent); pointer-events: none; }
+.tribuneReactionBurst::before,
+.tribuneReactionBurst::after { content: ''; position: absolute; inset: -9px; border: 1px solid currentColor; border-radius: 50%; opacity: .22; }
+.tribuneReactionBurst::after { inset: -18px; opacity: .1; }
+.tribuneReactionBurst svg { width: 27px; height: 27px; }
+.tribuneBurstHeart { color: var(--tone-rose); }
+.tribuneBurstFire { color: var(--tone-amber); }
+.tribuneBurstForce { color: var(--tone-green); }
+.tribunePostHeader { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 12px 8px; }
+.tribunePostAvatar { position: relative; display: grid; width: 40px; height: 40px; place-items: center; overflow: visible; border: 2px solid color-mix(in srgb, var(--post-tone) 62%, var(--line)); border-radius: 50%; background: color-mix(in srgb, var(--post-tone) 12%, var(--surface-faint)); color: var(--post-tone); font-family: var(--font-tech); font-size: .5rem; font-weight: 850; }
+.tribunePostAvatar > i { position: absolute; right: -1px; bottom: 0; width: 9px; height: 9px; border: 2px solid color-mix(in srgb, var(--surface-solid) 92%, var(--page-bg)); border-radius: 50%; background: var(--signal); box-shadow: 0 0 8px color-mix(in srgb, var(--signal) 62%, transparent); }
 .tribunePostAvatar img { width: 100%; height: 100%; object-fit: cover; }
 .tribunePostAuthor { display: grid; gap: 2px; min-width: 0; }
-.tribunePostAuthor strong { display: flex; gap: 5px; align-items: center; color: var(--text-primary); font-family: var(--font-game); font-size: .73rem; font-weight: 720; }
+.tribunePostAuthor strong { display: flex; gap: 5px; align-items: center; color: var(--text-primary); font-family: var(--font-game); font-size: .76rem; font-weight: 760; }
 .tribunePostAuthor strong svg { width: 13px; height: 13px; color: var(--tone-cyan); }
-.tribunePostAuthor small { color: var(--text-dim); font-size: .52rem; white-space: normal; }
-.tribunePostHeader > em { padding: 4px 7px; border-right: 2px solid var(--post-tone); color: var(--post-tone); font-family: var(--font-tech); font-size: .43rem; font-style: normal; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
-.tribunePost > p { max-width: 680px; margin: 10px 0 10px 47px; color: var(--text-subtle); font-size: clamp(.78rem, .86vw, .9rem); font-weight: 520; line-height: 1.52; }
-.tribunePostMedia { position: relative; height: clamp(128px, 20vh, 190px); margin: 10px 0 11px 47px; overflow: hidden; clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%); }
-.tribunePostMedia::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 44%, rgba(2, 8, 15, .68)); pointer-events: none; }
-.tribunePostMedia img { width: 100%; height: 100%; object-fit: cover; filter: saturate(.9) contrast(1.04) brightness(.82); }
-.tribunePostMedia > span { position: absolute; right: 9px; bottom: 7px; z-index: 1; display: flex; gap: 5px; align-items: center; color: #f8fbff; font-family: var(--font-tech); font-size: .4rem; letter-spacing: .08em; text-transform: uppercase; }
-.tribunePostMedia > span svg { width: 12px; height: 12px; }
-.tribunePost > footer { display: grid; grid-template-columns: minmax(132px, 1fr) repeat(2, auto); gap: 6px; align-items: center; margin-left: 47px; padding-top: 9px; border-top: 1px solid var(--line); }
-.tribunePost > footer > button { display: grid; grid-template-columns: 15px auto auto; gap: 5px; align-items: center; min-height: 30px; padding: 5px 6px; border: 0; background: transparent; color: var(--text-dim); font-family: var(--font-body); font-size: .54rem; cursor: pointer; }
+.tribunePostAuthor small { display: flex; gap: 6px; align-items: center; color: var(--text-dim); font-size: .53rem; white-space: normal; }
+.tribunePostAuthor small > i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
+.tribunePostHeaderActions { position: relative; display: flex; gap: 5px; align-items: center; }
+.tribunePostHeaderActions > em { padding: 4px 7px; border-radius: 999px; background: color-mix(in srgb, var(--post-tone) 10%, transparent); color: var(--post-tone); font-family: var(--font-tech); font-size: .42rem; font-style: normal; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+.tribunePostHeaderActions > button { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--text-dim); cursor: pointer; }
+.tribunePostHeaderActions > button:hover,
+.tribunePostHeaderActions > button[aria-expanded='true'] { background: var(--surface-soft); color: var(--text-primary); }
+.tribunePostHeaderActions > button svg { width: 17px; }
+.tribunePostMenu { position: absolute; top: 35px; right: 0; z-index: 24; display: grid; width: 230px; overflow: hidden; padding: 5px; border: 1px solid var(--line-strong); border-radius: 11px; background: color-mix(in srgb, var(--surface-solid) 96%, var(--page-bg)); box-shadow: 0 20px 54px rgba(0, 0, 0, .42); }
+.tribunePostMenu > button { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 7px; align-items: center; min-height: 48px; padding: 6px 8px; border: 0; border-radius: 7px; background: transparent; color: var(--text-subtle); text-align: left; cursor: pointer; }
+.tribunePostMenu > button:hover { background: color-mix(in srgb, var(--post-tone) 8%, var(--surface-faint)); color: var(--text-primary); }
+.tribunePostMenu > button:last-child:hover { background: color-mix(in srgb, var(--tone-rose) 8%, var(--surface-faint)); color: var(--tone-rose); }
+.tribunePostMenu > button > svg { width: 16px; justify-self: center; }
+.tribunePostMenu > button > span { display: grid; gap: 2px; }
+.tribunePostMenu strong { font-family: var(--font-game); font-size: .58rem; }
+.tribunePostMenu small { color: var(--text-dim); font-size: .48rem; }
+.tribunePostBody { display: grid; gap: 9px; margin: 0; }
+.tribunePostBody > p { max-width: 680px; margin: 0; padding: 3px 14px 10px; color: var(--text-primary); font-size: clamp(.8rem, .9vw, .93rem); font-weight: 520; line-height: 1.5; }
+.tribunePostMedia { width: 100%; height: clamp(138px, 20vh, 170px); overflow: hidden; border-block: 1px solid color-mix(in srgb, var(--post-tone) 16%, var(--line)); background: color-mix(in srgb, var(--page-bg) 82%, black); }
+.tribunePostMedia button { position: relative; display: grid; width: 100%; height: 100%; padding: 0; overflow: hidden; place-items: center; border: 0; background: transparent; cursor: zoom-in; }
+.tribunePostMedia img { display: block; width: 100%; height: 100%; object-fit: cover; filter: saturate(.94) contrast(1.03) brightness(.82); transition: transform 260ms cubic-bezier(.16, 1, .3, 1), filter 180ms ease; }
+.tribunePostMedia button:hover img { filter: saturate(1) contrast(1.03) brightness(.94); transform: scale(1.045); }
+.tribunePostMedia button > span { position: absolute; right: 6px; bottom: 5px; z-index: 1; display: grid; min-width: 23px; height: 20px; padding: 0 5px; place-items: center; background: rgba(2, 7, 13, .82); color: #fff; font-family: var(--font-tech); font-size: .44rem; font-weight: 800; }
+.tribunePostMedia button > i { position: absolute; top: 5px; right: 6px; z-index: 1; display: grid; width: 22px; height: 22px; place-items: center; background: rgba(2, 7, 13, .68); color: #fff; opacity: 0; transition: opacity 160ms ease; }
+.tribunePostMedia button:hover > i,
+.tribunePostMedia button:focus-visible > i { opacity: 1; }
+.tribunePostMedia button > i svg { width: 11px; }
+.tribunePostMedia button > em { position: absolute; bottom: 7px; left: 50%; z-index: 2; display: flex; gap: 4px; padding: 4px 6px; border-radius: 999px; background: rgba(2, 7, 13, .52); transform: translateX(-50%); }
+.tribunePostMedia button > em > b { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, .5); }
+.tribunePostMedia button > em > .tribuneMediaDotActive { width: 13px; border-radius: 999px; background: #fff; }
+.tribunePostColor .tribunePostBody { margin: 0 12px 9px; overflow: hidden; border-radius: 9px; background: linear-gradient(135deg, color-mix(in srgb, var(--post-tone) 74%, #122037), color-mix(in srgb, var(--tone-violet) 48%, #07101d)); }
+.tribunePostColor .tribunePostBody > p { display: grid; min-height: 124px; padding: 24px 25px; place-items: center; color: #fff; font-family: var(--font-game); font-size: clamp(.92rem, 1.22vw, 1.14rem); font-weight: 740; line-height: 1.48; text-align: center; text-shadow: 0 2px 16px rgba(0, 0, 0, .32); }
+.tribuneEngagement { display: flex; min-height: 31px; align-items: center; justify-content: space-between; gap: 12px; margin: 0 13px; padding: 6px 2px; color: var(--text-dim); }
+.tribuneEngagement > span { display: flex; gap: 7px; align-items: center; }
+.tribuneEngagement > span > i { display: flex; padding-left: 10px; }
+.tribuneEngagement > span > i svg { width: 17px; height: 17px; margin-left: -7px; padding: 3px; border: 1px solid color-mix(in srgb, var(--surface-solid) 88%, var(--page-bg)); border-radius: 50%; color: #071018; }
+.tribuneEngagement > span > i svg:nth-child(1) { background: var(--tone-green); }
+.tribuneEngagement > span > i svg:nth-child(2) { background: var(--tone-rose); }
+.tribuneEngagement > span > i svg:nth-child(3) { background: var(--tone-amber); }
+.tribuneEngagement b { color: var(--text-subtle); font-size: .53rem; font-weight: 570; }
+.tribuneEngagement > button { padding: 3px 0; border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--text-subtle); font-size: .53rem; cursor: pointer; }
+.tribuneEngagement > button:hover { border-bottom-color: currentColor; color: var(--text-primary); }
+.tribunePost > footer { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; align-items: center; margin: 0 13px; padding: 4px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.tribunePost > footer > button { display: flex; gap: 6px; align-items: center; justify-content: center; min-height: 34px; padding: 5px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--text-subtle); font-family: var(--font-body); font-size: .56rem; font-weight: 620; cursor: pointer; }
 .tribunePost > footer button svg { width: 14px; height: 14px; }
-.tribunePost > footer button b { color: var(--text-subtle); font-family: var(--font-tech); font-size: .44rem; }
 .tribunePost > footer button:hover,
-.tribunePost > footer button:focus-visible { color: var(--text-primary); outline: none; }
-.tribuneReactionDeck { display: flex; gap: 7px; align-items: center; min-width: 0; }
-.tribuneReactionDeck > span { color: var(--text-dim); font-family: var(--font-tech); font-size: .44rem; white-space: nowrap; }
-.tribuneReactionDeck > div { display: flex; gap: 2px; }
-.tribuneReactionDeck button { display: grid; width: 28px; height: 27px; padding: 0; place-items: center; border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--text-dim); cursor: pointer; }
-.tribuneReactionDeck button:hover { border-bottom-color: currentColor; color: var(--text-primary); background: color-mix(in srgb, var(--post-tone) 8%, transparent); }
-.tribuneReactionDeck button svg { width: 13px; height: 13px; }
+.tribunePost > footer button:focus-visible { background: var(--surface-faint); color: var(--text-primary); outline: none; }
+.tribuneReactionControl { position: relative; display: flex; align-items: center; justify-content: stretch; min-width: 0; }
+.tribuneReactionControl > button { display: flex; width: 100%; min-height: 34px; gap: 6px; align-items: center; justify-content: center; padding: 5px 7px; border: 0; border-radius: 6px; background: transparent; color: var(--text-subtle); font-family: var(--font-body); font-size: .56rem; font-weight: 620; cursor: pointer; }
+.tribuneReactionControl > button svg { width: 14px; color: var(--tone-green); }
+.tribuneReactionActive { color: var(--text-primary) !important; }
+.tribuneReactionPicker { position: absolute; bottom: 37px; left: 0; z-index: 20; display: flex; width: max-content; gap: 2px; padding: 4px; visibility: hidden; border: 1px solid var(--line-strong); border-radius: 999px; background: color-mix(in srgb, var(--surface-solid) 96%, var(--page-bg)); box-shadow: 0 14px 34px rgba(0, 0, 0, .36); opacity: 0; transform: translateY(7px) scale(.96); transform-origin: left bottom; transition: opacity 150ms ease, transform 200ms cubic-bezier(.16, 1, .3, 1), visibility 150ms ease; }
+.tribuneReactionControl:hover .tribuneReactionPicker,
+.tribuneReactionControl:focus-within .tribuneReactionPicker { visibility: visible; opacity: 1; transform: none; }
+.tribuneReactionPicker button { display: flex; min-height: 29px; gap: 4px; align-items: center; padding: 4px 8px; border: 0; border-radius: 999px; background: transparent; color: var(--text-dim); font-size: .48rem; cursor: pointer; white-space: nowrap; }
+.tribuneReactionPicker button:hover { background: var(--surface-soft); color: var(--text-primary); }
+.tribuneReactionPicker button svg { width: 12px; height: 12px; }
 .tribunePost > footer .tribuneReacted { color: var(--tone-rose); }
 .tribunePost > footer .tribuneReacted b { color: var(--tone-rose); }
 .tribunePost > footer .tribuneReactedFire { color: var(--tone-amber); }
 .tribunePost > footer .tribuneReactedForce { color: var(--tone-green); }
 .tribunePost > footer .tribuneBookmarked { color: var(--tone-amber); }
 
+.tribuneCommentPreviews { display: grid; margin: 6px 13px 0; }
+.tribuneAllComments { justify-self: start; padding: 4px 2px 7px; border: 0; background: transparent; color: var(--text-subtle); font-size: .53rem; font-weight: 650; cursor: pointer; }
+.tribuneAllComments:hover { color: var(--post-tone); }
 .tribuneCommentPreview {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) 15px;
   gap: 8px;
   align-items: start;
-  width: calc(100% - 47px);
-  margin: 9px 0 0 47px;
-  padding: 8px 9px;
+  width: 100%;
+  margin: 0;
+  padding: 7px 8px;
   border: 0;
   border-top: 1px solid color-mix(in srgb, var(--post-tone) 20%, var(--line));
-  background: transparent;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-faint) 76%, transparent);
   color: var(--text-subtle);
   text-align: left;
   cursor: pointer;
@@ -759,14 +832,6 @@
 .tribuneCommentPreview:hover { background: color-mix(in srgb, var(--post-tone) 7%, transparent); }
 .tribuneCommentPreview:hover > svg { color: var(--post-tone); transform: translateX(2px); }
 
-.tribuneQuickReply { display: grid; grid-template-columns: 27px minmax(0, 1fr) 29px; gap: 7px; align-items: center; margin: 8px 0 0 47px; }
-.tribuneQuickReply > span { display: grid; width: 25px; height: 25px; place-items: center; background: var(--tone-green); color: #07150f; font-family: var(--font-tech); font-size: .4rem; font-weight: 900; clip-path: polygon(50% 0, 93% 21%, 82% 84%, 50% 100%, 18% 84%, 7% 21%); }
-.tribuneQuickReply input { min-width: 0; height: 31px; padding: 0 4px; border: 0; border-bottom: 1px solid var(--line-strong); background: transparent; color: var(--text-primary); font-size: .6rem; outline: none; }
-.tribuneQuickReply input::placeholder { color: var(--text-dim); }
-.tribuneQuickReply input:focus { border-bottom-color: var(--line-strong); }
-.tribuneQuickReply button { display: grid; width: 29px; height: 29px; padding: 0; place-items: center; border: 0; border-bottom: 1px solid var(--tone-green); background: transparent; color: var(--tone-green); cursor: pointer; }
-.tribuneQuickReply button svg { width: 14px; }
-.tribuneQuickReply button:disabled { color: var(--text-dim); opacity: .42; cursor: default; }
 
 .tribuneEmpty { display: grid; justify-items: center; gap: 8px; padding: 34px; color: var(--text-dim); text-align: center; }
 .tribuneEmpty svg { width: 22px; }
@@ -1281,45 +1346,107 @@
 .tribuneRadar > footer .radarDotActive { width: 35px; background: var(--radar-tone); }
 
 .tribuneOverlay { position: absolute; inset: 0 clamp(12px, 2.4vw, 40px) clamp(10px, 2vh, 24px) 4px; z-index: 60; display: flex; align-items: center; justify-content: center; padding: clamp(10px, 2vw, 24px); background: var(--layer-backdrop); backdrop-filter: blur(12px) saturate(.82); }
+.tribuneMediaOverlay { background: color-mix(in srgb, var(--layer-backdrop) 90%, #02050a); }
+.tribuneMediaViewer { display: grid; grid-template-rows: 52px minmax(0, 1fr) auto; width: min(920px, 96%); height: min(720px, 94%); margin: 0; overflow: hidden; border: 1px solid var(--line-strong); background: color-mix(in srgb, var(--page-bg) 94%, #000); box-shadow: 0 36px 110px rgba(0, 0, 0, .64); }
+.tribuneMediaViewer > header { display: grid; grid-template-columns: minmax(0, 1fr) auto 34px; gap: 12px; align-items: center; padding: 0 12px 0 17px; border-bottom: 1px solid var(--line-strong); }
+.tribuneMediaViewer > header > span { display: flex; min-width: 0; gap: 8px; align-items: center; }
+.tribuneMediaViewer > header > span svg { width: 15px; color: var(--tone-green); }
+.tribuneMediaViewer > header strong { overflow: hidden; color: var(--text-primary); font-family: var(--font-game); font-size: var(--type-small); text-overflow: ellipsis; white-space: nowrap; }
+.tribuneMediaViewer > header small { color: var(--text-subtle); font-family: var(--font-tech); font-size: var(--type-micro); }
+.tribuneMediaViewer > header > button { display: grid; width: 32px; height: 32px; place-items: center; border: 0; background: var(--surface-faint); color: var(--text-subtle); cursor: pointer; }
+.tribuneMediaViewer > header > button:hover { color: var(--tone-rose); }
+.tribuneMediaViewer > header > button svg { width: 15px; }
+.tribuneMediaViewer > div { display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; min-width: 0; min-height: 0; align-items: center; background: radial-gradient(circle at center, color-mix(in srgb, var(--tone-cyan) 5%, transparent), transparent 58%); }
+.tribuneMediaViewer > div > img { grid-column: 2; width: 100%; height: 100%; min-height: 0; object-fit: contain; }
+.tribuneMediaViewer > div > button { z-index: 1; display: grid; width: 38px; height: 54px; place-items: center; border: 0; border-left: 1px solid var(--line-strong); background: color-mix(in srgb, var(--surface-solid) 78%, transparent); color: var(--text-primary); cursor: pointer; }
+.tribuneMediaViewer > div > button:first-child { grid-column: 1; grid-row: 1; justify-self: end; }
+.tribuneMediaViewer > div > button:last-child { grid-column: 3; grid-row: 1; border-right: 1px solid var(--line-strong); border-left: 0; }
+.tribuneMediaViewer > div > button:hover { background: color-mix(in srgb, var(--tone-green) 12%, var(--surface-soft)); color: var(--tone-green); }
+.tribuneMediaViewer > div > button svg { width: 19px; }
+.tribuneMediaViewer > footer { display: flex; min-height: 62px; gap: 5px; align-items: center; justify-content: center; padding: 7px 12px; border-top: 1px solid var(--line-strong); }
+.tribuneMediaViewer > footer button { width: 58px; height: 46px; padding: 2px; overflow: hidden; border: 1px solid transparent; background: transparent; opacity: .56; cursor: pointer; }
+.tribuneMediaViewer > footer button:hover,
+.tribuneMediaViewer > footer .tribuneMediaThumbActive { border-color: var(--tone-green); opacity: 1; }
+.tribuneMediaViewer > footer img { width: 100%; height: 100%; object-fit: cover; }
 .tribuneComposer,
-.tribuneThread { max-height: 96%; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 16px; background: color-mix(in srgb, var(--surface-solid) 92%, var(--page-bg)); box-shadow: 0 34px 100px rgba(0, 0, 0, .52); }
-.tribuneComposer { width: min(650px, 94%); height: min(650px, 94%); min-height: 0; padding: 0; overflow: hidden; border-top-color: color-mix(in srgb, var(--tone-green) 68%, var(--line)); }
+.tribuneThread { max-height: 96%; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 18px; background: color-mix(in srgb, var(--surface-solid) 94%, var(--page-bg)); box-shadow: 0 34px 100px rgba(0, 0, 0, .52); }
+.tribuneComposer { width: min(640px, 94%); height: min(760px, 94%); min-height: 0; padding: 0; overflow: hidden; border-top: 2px solid var(--tone-green); }
 .tribuneComposerForm,
 .tribuneComposerScroll { width: 100%; height: 100%; min-height: 0; }
-.tribuneComposerBody { display: flex; flex-direction: column; gap: 12px; padding: 0 clamp(19px, 2.3vw, 27px) clamp(18px, 2vw, 24px); }
-.tribuneDialogHeader { position: relative; display: flex; flex: 0 0 auto; min-height: 58px; align-items: center; justify-content: center; border-bottom: 1px solid var(--line-strong); }
-.tribuneDialogHeader > strong { overflow: hidden; padding: 0 48px; color: var(--text-primary); font-family: var(--font-game); font-size: clamp(.93rem, 1.3vw, 1.12rem); font-weight: 760; line-height: 1.15; text-align: center; text-overflow: ellipsis; text-transform: none; white-space: nowrap; }
+.tribuneComposerBody { display: flex; flex-direction: column; gap: 11px; padding: 0 clamp(17px, 2.1vw, 24px) clamp(16px, 2vw, 22px); }
+.tribuneDialogHeader { position: relative; display: flex; flex: 0 0 auto; min-height: 62px; align-items: center; justify-content: center; border-bottom: 1px solid var(--line-strong); }
+.tribuneDialogHeader > span { display: flex; gap: 8px; align-items: center; color: var(--tone-cyan); }
+.tribuneDialogHeader > span svg { width: 17px; }
+.tribuneDialogHeader > span strong { color: var(--text-primary); font-family: var(--font-game); font-size: clamp(.8rem, 1.1vw, 1rem); }
 .tribuneDialogHeader > button { position: absolute; top: 50%; right: 0; display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 50%; background: var(--surface-faint); color: var(--text-subtle); cursor: pointer; transform: translateY(-50%); transition: background-color 160ms ease, color 160ms ease; }
 .tribuneDialogHeader > button:hover { background: color-mix(in srgb, var(--tone-rose) 12%, var(--surface-soft)); color: var(--tone-rose); }
 .tribuneDialogHeader > button svg { width: 17px; height: 17px; }
-.tribuneComposerIdentity { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; align-items: center; }
-.tribuneComposerIdentity > span { display: grid; width: 40px; height: 40px; place-items: center; background: var(--tone-green); color: #07150f; clip-path: polygon(50% 0, 93% 21%, 82% 84%, 50% 100%, 18% 84%, 7% 21%); font-family: var(--font-tech); font-size: .62rem; font-weight: 900; }
+.tribuneComposerTitle { display: grid !important; grid-template-columns: 20px auto; gap: 1px 8px !important; }
+.tribuneComposerTitle > svg { grid-row: 1 / 3; align-self: center; color: var(--tone-green); }
+.tribuneComposerTitle > strong { font-size: clamp(.83rem, 1.1vw, 1rem) !important; }
+.tribuneComposerTitle > small { color: var(--text-dim); font-family: var(--font-body); font-size: var(--type-micro); }
+.tribuneComposerIdentity { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.tribuneComposerIdentity > span { position: relative; display: grid; width: 42px; height: 42px; place-items: center; border-radius: 50%; background: linear-gradient(145deg, var(--tone-green), color-mix(in srgb, var(--tone-cyan) 60%, var(--tone-green))); color: #07150f; font-family: var(--font-tech); font-size: .57rem; font-weight: 900; }
+.tribuneComposerIdentity > span i { position: absolute; right: 0; bottom: 0; width: 10px; height: 10px; border: 2px solid color-mix(in srgb, var(--surface-solid) 94%, var(--page-bg)); border-radius: 50%; background: var(--tone-green); }
 .tribuneComposerIdentity > div { display: grid; justify-items: start; gap: 3px; }
 .tribuneComposerIdentity strong { color: var(--text-primary); font-family: var(--font-game); font-size: var(--type-small); }
-.tribuneComposerIdentity button { display: flex; gap: 5px; align-items: center; min-height: 24px; padding: 3px 8px; border: 0; border-radius: 5px; background: var(--surface-faint); color: var(--text-subtle); font-family: var(--font-body); font-size: var(--type-micro); font-weight: 650; cursor: default; }
+.tribuneComposerIdentity > small { color: var(--text-dim); font-size: var(--type-micro); }
+.tribuneComposerIdentity button { display: flex; gap: 5px; align-items: center; min-height: 24px; padding: 3px 8px; border: 0; border-radius: 999px; background: var(--surface-faint); color: var(--text-subtle); font-family: var(--font-body); font-size: var(--type-micro); font-weight: 650; cursor: default; }
 .tribuneComposerIdentity button svg { width: 12px; height: 12px; }
-.tribuneComposerField { display: grid; flex: 1 0 128px; min-height: 128px; border: 0; background: transparent; }
-.tribuneComposer textarea { width: 100%; height: 100%; min-height: 128px; resize: none; padding: 7px 1px 10px; border: 0; background: transparent; color: var(--text-primary); font: 560 clamp(1rem, 1.35vw, 1.2rem)/1.5 var(--font-body); outline: none; user-select: text; }
+.tribuneComposerModes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 10px; background: var(--surface-faint); }
+.tribuneComposerModes button { display: flex; min-height: 34px; gap: 6px; align-items: center; justify-content: center; border: 0; border-radius: 7px; background: transparent; color: var(--text-subtle); font-family: var(--font-body); font-size: var(--type-label); font-weight: 650; cursor: pointer; }
+.tribuneComposerModes button:hover { background: color-mix(in srgb, var(--surface-soft) 88%, transparent); color: var(--text-primary); }
+.tribuneComposerModes button svg { width: 15px; height: 15px; }
+.tribuneComposerModes button:nth-child(1) svg { color: var(--tone-green); }
+.tribuneComposerModes button:nth-child(2) svg { color: var(--tone-cyan); }
+.tribuneComposerModes button:nth-child(3) svg { color: var(--tone-violet); }
+.tribuneComposerModes .tribuneComposerModeActive { background: var(--surface-soft); color: var(--text-primary); box-shadow: 0 5px 14px rgba(0, 0, 0, .12); }
+.tribuneComposerField { position: relative; display: grid; flex: 1 0 112px; min-height: 112px; border-bottom: 1px solid var(--line); background: transparent; }
+.tribuneComposer textarea { width: 100%; height: 100%; min-height: 112px; resize: none; padding: 10px 1px 22px; border: 0; background: transparent; color: var(--text-primary); font: 560 clamp(.93rem, 1.26vw, 1.12rem)/1.48 var(--font-body); outline: none; user-select: text; }
 .tribuneComposer textarea::placeholder { color: var(--text-dim); }
-.tribuneComposerTags { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
-.tribuneComposerTags > span { color: var(--text-subtle); font-family: var(--font-game); font-size: var(--type-label); font-weight: 650; }
-.tribuneComposerTags > div { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
-.tribuneComposerTags button { padding: 5px 9px; border: 1px solid transparent; border-radius: 999px; background: var(--surface-faint); color: var(--text-subtle); font-family: var(--font-tech); font-size: var(--type-micro); font-weight: 700; cursor: pointer; }
-.tribuneComposerTags button:hover,
-.tribuneComposerTags .tribuneComposerTagActive { border-color: color-mix(in srgb, var(--tone-cyan) 48%, transparent); background: color-mix(in srgb, var(--tone-cyan) 11%, var(--surface-faint)); color: var(--text-primary); }
-.tribunePhotoDrop { display: flex; gap: 12px; align-items: center; justify-content: center; min-height: 84px; border: 1px dashed color-mix(in srgb, var(--tone-cyan) 66%, var(--line)); background: color-mix(in srgb, var(--tone-cyan) 7%, var(--surface-faint)); color: var(--tone-cyan); cursor: pointer; }
+.tribuneComposerField > span { position: absolute; right: 1px; bottom: 6px; color: var(--text-dim); font-family: var(--font-tech); font-size: var(--type-micro); }
+.tribuneComposerField > span small { margin-left: 2px; color: inherit; font-size: .84em; }
+.tribuneComposerField > .tribuneComposerCountAlert { color: var(--tone-amber); }
+.tribuneMatchAttachment { display: grid; grid-template-columns: minmax(0, 1fr) auto 30px; gap: 10px; align-items: center; padding: 9px 10px; border: 1px solid color-mix(in srgb, var(--tone-amber) 28%, var(--line)); border-radius: 10px; background: color-mix(in srgb, var(--tone-amber) 7%, var(--surface-faint)); }
+.tribuneMatchAttachment > span { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; align-items: center; min-width: 0; }
+.tribuneMatchAttachment > span > svg { width: 18px; color: var(--tone-amber); }
+.tribuneMatchAttachment > span i { display: grid; min-width: 0; font-style: normal; }
+.tribuneMatchAttachment small { color: var(--text-dim); font-size: var(--type-micro); }
+.tribuneMatchAttachment strong { overflow: hidden; color: var(--text-primary); font-family: var(--font-game); font-size: var(--type-label); text-overflow: ellipsis; white-space: nowrap; }
+.tribuneMatchAttachment > em { color: var(--tone-amber); font-family: var(--font-tech); font-size: var(--type-micro); font-style: normal; }
+.tribuneMatchAttachment > button { display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--text-dim); cursor: pointer; }
+.tribuneMatchAttachment > button:hover { background: var(--surface-soft); color: var(--tone-rose); }
+.tribuneMatchAttachment > button svg { width: 13px; }
+.tribunePhotoDrop { display: flex; gap: 12px; align-items: center; justify-content: center; min-height: 94px; border: 1px dashed color-mix(in srgb, var(--tone-cyan) 66%, var(--line)); border-radius: 11px; background: color-mix(in srgb, var(--tone-cyan) 7%, var(--surface-faint)); color: var(--tone-cyan); cursor: pointer; }
 .tribunePhotoDrop > svg { width: 24px; }
 .tribunePhotoDrop > span { display: grid; gap: 2px; }
 .tribunePhotoDrop strong { color: var(--text-primary); font-family: var(--font-game); font-size: var(--type-small); }
 .tribunePhotoDrop small { color: var(--text-dim); font-size: var(--type-micro); }
-.tribuneComposerPreview { position: relative; height: clamp(110px, 19vh, 170px); overflow: hidden; border: 1px solid var(--line-strong); }
+.tribuneComposerPreview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; max-height: clamp(130px, 25vh, 230px); overflow: hidden; border: 1px solid var(--line-strong); border-radius: 11px; background: var(--page-bg); }
+.tribuneComposerPreview > span { position: relative; min-height: 110px; overflow: hidden; }
 .tribuneComposerPreview img { width: 100%; height: 100%; object-fit: cover; filter: brightness(.84) saturate(1.05); }
-.tribuneComposerPreview button { position: absolute; top: 8px; right: 8px; display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid rgba(255, 255, 255, .25); background: rgba(3, 8, 15, .88); color: white; cursor: pointer; }
+.tribuneComposerPreview button { position: absolute; top: 7px; right: 7px; display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid rgba(255, 255, 255, .25); background: rgba(3, 8, 15, .88); color: white; cursor: pointer; }
 .tribuneComposerPreview svg { width: 15px; }
+.tribunePollEditor { display: grid; gap: 7px; padding: 11px 12px; border: 1px solid color-mix(in srgb, var(--tone-violet) 26%, var(--line)); border-radius: 11px; background: color-mix(in srgb, var(--tone-violet) 6%, var(--surface-faint)); }
+.tribunePollEditor > header { display: flex; align-items: center; justify-content: space-between; }
+.tribunePollEditor > header strong { color: var(--text-primary); font-family: var(--font-game); font-size: var(--type-label); }
+.tribunePollEditor > header small { color: var(--text-dim); font-family: var(--font-tech); font-size: var(--type-micro); }
+.tribunePollEditor > div { display: grid; grid-template-columns: 24px minmax(0, 1fr) 28px; gap: 7px; align-items: center; }
+.tribunePollEditor > div > span { display: grid; width: 23px; height: 23px; place-items: center; border: 1px solid color-mix(in srgb, var(--tone-violet) 44%, var(--line)); border-radius: 50%; color: var(--tone-violet); font-family: var(--font-tech); font-size: var(--type-micro); }
+.tribunePollEditor input { width: 100%; min-height: 34px; padding: 5px 8px; border: 0; border-bottom: 1px solid var(--line-strong); background: transparent; color: var(--text-primary); font-family: var(--font-body); font-size: var(--type-small); outline: none; user-select: text; }
+.tribunePollEditor input::placeholder { color: var(--text-dim); }
+.tribunePollEditor > div > button { display: grid; width: 27px; height: 27px; place-items: center; border: 0; background: transparent; color: var(--text-dim); cursor: pointer; }
+.tribunePollEditor > div > button:hover { color: var(--tone-rose); }
+.tribunePollEditor > div > button svg { width: 13px; }
+.tribunePollEditor > button { justify-self: start; display: flex; gap: 5px; align-items: center; padding: 5px 1px; border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--tone-violet); font-family: var(--font-game); font-size: var(--type-micro); cursor: pointer; }
+.tribunePollEditor > button:hover { border-bottom-color: currentColor; }
+.tribunePollEditor > button svg { width: 13px; }
 .tribuneComposerError { margin: 0; color: var(--tone-rose); font-size: var(--type-label); }
 .tribuneFileInput { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
-.tribuneAddToPost { display: flex; gap: 12px; align-items: center; justify-content: space-between; min-height: 58px; padding: 9px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: color-mix(in srgb, var(--surface-faint) 76%, transparent); }
-.tribuneAddToPost > strong { color: var(--text-primary); font-family: var(--font-game); font-size: var(--type-label); font-weight: 700; }
+.tribuneAddToPost { display: flex; gap: 12px; align-items: center; justify-content: space-between; min-height: 58px; padding: 9px 12px; border: 1px solid var(--line-strong); border-radius: 11px; background: color-mix(in srgb, var(--surface-faint) 76%, transparent); }
+.tribuneAddToPost > span { display: grid; gap: 2px; }
+.tribuneAddToPost > span strong { color: var(--text-primary); font-family: var(--font-game); font-size: var(--type-label); font-weight: 700; }
+.tribuneAddToPost > span small { color: var(--text-dim); font-size: var(--type-micro); }
 .tribuneAddToPost > div { display: flex; gap: 3px; align-items: center; }
 .tribuneAddToPost label,
 .tribuneAddToPost button { display: flex; min-height: 34px; gap: 5px; align-items: center; padding: 5px 8px; border: 0; border-radius: 7px; background: transparent; color: var(--text-subtle); font-family: var(--font-body); font-size: var(--type-micro); font-weight: 650; cursor: pointer; }
@@ -1328,63 +1455,110 @@
 .tribuneAddToPost svg { width: 17px; height: 17px; color: var(--tone-green); }
 .tribuneAddToPost button:first-of-type svg { color: var(--tone-cyan); }
 .tribuneAddToPost button:last-of-type svg { color: var(--tone-amber); }
-.tribuneComposerActions { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 11px; align-items: center; }
-.tribuneComposerActions > small { color: var(--text-dim); font-family: var(--font-tech); font-size: var(--type-micro); }
-.tribuneComposerActions > button { min-height: 42px; border: 0; border-radius: 7px; background: var(--tone-green); color: #07150f; font-family: var(--font-game); font-size: var(--type-small); font-weight: 850; cursor: pointer; transition: filter 160ms ease, transform 160ms ease; }
+.tribuneAddToPost .tribuneComposerOptionActive { background: color-mix(in srgb, var(--tone-cyan) 10%, var(--surface-soft)); color: var(--text-primary); }
+.tribuneComposerPalette { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 1px 3px; }
+.tribuneComposerPalette > span { display: flex; gap: 6px; align-items: center; color: var(--text-subtle); }
+.tribuneComposerPalette > span svg { width: 14px; color: var(--tone-violet); }
+.tribuneComposerPalette > span strong { font-family: var(--font-game); font-size: var(--type-label); }
+.tribuneComposerPalette > div { display: flex; gap: 7px; }
+.tribuneComposerPalette button { display: grid; width: 25px; height: 25px; place-items: center; border: 1px solid transparent; border-radius: 50%; background: transparent; cursor: pointer; }
+.tribuneComposerPalette button i { width: 15px; height: 15px; border-radius: 50%; background: var(--composer-tone); box-shadow: 0 0 13px color-mix(in srgb, var(--composer-tone) 24%, transparent); }
+.tribuneComposerPalette button:hover,
+.tribuneComposerPalette .tribuneComposerToneActive { border-color: var(--composer-tone); }
+.tribuneComposerPalette .tribuneComposerToneActive i { box-shadow: 0 0 0 3px color-mix(in srgb, var(--composer-tone) 20%, transparent), 0 0 14px var(--composer-tone); }
+.tribuneComposerActions { position: sticky; bottom: -22px; z-index: 3; display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, .7fr); gap: 12px; align-items: center; margin: 0 -4px; padding: 11px 4px 2px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--surface-solid) 96%, var(--page-bg)); }
+.tribuneComposerActions > span { display: flex; gap: 7px; align-items: center; color: var(--text-dim); }
+.tribuneComposerActions > span i { width: 7px; height: 7px; border-radius: 50%; background: var(--tone-green); box-shadow: 0 0 10px var(--tone-green); }
+.tribuneComposerActions > span small { font-size: var(--type-micro); }
+.tribuneComposerActions > button { display: flex; min-height: 42px; gap: 7px; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: linear-gradient(110deg, var(--tone-green), color-mix(in srgb, var(--tone-green) 70%, var(--tone-cyan))); color: #07150f; font-family: var(--font-game); font-size: var(--type-small); font-weight: 850; cursor: pointer; box-shadow: 0 9px 24px color-mix(in srgb, var(--tone-green) 18%, transparent); transition: filter 160ms ease, transform 160ms ease; }
+.tribuneComposerActions > button svg { width: 15px; }
 .tribuneComposerActions > button:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
 .tribuneComposerActions > button:disabled { opacity: .36; cursor: not-allowed; }
 
-.tribuneThread { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; width: min(680px, 96%); height: min(760px, 96%); margin: auto; padding: 0; border-top-color: color-mix(in srgb, var(--tone-cyan) 68%, var(--line)); }
-.tribuneThread > header { min-height: 60px; padding: 0 20px; background: linear-gradient(90deg, color-mix(in srgb, var(--tone-cyan) 6%, transparent), transparent); }
-.tribuneThread .tribuneDialogHeader > button { right: 20px; }
-.tribuneThreadSource { --post-tone: var(--tone-cyan); display: grid; gap: 12px; margin: 0; padding: 16px 21px 13px; border: 0; border-bottom: 1px solid var(--line-strong); background: color-mix(in srgb, var(--post-tone) 4%, transparent); }
-.tribuneThreadSource > header { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 9px; align-items: center; }
+.tribuneThread { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; width: min(680px, 96%); height: min(760px, 96%); margin: auto; padding: 0; border-top: 2px solid var(--tone-cyan); }
+.tribuneThreadRail { width: 100%; height: 100%; max-height: none; margin: 0; border-radius: 15px; background: color-mix(in srgb, var(--surface-solid) 92%, var(--page-bg)); box-shadow: 0 22px 60px rgba(0, 0, 0, .22); }
+.tribuneThreadTopbar { display: grid; grid-template-columns: 38px minmax(0, 1fr) 38px; gap: 10px; align-items: center; min-height: 58px; padding: 8px 14px; border-bottom: 1px solid var(--line-strong); background: linear-gradient(90deg, color-mix(in srgb, var(--tone-cyan) 7%, transparent), transparent); }
+.tribuneThreadTopbar > button { display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 50%; background: var(--surface-faint); color: var(--text-subtle); cursor: pointer; }
+.tribuneThreadTopbar > button:hover { background: var(--surface-soft); color: var(--tone-cyan); }
+.tribuneThreadTopbar > button:last-child { justify-self: end; }
+.tribuneThreadTopbar > button:last-child:hover,
+.tribuneThreadTopbar > .tribuneBookmarked { color: var(--tone-amber); }
+.tribuneThreadTopbar button svg { width: 16px; height: 16px; }
+.tribuneThreadTopbar > span { display: grid; min-width: 0; gap: 2px; }
+.tribuneThreadTopbar strong { color: var(--text-primary); font-family: var(--font-game); font-size: clamp(.76rem, 1vw, .94rem); }
+.tribuneThreadTopbar small { overflow: hidden; color: var(--text-dim); font-size: var(--type-micro); text-overflow: ellipsis; white-space: nowrap; }
+.tribuneThreadSource { --post-tone: var(--tone-cyan); display: grid; gap: 9px; margin: 0; padding: 13px 16px 0; border: 0; border-bottom: 1px solid var(--line-strong); background: linear-gradient(135deg, color-mix(in srgb, var(--post-tone) 7%, var(--surface-faint)), transparent 64%); }
+.tribuneThreadSource > header { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 9px; align-items: center; }
 .tribuneThreadSource > header > span:nth-child(2) { display: grid; min-width: 0; gap: 2px; }
-.tribuneThreadSource > header strong { display: flex; gap: 5px; align-items: center; color: var(--text-primary); font-family: var(--font-game); font-size: var(--type-small); }
-.tribuneThreadSource > header strong svg { width: 14px; color: var(--tone-cyan); }
+.tribuneThreadSource > header strong { color: var(--text-primary); font-family: var(--font-game); font-size: var(--type-small); }
 .tribuneThreadSource > header small { overflow: hidden; color: var(--text-dim); font-size: var(--type-micro); text-overflow: ellipsis; white-space: nowrap; }
-.tribuneThreadSource > header em { padding: 4px 0 4px 7px; border: 0; border-left: 2px solid color-mix(in srgb, var(--post-tone) 72%, var(--line)); color: var(--post-tone); font-family: var(--font-tech); font-size: var(--type-micro); font-style: normal; }
-.tribuneThreadSource > p { margin: 0; color: var(--text-primary); font-size: clamp(.82rem, 1vw, .94rem); font-weight: 520; line-height: 1.55; }
-.tribuneThreadSource > footer { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding-top: 10px; border-top: 1px solid var(--line); }
-.tribuneThreadSource > footer button,
-.tribuneThreadSource > footer span { display: flex; gap: 6px; align-items: center; border: 0; background: transparent; color: var(--text-subtle); font-family: var(--font-game); font-size: var(--type-label); }
-.tribuneThreadSource > footer button { cursor: pointer; }
-.tribuneThreadSource > footer button:hover,
-.tribuneThreadSource > footer .tribuneReacted { color: var(--tone-rose); }
-.tribuneThreadSource > footer .tribuneReactedFire { color: var(--tone-amber); }
-.tribuneThreadSource > footer .tribuneReactedForce { color: var(--tone-green); }
-.tribuneThreadSource > footer .tribuneBookmarked { color: var(--tone-amber); }
-.tribuneThreadSource > footer svg { width: 15px; }
-.tribuneThreadSource > footer b { font-family: var(--font-tech); }
-.tribuneThreadReactionChoices { display: flex; gap: 3px; align-items: center; }
-.tribuneThreadReactionChoices button { display: grid !important; width: 27px; height: 26px; padding: 0; place-items: center; border-bottom: 1px solid transparent !important; background: transparent !important; }
-.tribuneThreadReactionChoices button:hover { border-bottom-color: currentColor !important; }
+.tribuneThreadSource > header em { padding: 4px 7px; border-radius: 999px; background: color-mix(in srgb, var(--post-tone) 10%, transparent); color: var(--post-tone); font-family: var(--font-tech); font-size: var(--type-micro); font-style: normal; }
+.tribuneThreadSourceBody { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; min-width: 0; }
+.tribuneThreadSourceBody > p { display: -webkit-box; overflow: hidden; margin: 0; color: var(--text-primary); font-size: clamp(.72rem, .9vw, .86rem); font-weight: 520; line-height: 1.48; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.tribuneThreadSourceBody > button { position: relative; width: 104px; height: 68px; flex: 0 0 auto; overflow: hidden; padding: 0; border: 0; border-radius: 9px; background: var(--surface-soft); cursor: pointer; }
+.tribuneThreadSourceBody > button img { width: 100%; height: 100%; object-fit: cover; filter: brightness(.78); transition: filter 180ms ease, transform 260ms ease; }
+.tribuneThreadSourceBody > button:hover img { filter: brightness(.92); transform: scale(1.035); }
+.tribuneThreadSourceBody > button span { position: absolute; right: 5px; bottom: 5px; display: flex; gap: 4px; align-items: center; padding: 3px 5px; border-radius: 999px; background: rgba(3, 8, 15, .78); color: white; font-size: .4rem; }
+.tribuneThreadSourceBody > button svg { width: 10px; height: 10px; }
+.tribuneThreadStats { display: flex; align-items: center; justify-content: space-between; color: var(--text-dim); font-size: var(--type-micro); }
+.tribuneThreadStats > span { display: flex; gap: 6px; align-items: center; }
+.tribuneThreadStats > span > i { display: flex; font-style: normal; }
+.tribuneThreadStats > span > i svg { width: 15px; height: 15px; margin-left: -3px; padding: 3px; border: 1px solid color-mix(in srgb, var(--surface-solid) 92%, var(--page-bg)); border-radius: 50%; background: var(--tone-green); color: #06130e; }
+.tribuneThreadStats > span > i svg:nth-child(2) { background: var(--tone-rose); }
+.tribuneThreadStats > span > i svg:nth-child(3) { background: var(--tone-amber); }
+.tribuneThreadStats b { color: var(--text-subtle); font-weight: 650; }
+.tribuneThreadActions { display: grid !important; grid-template-columns: minmax(0, 1.6fr) minmax(110px, .7fr); gap: 3px !important; padding: 4px 0 !important; border-top: 1px solid var(--line) !important; }
+.tribuneThreadActions > button { display: flex; min-height: 34px; gap: 6px; align-items: center; justify-content: center; border: 0; border-radius: 7px; background: transparent; color: var(--text-subtle); font-family: var(--font-body); font-size: var(--type-label); font-weight: 650; cursor: pointer; }
+.tribuneThreadActions > button:hover { background: var(--surface-faint); color: var(--text-primary); }
+.tribuneThreadActions > button svg { width: 14px; }
+.tribuneThreadReactionChoices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; min-width: 0; }
+.tribuneThreadReactionChoices button { display: flex; min-width: 0; min-height: 34px; gap: 5px; align-items: center; justify-content: center; padding: 4px 6px; border: 0; border-radius: 7px; background: transparent; color: var(--text-subtle); font-family: var(--font-body); font-size: var(--type-label); font-weight: 650; cursor: pointer; }
+.tribuneThreadReactionChoices button:hover { background: var(--surface-faint); color: var(--text-primary); }
 .tribuneThreadReactionChoices button svg { width: 13px; height: 13px; }
-.tribuneThreadReactionChoices > b { margin-left: 3px; color: var(--text-subtle); font-size: var(--type-micro); }
-.tribuneThreadHeading { display: flex; align-items: center; justify-content: space-between; padding: 12px 21px 8px; }
-.tribuneThreadHeading > span { color: var(--text-primary); font-family: var(--font-game); font-size: var(--type-label); font-weight: 700; }
-.tribuneThreadHeading > small { color: var(--text-dim); font-size: var(--type-micro); }
-.tribuneComments { min-height: 0; padding: 2px 12px 10px 21px; }
+.tribuneThreadReactionChoices .tribuneReacted { background: color-mix(in srgb, var(--tone-rose) 10%, var(--surface-faint)); color: var(--tone-rose); }
+.tribuneThreadReactionChoices .tribuneReactedFire { background: color-mix(in srgb, var(--tone-amber) 10%, var(--surface-faint)); color: var(--tone-amber); }
+.tribuneThreadReactionChoices .tribuneReactedForce { background: color-mix(in srgb, var(--tone-green) 10%, var(--surface-faint)); color: var(--tone-green); }
+.tribuneThreadHeading { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 16px 7px; }
+.tribuneThreadHeading > span { display: grid; gap: 2px; min-width: 0; }
+.tribuneThreadHeading > span strong { color: var(--text-primary); font-family: var(--font-game); font-size: var(--type-label); }
+.tribuneThreadHeading > span small { overflow: hidden; color: var(--text-dim); font-size: var(--type-micro); text-overflow: ellipsis; white-space: nowrap; }
+.tribuneThreadHeading > button { display: flex; flex: 0 0 auto; min-height: 28px; gap: 5px; align-items: center; padding: 4px 7px; border: 0; border-radius: 7px; background: var(--surface-faint); color: var(--text-subtle); font-size: var(--type-micro); cursor: pointer; }
+.tribuneThreadHeading > button:hover { background: var(--surface-soft); color: var(--tone-violet); }
+.tribuneThreadHeading > button svg { width: 12px; }
+.tribuneComments { min-height: 0; padding: 2px 12px 12px 16px; }
 .tribuneComments article { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 9px; align-items: start; padding: 6px 0; border: 0; }
-.tribuneComments article > span { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--tone-cyan) 13%, var(--surface-faint)); color: var(--tone-cyan); font-family: var(--font-tech); font-size: var(--type-micro); font-weight: 750; }
-.tribuneComments article > div { min-width: 0; padding: 8px 11px 9px; border-radius: 12px; background: var(--surface-faint); }
-.tribuneComments article strong { display: flex; gap: 8px; align-items: center; justify-content: space-between; color: var(--text-primary); font-family: var(--font-game); font-size: var(--type-label); }
-.tribuneComments article strong small { color: var(--text-dim); font-family: var(--font-body); font-size: var(--type-micro); font-weight: 500; }
-.tribuneComments article p { margin: 4px 0 0; color: var(--text-subtle); font-size: var(--type-small); line-height: 1.48; }
-.tribuneNoComments { display: flex; gap: 12px; align-items: center; justify-content: center; height: 100%; min-height: 86px; color: var(--text-dim); }
-.tribuneNoComments > svg { width: 23px; color: var(--tone-cyan); }
-.tribuneNoComments > span { display: grid; gap: 3px; }
+.tribuneComments article > span { position: relative; display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--tone-cyan) 14%, var(--surface-faint)); color: var(--tone-cyan); font-family: var(--font-tech); font-size: var(--type-micro); font-weight: 750; }
+.tribuneComments article > span i { position: absolute; right: 0; bottom: 0; width: 8px; height: 8px; border: 2px solid color-mix(in srgb, var(--surface-solid) 94%, var(--page-bg)); border-radius: 50%; background: var(--tone-green); }
+.tribuneComments article > div { display: grid; min-width: 0; gap: 4px; }
+.tribuneCommentBubble { display: grid; gap: 3px; justify-self: start; max-width: 96%; padding: 8px 11px 9px; border-radius: 5px 14px 14px; background: var(--surface-faint); }
+.tribuneCommentBubble strong { color: var(--text-primary); font-family: var(--font-game); font-size: var(--type-label); }
+.tribuneCommentBubble p { margin: 0; color: var(--text-subtle); font-size: var(--type-small); line-height: 1.45; }
+.tribuneComments article > div > footer { display: flex; gap: 10px; align-items: center; padding-left: 8px; }
+.tribuneComments article > div > footer button { padding: 1px 0; border: 0; background: transparent; color: var(--text-dim); font-size: var(--type-micro); font-weight: 700; cursor: pointer; }
+.tribuneComments article > div > footer button:hover { color: var(--text-primary); }
+.tribuneComments article > div > footer .tribuneCommentLiked { color: var(--tone-rose); }
+.tribuneComments article > div > footer small { color: var(--text-dim); font-size: var(--type-micro); }
+.tribuneComments .tribuneOwnComment > span { background: linear-gradient(145deg, var(--tone-green), var(--tone-cyan)); color: #06130e; }
+.tribuneComments .tribuneOwnComment .tribuneCommentBubble { background: color-mix(in srgb, var(--tone-green) 9%, var(--surface-faint)); }
+.tribuneNoComments { display: grid; align-content: center; justify-items: center; gap: 5px; height: 100%; min-height: 120px; padding: 18px; color: var(--text-dim); text-align: center; }
+.tribuneNoComments > span { position: relative; display: grid; width: 46px; height: 46px; margin-bottom: 3px; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--tone-cyan) 10%, var(--surface-faint)); color: var(--tone-cyan); }
+.tribuneNoComments > span svg { width: 21px; }
+.tribuneNoComments > span i { position: absolute; right: 3px; bottom: 3px; width: 9px; height: 9px; border-radius: 50%; background: var(--tone-green); box-shadow: 0 0 9px var(--tone-green); }
 .tribuneNoComments strong { color: var(--text-primary); font-family: var(--font-game); font-size: var(--type-small); }
-.tribuneNoComments small { font-size: var(--type-micro); }
-.tribuneThread > form { display: grid; grid-template-columns: 36px minmax(0, 1fr) 42px; gap: 9px; align-items: center; margin: 0; padding: 12px 21px 16px; border-top: 1px solid var(--line-strong); background: color-mix(in srgb, var(--surface-solid) 58%, transparent); }
-.tribuneReplyAvatar { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: var(--tone-cyan); color: #041018; font-family: var(--font-tech); font-size: var(--type-micro); font-weight: 900; }
-.tribuneReplyField { position: relative; min-width: 0; }
-.tribuneThread > form input { width: 100%; min-width: 0; min-height: 42px; padding: 9px 54px 9px 14px; border: 1px solid transparent; border-radius: 999px; background: var(--surface-faint); color: var(--text-primary); font-family: var(--font-body); font-size: var(--type-small); outline: none; user-select: text; }
-.tribuneThread > form input:hover { background: var(--surface-soft); }
-.tribuneReplyField > small { position: absolute; top: 50%; right: 9px; color: var(--text-dim); font-family: var(--font-tech); font-size: var(--type-micro); transform: translateY(-50%); }
-.tribuneThread > form > button { display: grid; width: 42px; height: 42px; place-items: center; border: 0; border-radius: 50%; background: var(--tone-cyan); color: #041018; cursor: pointer; }
-.tribuneThread > form > button:disabled { opacity: .34; cursor: not-allowed; }
-.tribuneThread > form > button svg { width: 16px; }
+.tribuneNoComments small { max-width: 260px; font-size: var(--type-micro); }
+.tribuneNoComments button { margin-top: 3px; padding: 5px 8px; border: 0; border-bottom: 1px solid var(--tone-cyan); background: transparent; color: var(--tone-cyan); font-family: var(--font-game); font-size: var(--type-micro); cursor: pointer; }
+.tribuneReplyComposer { display: grid; grid-template-columns: 36px minmax(0, 1fr) 42px; gap: 9px; align-items: center; margin: 0; padding: 10px 16px 13px; border-top: 1px solid var(--line-strong); background: color-mix(in srgb, var(--surface-solid) 96%, var(--page-bg)); }
+.tribuneReplyAvatar { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: linear-gradient(145deg, var(--tone-green), var(--tone-cyan)); color: #041018; font-family: var(--font-tech); font-size: var(--type-micro); font-weight: 900; }
+.tribuneReplyField { display: grid; min-width: 0; overflow: hidden; border: 1px solid transparent; border-radius: 12px; background: var(--surface-faint); }
+.tribuneReplyField:focus-within { border-color: color-mix(in srgb, var(--tone-cyan) 36%, var(--line)); background: var(--surface-soft); }
+.tribuneReplyComposer input { width: 100%; min-width: 0; min-height: 35px; padding: 7px 11px 2px; border: 0; background: transparent; color: var(--text-primary); font-family: var(--font-body); font-size: var(--type-small); outline: none; user-select: text; }
+.tribuneReplyComposer input::placeholder { color: var(--text-dim); }
+.tribuneReplyField > span { display: flex; align-items: center; justify-content: space-between; padding: 0 11px 5px; }
+.tribuneReplyField > span small,
+.tribuneReplyField > span em { color: var(--text-dim); font-family: var(--font-tech); font-size: .38rem; font-style: normal; }
+.tribuneReplyComposer > button { display: grid; width: 42px; height: 42px; place-items: center; border: 0; border-radius: 50%; background: linear-gradient(145deg, var(--tone-cyan), color-mix(in srgb, var(--tone-cyan) 64%, var(--tone-green))); color: #041018; cursor: pointer; box-shadow: 0 8px 20px color-mix(in srgb, var(--tone-cyan) 16%, transparent); }
+.tribuneReplyComposer > button:disabled { box-shadow: none; opacity: .3; cursor: not-allowed; }
+.tribuneReplyComposer > button svg { width: 16px; }
 
 .heritageView { position: relative; }
 .heritageView .viewIntro { margin-bottom: clamp(8px, 1.25vh, 14px); }
@@ -4757,18 +4931,6 @@
   .arenaGameLibrary > div > button > small { display: none; }
   .penaltyScoreboard { gap: 5px; }
   .penaltyScoreboard > em { min-width: 58px; padding-inline: 5px; }
-  .tribunePost > p,
-  .tribunePostMedia,
-  .tribunePost > footer,
-  .tribuneCommentPreview,
-  .tribuneQuickReply,
-  .tribunePollPost .tribunePollOptions,
-  .tribunePollMeta { margin-left: 43px; }
-  .tribuneCommentPreview { width: calc(100% - 43px); }
-  .tribunePinnedFlag { margin-left: 43px; }
-  .tribuneSorts > span { display: none; }
-  .tribunePost > footer > button { padding-inline: 4px; }
-  .tribunePost > footer > button span { display: none; }
   .tribuneChantLab { padding-inline: 14px 12px; }
   .tribuneChantActions { grid-template-columns: 1fr; }
   .tribuneChantActions > button { grid-template-columns: 15px minmax(0, 1fr) auto; }
@@ -4781,6 +4943,7 @@
 @media (max-width: 900px) {
   .tribuneView .viewIntro { margin-bottom: 7px; }
   .tribuneLayout { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(205px, .42fr); gap: 9px; }
+  .tribuneLayout:has(.tribuneThreadRail) { grid-template-rows: minmax(145px, .34fr) minmax(390px, .66fr); }
   .tribuneFeedHeader { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
   .tribuneFeedToolbar { padding-block: 5px; }
   .tribuneFilters,
@@ -4831,6 +4994,9 @@
   .tribuneDebate > div button { min-height: 38px; }
   .tribuneDistricts > div button { min-height: 29px; }
   .tribuneOverlay { right: 8px; left: 0; }
+  .tribuneThreadRail { width: 100%; height: 100%; margin: 0; }
+  .tribuneThreadSource { gap: 7px; padding-top: 10px; }
+  .tribuneThreadSourceBody > p { -webkit-line-clamp: 2; }
 }
 
 @media (max-width: 650px) {
@@ -4841,56 +5007,63 @@
   .tribuneSorts { justify-content: space-between; }
   .tribuneFilters button,
   .tribuneSorts button { flex: 1; padding-block: 4px; }
-  .tribuneComposerDock { gap: 5px; margin-block: 6px; padding: 8px 9px 6px; }
-  .tribuneComposerPrompt { grid-template-columns: 34px minmax(0, 1fr); gap: 8px; padding-bottom: 7px; }
-  .tribuneAvatar { width: 31px; height: 31px; }
-  .tribuneComposerPrompt > button { min-height: 34px; font-size: .6rem; }
-  .tribuneComposerDock > footer { padding-left: 42px; }
-  .tribuneComposerDock > footer button { min-height: 28px; gap: 4px; padding-inline: 3px; font-size: .44rem; }
-  .tribunePollPost { padding: 10px; }
-  .tribunePollPost .tribunePollOptions { grid-template-columns: 1fr; }
+  .tribuneComposerDock { grid-template-columns: 1fr; margin-block: 5px; }
+  .tribuneComposerDockMain { grid-template-columns: 34px minmax(0, 1fr); gap: 7px; padding: 7px 8px 5px; }
+  .tribuneAvatar { width: 33px; height: 33px; }
+  .tribuneComposerEntry { min-height: 35px; padding-inline: 10px; }
+  .tribuneComposerEntry small { display: none; }
+  .tribuneComposerShortcuts { padding-inline: 5px; }
+  .tribuneComposerShortcuts button { min-height: 27px; font-size: .45rem; }
   .tribunePollOptions button { grid-template-columns: 1fr; min-height: 34px; }
   .tribunePollOptions button span { font-size: .5rem; white-space: normal; }
   .tribunePollOptions button b { display: none; }
-  .tribunePost { padding: 10px; }
-  .tribunePost > p,
-  .tribunePinnedFlag,
-  .tribunePostMedia,
-  .tribunePost > footer,
-  .tribuneCommentPreview,
-  .tribuneQuickReply,
-  .tribunePollPost .tribunePollOptions,
-  .tribunePollMeta { margin-left: 0; }
-  .tribuneCommentPreview { width: 100%; }
-  .tribunePostMedia { display: none; }
-  .tribunePost > footer { grid-template-columns: minmax(122px, 1fr) repeat(2, auto); }
+  .tribunePost { padding: 0 0 7px; border-radius: 11px; }
+  .tribunePostHeader { grid-template-columns: 38px minmax(0, 1fr) auto; gap: 8px; padding: 9px 10px 7px; }
+  .tribunePostAvatar { width: 36px; height: 36px; }
+  .tribunePostHeaderActions > em { display: none; }
+  .tribunePostMenu { right: -2px; width: min(225px, 76vw); }
+  .tribunePostBody > p { padding: 3px 11px 9px; }
+  .tribunePostMedia { height: 132px; }
+  .tribunePollBlock { margin-inline: 10px; }
+  .tribuneEngagement { margin-inline: 10px; }
+  .tribunePost > footer { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-inline: 10px; }
+  .tribuneCommentPreviews { margin-inline: 10px; }
   .tribunePollMeta > small { display: none; }
-  .tribuneQuickReply { grid-template-columns: 26px minmax(0, 1fr) 29px; }
+  .tribuneFeedNotice { right: 10px; bottom: 64px; max-width: calc(100% - 20px); min-width: 230px; }
   .tribuneActiveRail { grid-template-columns: 390px 270px 225px 240px; }
   .tribuneOverlay { inset: 0 0 4px; }
   .tribuneComposer,
   .tribuneThread { width: 96%; }
+  .tribuneMediaViewer { width: 98%; height: 92%; }
+  .tribuneMediaViewer > div { grid-template-columns: 38px minmax(0, 1fr) 38px; }
+  .tribuneMediaViewer > div > button { width: 32px; height: 48px; }
   .tribuneComposerBody { padding: 0 14px 14px; }
   .tribuneThread { margin: auto; padding: 0; }
-  .tribuneThread > header,
+  .tribuneThreadRail { width: 100%; margin: 0; }
+  .tribuneThreadTopbar,
   .tribuneThreadSource,
   .tribuneThreadHeading,
   .tribuneComments,
-  .tribuneThread > form { padding-right: 14px; padding-left: 14px; }
-  .tribuneThread .tribuneDialogHeader > button { right: 14px; }
-  .tribuneAddToPost > strong { display: none; }
+  .tribuneReplyComposer { padding-right: 12px; padding-left: 12px; }
+  .tribuneThreadSourceBody { grid-template-columns: minmax(0, 1fr) 86px; }
+  .tribuneThreadSourceBody > button { width: 86px; height: 60px; }
+  .tribuneThreadReactionChoices button span { display: none; }
+  .tribuneThreadActions { grid-template-columns: minmax(0, 1fr) 104px; }
+  .tribuneAddToPost > span { display: none; }
   .tribuneAddToPost > div { width: 100%; justify-content: space-around; }
+  .tribuneComposerIdentity > small,
+  .tribuneComposerActions > span { display: none; }
+  .tribuneComposerActions { grid-template-columns: 1fr; }
+  .tribuneComposerPalette > span strong { display: none; }
 }
 
 @media (max-height: 690px) and (min-width: 901px) {
   .tribuneView .viewIntro { margin-bottom: 6px; }
   .tribuneFeedHeader { padding-bottom: 6px; }
-  .tribuneComposerDock { gap: 4px; margin-block: 5px; padding-block: 7px 5px; }
-  .tribuneComposerPrompt { padding-bottom: 5px; }
-  .tribuneComposerDock > footer { padding-top: 0; }
-  .tribunePollPost,
+  .tribuneComposerDock { margin-block: 4px; }
+  .tribuneComposerDockMain { padding-block: 6px 4px; }
+  .tribuneComposerShortcuts button { min-height: 26px; }
   .tribunePost { padding-block: 8px; }
-  .tribunePostMedia { height: 112px; }
   .tribuneActiveRail { grid-template-rows: auto minmax(0, 1.05fr) minmax(0, .72fr) minmax(0, .58fr); padding-right: 7px; }
   .tribuneChantLab { gap: 7px; padding-block: 10px 8px; }
   .tribuneChantStage { gap: 3px; }
@@ -4903,7 +5076,6 @@
 @media (max-height: 560px) {
   .tribuneView .viewIntro { display: none; }
   .tribuneLayout { padding-top: 3px; }
-  .tribunePollPost { display: none; }
   .tribuneComposer textarea { min-height: 80px; }
 }
 

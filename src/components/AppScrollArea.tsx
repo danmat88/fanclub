@@ -6,6 +6,7 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type UIEventHandler,
   type WheelEvent as ReactWheelEvent,
 } from 'react'
 import styles from './AppScrollArea.module.css'
@@ -15,6 +16,7 @@ type AppScrollAreaProps = {
   className?: string
   contentClassName?: string
   label?: string
+  onScroll?: UIEventHandler<HTMLDivElement>
 }
 
 type ScrollMetrics = {
@@ -45,7 +47,7 @@ const emptyMetrics: ScrollMetrics = {
 const TRACK_INSET = 6
 const MIN_THUMB = 30
 
-export function AppScrollArea({ children, className = '', contentClassName = '', label }: AppScrollAreaProps) {
+export function AppScrollArea({ children, className = '', contentClassName = '', label, onScroll }: AppScrollAreaProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
@@ -175,6 +177,7 @@ export function AppScrollArea({ children, className = '', contentClassName = '',
         tabIndex={0}
         role="region"
         aria-label={label}
+        onScroll={onScroll}
         onWheel={scrollHorizontalWithWheel}
       >
         <div ref={contentRef} className={`${styles.content} ${contentClassName}`}>{children}</div>
