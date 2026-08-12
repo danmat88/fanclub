@@ -6,6 +6,7 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type RefObject,
   type UIEventHandler,
   type WheelEvent as ReactWheelEvent,
 } from 'react'
@@ -18,6 +19,8 @@ type AppScrollAreaProps = {
   horizontalScroll?: boolean
   label?: string
   onScroll?: UIEventHandler<HTMLDivElement>
+  scrollToEndKey?: string | number
+  viewportRef?: RefObject<HTMLDivElement | null>
 }
 
 type ScrollMetrics = {
@@ -55,12 +58,21 @@ export function AppScrollArea({
   horizontalScroll = true,
   label,
   onScroll,
+  scrollToEndKey,
+  viewportRef: forwardedViewportRef,
 }: AppScrollAreaProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
   const frameRef = useRef<number | null>(null)
+  const endScrollFrameRef = useRef<number | null>(null)
+  const previousEndKeyRef = useRef<string | number | undefined>(undefined)
   const [metrics, setMetrics] = useState<ScrollMetrics>(emptyMetrics)
+
+  const registerViewport = useCallback((viewport: HTMLDivElement | null) => {
+    viewportRef.current = viewport
+    if (forwardedViewportRef) forwardedViewportRef.current = viewport
+  }, [forwardedViewportRef])
 
   const updateMetrics = useCallback(() => {
     const viewport = viewportRef.current
@@ -119,6 +131,25 @@ export function AppScrollArea({
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current)
     }
   }, [scheduleMetrics])
+
+  useLayoutEffect(() => {
+    if (scrollToEndKey === undefined) return
+    const viewport = viewportRef.current
+    if (!viewport) return
+
+    const behavior: ScrollBehavior = previousEndKeyRef.current === undefined ? 'auto' : 'smooth'
+    previousEndKeyRef.current = scrollToEndKey
+    endScrollFrameRef.current = requestAnimationFrame(() => {
+      endScrollFrameRef.current = null
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior })
+      scheduleMetrics()
+    })
+
+    return () => {
+      if (endScrollFrameRef.current !== null) cancelAnimationFrame(endScrollFrameRef.current)
+      endScrollFrameRef.current = null
+    }
+  }, [scheduleMetrics, scrollToEndKey])
 
   const beginDrag = (event: ReactPointerEvent<HTMLDivElement>, axis: 'x' | 'y') => {
     event.preventDefault()
@@ -180,7 +211,7 @@ export function AppScrollArea({
   return (
     <div className={`${styles.root} ${className}`}>
       <div
-        ref={viewportRef}
+        ref={registerViewport}
         className={`${styles.viewport} ${horizontalScroll ? '' : styles.verticalOnly} ${metrics.verticalVisible ? styles.withVerticalGutter : ''} ${metrics.horizontalVisible ? styles.withHorizontalGutter : ''}`}
         tabIndex={0}
         role="region"

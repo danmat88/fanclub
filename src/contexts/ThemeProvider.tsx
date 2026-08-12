@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { ThemeContext, themeOrder, type Theme } from './theme-context'
+import { ThemeContext, themeBrowserColors, themeOrder, type Theme } from './theme-context'
 
 const getInitialTheme = (): Theme => {
   let savedTheme: string | null = null
@@ -23,6 +23,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
+    const browserColor = themeBrowserColors[theme]
+    const themeColorMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+    themeColorMeta?.setAttribute('content', browserColor)
+    document.documentElement.style.backgroundColor = browserColor
     localStorage.setItem('cetatea-theme', theme)
   }, [theme])
 

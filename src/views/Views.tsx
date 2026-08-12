@@ -11,6 +11,7 @@ import {
   CalendarPlus,
   CalendarDays,
   Castle,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleDot,
@@ -66,6 +67,7 @@ import {
   Zap,
 } from 'lucide-react'
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -78,6 +80,7 @@ import {
   type RefCallback,
   type UIEvent,
 } from 'react'
+import { createPortal } from 'react-dom'
 import fanEmblem from '../assets/brand/cetatea-fan-emblem.webp'
 import arenaBackground from '../assets/brand/loading-cetatea-arena.webp'
 import { AppScrollArea } from '../components/AppScrollArea'
@@ -98,6 +101,18 @@ const reveal: Variants = {
     },
   }),
 }
+
+const nonSensitiveTextFieldProps = {
+  autoCapitalize: 'sentences',
+  autoComplete: 'off',
+  autoCorrect: 'on',
+  'data-1p-ignore': 'true',
+  'data-bwignore': 'true',
+  'data-form-type': 'other',
+  'data-lpignore': 'true',
+  inputMode: 'text',
+  spellCheck: true,
+} as const
 
 function ViewIntro({
   code,
@@ -1109,8 +1124,8 @@ export function NextMatchView({
               </div>
 
               <div className={styles.matchQuickMessages}>{['Forza Cetatea!', 'Toți la Areni', 'Alb-albastru'].map((text) => <button type="button" key={text} onClick={() => quickMessage(text)}>{text}</button>)}</div>
-              <form className={styles.matchRoomComposer} onSubmit={sendMessage}>
-                <span>CS</span><label><input value={message} maxLength={72} onChange={(event) => setMessage(event.target.value)} placeholder="Scrie în camera meciului..." /><small>{message.length}/72</small></label><button type="submit" disabled={!message.trim()} aria-label="Trimite mesajul"><Send aria-hidden="true" /></button>
+              <form className={styles.matchRoomComposer} autoComplete="off" onSubmit={sendMessage}>
+                <span>CS</span><label><input {...nonSensitiveTextFieldProps} type="text" name="mesaj_camera_meciului" enterKeyHint="send" aria-label="Mesaj pentru camera meciului" value={message} maxLength={72} onChange={(event) => setMessage(event.target.value)} placeholder="Scrie în camera meciului..." /><small>{message.length}/72</small></label><button type="submit" disabled={!message.trim()} aria-label="Trimite mesajul"><Send aria-hidden="true" /></button>
               </form>
             </motion.aside>
           </div>
@@ -1221,11 +1236,6 @@ type TribuneComment = {
 
 const tribuneFilters: TribuneFilter[] = ['Toate', 'Imagini', 'Sondaje', 'Meci']
 const tribuneSorts: TribuneSort[] = ['Recente', 'În discuție', 'Apreciate', 'Salvate']
-const composerModes = [
-  { id: 'mesaj' as const, label: 'Mesaj', icon: PencilLine },
-  { id: 'fotografie' as const, label: 'Fotografii', icon: ImagePlus },
-  { id: 'sondaj' as const, label: 'Sondaj', icon: BarChart3 },
-]
 const composerTones: Array<{ id: ComposerTone; label: string; color: string }> = [
   { id: 'verde', label: 'Verde Cetatea', color: 'var(--tone-green)' },
   { id: 'cyan', label: 'Albastru Areni', color: 'var(--tone-cyan)' },
@@ -1401,8 +1411,8 @@ export function CommunityView() {
   const [filter, setFilter] = useState<TribuneFilter>('Toate')
   const [feedSort, setFeedSort] = useState<TribuneSort>('Recente')
   const [filterOpen, setFilterOpen] = useState(false)
-  const [feedScrolled, setFeedScrolled] = useState(false)
-  const [mobileTribuneSection, setMobileTribuneSection] = useState<'flux' | 'arena'>('flux')
+  const [showFloatingComposer, setShowFloatingComposer] = useState(false)
+  const [mobileTribuneSection, setMobileTribuneSection] = useState<'flux' | 'arena' | 'discutie'>('flux')
   const [posts, setPosts] = useState<TribunePost[]>(() => [...readStoredPosts(), ...seedTribunePosts])
   const [reactions, setReactions] = useState<Record<string, TribuneReaction>>(() => readStoredReactions())
   const [comments, setComments] = useState<Record<string, TribuneComment[]>>(
@@ -1416,6 +1426,7 @@ export function CommunityView() {
   const [composerError, setComposerError] = useState('')
   const [composerMode, setComposerMode] = useState<ComposerMode>('mesaj')
   const [composerTone, setComposerTone] = useState<ComposerTone>('verde')
+  const [composerAppearanceOpen, setComposerAppearanceOpen] = useState(false)
   const [bookmarks, setBookmarks] = useState<Record<string, boolean>>(
     () => readStoredRecord('cetatea-tribune-bookmarks', {}),
   )
@@ -1426,6 +1437,7 @@ export function CommunityView() {
   const [copiedPostId, setCopiedPostId] = useState<string | null>(null)
   const [lastHiddenPostId, setLastHiddenPostId] = useState<string | null>(null)
   const [reactionBurst, setReactionBurst] = useState<{ postId: string; reaction: TribuneReaction } | null>(null)
+  const [reactionPickerPostId, setReactionPickerPostId] = useState<string | null>(null)
   const [activeArenaGame, setActiveArenaGame] = useState<TribuneArenaGame>('penalty')
   const [arenaPoints, setArenaPoints] = useState(
     () => readStoredRecord('cetatea-arena-puncte', 640),
@@ -1450,6 +1462,15 @@ export function CommunityView() {
   const [pollVotes, setPollVotes] = useState<Record<string, number>>(
     () => readStoredRecord('cetatea-tribune-poll-votes', {}),
   )
+  const reactionHoldTimerRef = useRef<number | null>(null)
+  const reactionHoldOpenedRef = useRef(false)
+  const feedViewportRef = useRef<HTMLDivElement>(null)
+  const composerDockRef = useRef<HTMLElement>(null)
+  const [composerViewport, setComposerViewport] = useState({
+    height: window.innerHeight,
+    keyboardOpen: false,
+    offsetTop: 0,
+  })
 
   const visiblePosts = useMemo(() => {
     const filtered = posts.filter((post) => {
@@ -1476,9 +1497,47 @@ export function CommunityView() {
     ))
   }, [bookmarks, comments, feedSort, filter, hiddenPosts, posts, reactions])
 
+  const updateFloatingComposerVisibility = useCallback((viewport = feedViewportRef.current) => {
+    const composerDock = composerDockRef.current
+    if (!viewport || !composerDock) {
+      setShowFloatingComposer(false)
+      return
+    }
+
+    const viewportBounds = viewport.getBoundingClientRect()
+    const composerBounds = composerDock.getBoundingClientRect()
+    const feedCanScroll = viewport.scrollHeight > viewport.clientHeight + 1
+    const composerDistanceFromTop = composerBounds.bottom - viewportBounds.top
+
+    setShowFloatingComposer((current) => {
+      if (!feedCanScroll) return false
+      if (composerDistanceFromTop <= -6) return true
+      if (composerDistanceFromTop >= 6) return false
+      return current
+    })
+  }, [])
+
+  useLayoutEffect(() => {
+    const viewport = feedViewportRef.current
+    const composerDock = composerDockRef.current
+    if (!viewport || !composerDock) return
+
+    const updateVisibility = () => updateFloatingComposerVisibility(viewport)
+    const resizeObserver = new ResizeObserver(updateVisibility)
+    resizeObserver.observe(viewport)
+    resizeObserver.observe(composerDock.parentElement ?? composerDock)
+    updateVisibility()
+
+    return () => resizeObserver.disconnect()
+  }, [updateFloatingComposerVisibility, visiblePosts])
+
   const activePost = posts.find((post) => post.id === activePostId)
   const activePostComments = activePost ? comments[activePost.id] ?? [] : []
   const activePostReaction = activePost ? reactions[activePost.id] : undefined
+  const composerValidPollOptions = composerPollOptions.filter((option) => option.trim()).length
+  const composerCanPublish = composerMode === 'sondaj'
+    ? Boolean(composerText.trim()) && composerValidPollOptions >= 2
+    : Boolean(composerText.trim() || composerImages.length)
   const commentInputRef = useRef<HTMLInputElement>(null)
   const totalContributions = posts.reduce((total, post) => (
     total + post.reactionBase + post.commentBase + (comments[post.id]?.length ?? 0)
@@ -1539,6 +1598,33 @@ export function CommunityView() {
     else localStorage.removeItem('cetatea-tribune-draft')
   }, [composerText])
 
+  useLayoutEffect(() => {
+    if (!composerOpen) return
+
+    const viewport = window.visualViewport
+    const initialHeight = viewport?.height ?? window.innerHeight
+    const updateComposerViewport = () => {
+      const height = viewport?.height ?? window.innerHeight
+      const offsetTop = viewport?.offsetTop ?? 0
+      setComposerViewport({
+        height,
+        keyboardOpen: initialHeight - height > 96,
+        offsetTop,
+      })
+    }
+
+    updateComposerViewport()
+    viewport?.addEventListener('resize', updateComposerViewport)
+    viewport?.addEventListener('scroll', updateComposerViewport)
+    window.addEventListener('resize', updateComposerViewport)
+
+    return () => {
+      viewport?.removeEventListener('resize', updateComposerViewport)
+      viewport?.removeEventListener('scroll', updateComposerViewport)
+      window.removeEventListener('resize', updateComposerViewport)
+    }
+  }, [composerOpen])
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
@@ -1555,9 +1641,14 @@ export function CommunityView() {
   useEffect(() => {
     const closePostMenu = (event: PointerEvent) => {
       if (!(event.target as HTMLElement).closest('[data-tribune-menu]')) setPostMenuId(null)
+      if (!(event.target as HTMLElement).closest('[data-reaction-control]')) setReactionPickerPostId(null)
     }
     document.addEventListener('pointerdown', closePostMenu)
     return () => document.removeEventListener('pointerdown', closePostMenu)
+  }, [])
+
+  useEffect(() => () => {
+    if (reactionHoldTimerRef.current !== null) window.clearTimeout(reactionHoldTimerRef.current)
   }, [])
 
   useEffect(() => {
@@ -1593,6 +1684,7 @@ export function CommunityView() {
   const openComposer = () => {
     setActivePostId(null)
     setMobileTribuneSection('flux')
+    setComposerAppearanceOpen(false)
     setComposerOpen(true)
     play('toggle')
   }
@@ -1624,8 +1716,12 @@ export function CommunityView() {
   const publishPost = (event: FormEvent) => {
     event.preventDefault()
     const text = composerText.trim()
-    if (!text) return
     const pollOptions = composerPollOptions.map((option) => option.trim()).filter(Boolean)
+    if (!text && !composerImages.length) return
+    if (composerMode === 'sondaj' && !text) {
+      setComposerError('Scrie întrebarea sondajului înainte de publicare.')
+      return
+    }
     if (composerMode === 'sondaj' && pollOptions.length < 2) {
       setComposerError('Adaugă cel puțin două variante de răspuns.')
       return
@@ -1656,11 +1752,12 @@ export function CommunityView() {
     setComposerError('')
     setComposerMode('mesaj')
     setComposerTone('verde')
+    setComposerAppearanceOpen(false)
     localStorage.removeItem('cetatea-tribune-draft')
     setComposerOpen(false)
     setFilter('Toate')
     setFeedSort('Recente')
-    setFeedScrolled(false)
+    setShowFloatingComposer(false)
     play('success')
   }
 
@@ -1679,6 +1776,36 @@ export function CommunityView() {
       return { ...current, [postId]: reaction }
     })
     play('toggle')
+  }
+
+  const selectReaction = (postId: string, reaction: TribuneReaction) => {
+    toggleReaction(postId, reaction)
+    setReactionPickerPostId(null)
+  }
+
+  const startReactionHold = (event: ReactPointerEvent<HTMLButtonElement>, postId: string) => {
+    if (event.pointerType === 'mouse') return
+    if (reactionHoldTimerRef.current !== null) window.clearTimeout(reactionHoldTimerRef.current)
+    reactionHoldOpenedRef.current = false
+    reactionHoldTimerRef.current = window.setTimeout(() => {
+      reactionHoldOpenedRef.current = true
+      setReactionPickerPostId(postId)
+      play('toggle')
+    }, 420)
+  }
+
+  const finishReactionHold = () => {
+    if (reactionHoldTimerRef.current !== null) window.clearTimeout(reactionHoldTimerRef.current)
+    reactionHoldTimerRef.current = null
+  }
+
+  const activatePrimaryReaction = (postId: string, reaction?: TribuneReaction) => {
+    finishReactionHold()
+    if (reactionHoldOpenedRef.current) {
+      reactionHoldOpenedRef.current = false
+      return
+    }
+    selectReaction(postId, reaction ?? 'forta')
   }
 
   const toggleBookmark = (postId: string) => {
@@ -1714,14 +1841,14 @@ export function CommunityView() {
 
   const openPost = (postId: string) => {
     setComposerOpen(false)
+    setReactionPickerPostId(null)
     setActivePostId(postId)
-    setMobileTribuneSection('arena')
+    setMobileTribuneSection('discutie')
     play('toggle')
   }
 
   const handleFeedScroll = (event: UIEvent<HTMLDivElement>) => {
-    const scrolled = event.currentTarget.scrollTop > 26
-    setFeedScrolled((current) => current === scrolled ? current : scrolled)
+    updateFloatingComposerVisibility(event.currentTarget)
   }
 
   const openMediaViewer = (images: string[], index: number, author: string) => {
@@ -1872,7 +1999,7 @@ export function CommunityView() {
       exit={{ opacity: 0, x: 18 }}
     >
       <header className={styles.tribuneThreadTopbar}>
-        <button type="button" onClick={() => { setActivePostId(null); setMobileTribuneSection('arena') }} aria-label="Înapoi la Arena Tribunei"><ArrowLeft /></button>
+        <button type="button" onClick={() => { setActivePostId(null); setMobileTribuneSection('flux') }} aria-label="Înapoi la fluxul Tribunei"><ArrowLeft /></button>
         <span>
           <strong>Conversație</strong>
           <small>{activePostCommentCount === 1 ? 'Un răspuns' : `${activePostCommentCount} răspunsuri`} de la suporteri</small>
@@ -1894,7 +2021,7 @@ export function CommunityView() {
           {activePost.label && <em>{activePost.label}</em>}
         </header>
         <div className={styles.tribuneThreadSourceBody}>
-          <p>{activePost.text}</p>
+          {activePost.text && <p>{activePost.text}</p>}
           {activePostImages.length > 0 && (
             <button type="button" onClick={() => openMediaViewer(activePostImages, 0, activePost.author)} aria-label="Deschide fotografiile postării">
               <img src={activePostImages[0]} alt="" />
@@ -1919,7 +2046,13 @@ export function CommunityView() {
         <span><strong>Ce spun suporterii</strong><small>Toate vocile au același loc aici.</small></span>
         <button type="button"><Sparkles /> Relevante</button>
       </div>
-      <AppScrollArea className={styles.tribuneCommentsScroll} contentClassName={styles.tribuneComments} label="Comentariile postării">
+      <AppScrollArea
+        className={styles.tribuneCommentsScroll}
+        contentClassName={styles.tribuneComments}
+        horizontalScroll={false}
+        label="Comentariile postării"
+        scrollToEndKey={`${activePost.id}:${activePostComments.length}`}
+      >
         {activePostComments.map((comment) => (
           <article key={comment.id} className={comment.author === 'Tu' ? styles.tribuneOwnComment : ''}>
             <span>{comment.author === 'Tu' ? 'SC' : comment.author.slice(0, 2).toUpperCase()}<i /></span>
@@ -1937,10 +2070,10 @@ export function CommunityView() {
           <div className={styles.tribuneNoComments}><span><MessageCircle /><i /></span><strong>Fii prima voce.</strong><small>Spune ce ai văzut, ce ai simțit sau ce ai schimba.</small><button type="button" onClick={() => commentInputRef.current?.focus()}>Scrie primul comentariu</button></div>
         )}
       </AppScrollArea>
-      <form className={styles.tribuneReplyComposer} onSubmit={submitComment}>
+      <form className={styles.tribuneReplyComposer} autoComplete="off" onSubmit={submitComment}>
         <span className={styles.tribuneReplyAvatar}>SC</span>
         <div className={styles.tribuneReplyField}>
-          <input ref={commentInputRef} value={commentDraft} onChange={(event) => setCommentDraft(event.target.value)} placeholder="Scrie un comentariu…" maxLength={240} />
+          <input {...nonSensitiveTextFieldProps} ref={commentInputRef} type="text" name="comentariu_tribuna" enterKeyHint="send" aria-label="Comentariu în Tribună" value={commentDraft} onChange={(event) => setCommentDraft(event.target.value)} placeholder="Scrie un comentariu…" maxLength={240} />
           <span><small>{commentDraft.length}/240</small><em>Enter pentru a publica</em></span>
         </div>
         <button type="submit" disabled={!commentDraft.trim()} aria-label="Trimite comentariul"><Send /></button>
@@ -1969,10 +2102,10 @@ export function CommunityView() {
         </button>
         <button
           type="button"
-          className={mobileTribuneSection === 'arena' ? styles.tribuneMobileSectionActive : ''}
-          aria-pressed={mobileTribuneSection === 'arena'}
+          className={mobileTribuneSection !== 'flux' ? styles.tribuneMobileSectionActive : ''}
+          aria-pressed={mobileTribuneSection !== 'flux'}
           onClick={() => {
-            setMobileTribuneSection('arena')
+            setMobileTribuneSection(activePost ? 'discutie' : 'arena')
             setComposerOpen(false)
             play('toggle')
           }}
@@ -1996,32 +2129,6 @@ export function CommunityView() {
             </div>
           </header>
 
-          <AnimatePresence initial={false}>
-            {!feedScrolled && (
-          <motion.section
-            className={styles.tribuneComposerDock}
-            aria-label="Creează o postare"
-            initial={{ opacity: 0, height: 0, y: -8 }}
-            animate={{ opacity: 1, height: 'auto', y: 0 }}
-            exit={{ opacity: 0, height: 0, y: -8 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-          >
-              <div className={styles.tribuneComposerDockMain}>
-                <span className={styles.tribuneAvatar}>SC<i /></span>
-                <button className={styles.tribuneComposerEntry} type="button" onClick={() => openComposerFor('mesaj')}>
-                  <span>{composerText.trim() ? 'Ai o ciornă salvată' : 'Spune ceva Tribunei…'}</span>
-                  <small>{composerText.trim() ? 'Continuă de unde ai rămas' : 'Toți suporterii o vor vedea'}</small>
-                </button>
-              </div>
-              <footer className={styles.tribuneComposerShortcuts}>
-                <button type="button" onClick={() => openComposerFor('fotografie')}><ImagePlus aria-hidden="true" /><span>Fotografii</span></button>
-                <button type="button" onClick={() => openComposerFor('sondaj')}><BarChart3 aria-hidden="true" /><span>Sondaj</span></button>
-                <button type="button" onClick={() => { setAttachMatch(true); openComposerFor('mesaj') }}><CalendarDays aria-hidden="true" /><span>Despre meci</span></button>
-              </footer>
-          </motion.section>
-            )}
-          </AnimatePresence>
-
           <div className={styles.tribuneFeedToolbar}>
             <div className={styles.tribuneSorts} role="group" aria-label="Ordonează mesajele">
               {tribuneSorts.map((item) => (
@@ -2032,7 +2139,7 @@ export function CommunityView() {
                   onClick={() => {
                     if (feedSort !== item) {
                       setFeedSort(item)
-                      setFeedScrolled(false)
+                      setShowFloatingComposer(false)
                     }
                     play('toggle')
                   }}
@@ -2070,7 +2177,7 @@ export function CommunityView() {
                       onClick={() => {
                         if (filter !== item) {
                           setFilter(item)
-                          setFeedScrolled(false)
+                          setShowFloatingComposer(false)
                         }
                         play('toggle')
                       }}
@@ -2085,7 +2192,7 @@ export function CommunityView() {
           </AnimatePresence>
 
           <AnimatePresence>
-            {feedScrolled && (
+            {showFloatingComposer && (
               <motion.button
                 type="button"
                 className={styles.tribuneFloatingComposer}
@@ -2111,7 +2218,23 @@ export function CommunityView() {
             horizontalScroll={false}
             label="Fluxul comunității"
             onScroll={handleFeedScroll}
+            viewportRef={feedViewportRef}
           >
+            <section ref={composerDockRef} className={styles.tribuneComposerDock} aria-label="Creează o postare">
+              <div className={styles.tribuneComposerDockMain}>
+                <span className={styles.tribuneAvatar}>SC<i /></span>
+                <button className={styles.tribuneComposerEntry} type="button" onClick={() => openComposerFor('mesaj')}>
+                  <span>{composerText.trim() ? 'Ai o ciornă salvată' : 'Spune ceva Tribunei…'}</span>
+                  <small>{composerText.trim() ? 'Continuă de unde ai rămas' : 'Toți suporterii o vor vedea'}</small>
+                </button>
+              </div>
+              <footer className={styles.tribuneComposerShortcuts}>
+                <button type="button" onClick={() => openComposerFor('fotografie')}><ImagePlus aria-hidden="true" /><span>Fotografii</span></button>
+                <button type="button" onClick={() => openComposerFor('sondaj')}><BarChart3 aria-hidden="true" /><span>Sondaj</span></button>
+                <button type="button" onClick={() => { setAttachMatch(true); openComposerFor('mesaj') }}><CalendarDays aria-hidden="true" /><span>Despre meci</span></button>
+              </footer>
+            </section>
+
             <AnimatePresence initial={false}>
               {visiblePosts.map((post, index) => {
                 const postComments = comments[post.id] ?? []
@@ -2169,7 +2292,7 @@ export function CommunityView() {
                       </div>
                     </header>
                     <div className={`${styles.tribunePostBody} ${postImages.length ? styles.tribunePostBodyWithMedia : ''}`}>
-                      <p>{post.text}</p>
+                      {post.text && <p>{post.text}</p>}
                       {postImages.length > 0 && (
                         <div className={styles.tribunePostMedia}>
                           <button type="button" onClick={() => openMediaViewer(postImages, 0, post.author)} aria-label={`Deschide fotografiile publicate de ${post.author}`}>
@@ -2215,15 +2338,46 @@ export function CommunityView() {
                       <button type="button" onClick={() => openPost(post.id)}>{totalCommentCount} {totalCommentCount === 1 ? 'comentariu' : 'comentarii'}</button>
                     </div>
                     <footer>
-                      <div className={styles.tribuneReactionControl}>
-                        <button type="button" className={reaction ? styles.tribuneReactionActive : ''} onClick={() => toggleReaction(post.id, reaction ?? 'forta')}>
-                          <Zap aria-hidden="true" fill={reaction === 'forta' ? 'currentColor' : 'none'} />
-                          <span>{reaction === 'inima' ? 'Respect' : reaction === 'foc' ? 'Superb' : reaction === 'forta' ? 'Forța!' : 'Reacționează'}</span>
+                      <div className={styles.tribuneReactionControl} data-reaction-control>
+                        <button
+                          type="button"
+                          className={`${styles.tribuneReactionButton} ${reaction ? styles.tribuneReactionActive : ''} ${reaction === 'inima' ? styles.tribuneReacted : reaction === 'foc' ? styles.tribuneReactedFire : reaction === 'forta' ? styles.tribuneReactedForce : ''}`}
+                          aria-pressed={Boolean(reaction)}
+                          onPointerDown={(event) => startReactionHold(event, post.id)}
+                          onPointerUp={finishReactionHold}
+                          onPointerCancel={finishReactionHold}
+                          onPointerLeave={finishReactionHold}
+                          onClick={() => activatePrimaryReaction(post.id, reaction)}
+                        >
+                          {reaction === 'inima'
+                            ? <Heart aria-hidden="true" fill="currentColor" />
+                            : reaction === 'foc'
+                              ? <Flame aria-hidden="true" fill="currentColor" />
+                              : <Zap aria-hidden="true" fill={reaction === 'forta' ? 'currentColor' : 'none'} />}
+                          <span>{reaction === 'inima' ? 'Respect' : reaction === 'foc' ? 'Superb' : reaction === 'forta' ? 'Forța!' : 'Reacție'}</span>
                         </button>
-                        <div className={styles.tribuneReactionPicker} role="group" aria-label={`Alege reacția pentru postarea lui ${post.author}`}>
-                          <button type="button" className={reaction === 'forta' ? styles.tribuneReactedForce : ''} onClick={() => toggleReaction(post.id, 'forta')}><Zap aria-hidden="true" /> Forța!</button>
-                          <button type="button" className={reaction === 'inima' ? styles.tribuneReacted : ''} onClick={() => toggleReaction(post.id, 'inima')}><Heart aria-hidden="true" /> Respect</button>
-                          <button type="button" className={reaction === 'foc' ? styles.tribuneReactedFire : ''} onClick={() => toggleReaction(post.id, 'foc')}><Flame aria-hidden="true" /> Superb</button>
+                        <button
+                          type="button"
+                          className={styles.tribuneReactionMenuToggle}
+                          aria-label="Arată toate reacțiile"
+                          aria-expanded={reactionPickerPostId === post.id}
+                          aria-controls={`reactii-${post.id}`}
+                          onClick={() => {
+                            setReactionPickerPostId((current) => current === post.id ? null : post.id)
+                            play('toggle')
+                          }}
+                        >
+                          <ChevronDown aria-hidden="true" />
+                        </button>
+                        <div
+                          id={`reactii-${post.id}`}
+                          className={`${styles.tribuneReactionPicker} ${reactionPickerPostId === post.id ? styles.tribuneReactionPickerOpen : ''}`}
+                          role="group"
+                          aria-label={`Alege reacția pentru postarea lui ${post.author}`}
+                        >
+                          <button type="button" className={reaction === 'forta' ? styles.tribuneReactedForce : ''} onClick={() => selectReaction(post.id, 'forta')}><Zap aria-hidden="true" fill={reaction === 'forta' ? 'currentColor' : 'none'} /> Forța!</button>
+                          <button type="button" className={reaction === 'inima' ? styles.tribuneReacted : ''} onClick={() => selectReaction(post.id, 'inima')}><Heart aria-hidden="true" fill={reaction === 'inima' ? 'currentColor' : 'none'} /> Respect</button>
+                          <button type="button" className={reaction === 'foc' ? styles.tribuneReactedFire : ''} onClick={() => selectReaction(post.id, 'foc')}><Flame aria-hidden="true" fill={reaction === 'foc' ? 'currentColor' : 'none'} /> Superb</button>
                         </div>
                       </div>
                       <button
@@ -2281,7 +2435,7 @@ export function CommunityView() {
           </AnimatePresence>
         </motion.section>
 
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="sync" initial={false}>
           {discussionPanel ?? (
         <motion.div key="arena-tribunei" className={styles.tribuneArenaShell} variants={reveal} initial="hidden" animate="visible" exit={{ opacity: 0, x: 20 }} custom={0.13}>
           <AppScrollArea className={styles.tribuneArenaScroll} contentClassName={styles.tribuneActiveRail} label="Arena Tribunei">
@@ -2519,14 +2673,19 @@ export function CommunityView() {
         </AnimatePresence>
       </div>
 
-      <AnimatePresence>
+      {createPortal(
+        <AnimatePresence>
         {composerOpen && (
           <motion.div
-            className={styles.tribuneOverlay}
+            className={`${styles.tribuneOverlay} ${styles.tribuneComposerOverlay} ${composerViewport.keyboardOpen ? styles.tribuneComposerKeyboardOpen : ''}`}
+            style={{
+              '--composer-viewport-height': `${composerViewport.height}px`,
+              '--composer-viewport-top': `${composerViewport.offsetTop}px`,
+            } as CSSProperties}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onMouseDown={(event) => { if (event.target === event.currentTarget) setComposerOpen(false) }}
+            onPointerDown={(event) => { if (event.target === event.currentTarget) setComposerOpen(false) }}
           >
             <motion.div
               className={styles.tribuneComposer}
@@ -2537,8 +2696,8 @@ export function CommunityView() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 18, scale: 0.98 }}
             >
-              <form className={styles.tribuneComposerForm} onSubmit={publishPost}>
-                <AppScrollArea className={styles.tribuneComposerScroll} contentClassName={styles.tribuneComposerBody} label="Editorul postării">
+              <form className={styles.tribuneComposerForm} autoComplete="off" onSubmit={publishPost}>
+                <div className={styles.tribuneComposerBody}>
                   <header className={styles.tribuneDialogHeader}>
                     <span className={styles.tribuneComposerTitle}><PencilLine /><strong>Creează o postare</strong><small>Tribuna suporterilor</small></span>
                     <button type="button" onClick={() => setComposerOpen(false)} aria-label="Închide"><X /></button>
@@ -2548,29 +2707,17 @@ export function CommunityView() {
                     <span>SC<i /></span>
                     <div>
                       <strong>Suporter Cetatea</strong>
-                      <button type="button"><UsersRound /> Toți suporterii</button>
+                      <span className={styles.tribuneComposerAudience}><UsersRound /> Toți suporterii</span>
                     </div>
                     <small>{composerText.trim() ? 'Ciornă salvată automat' : 'Postare nouă'}</small>
                   </div>
 
-                  <nav className={styles.tribuneComposerModes} aria-label="Tipul postării">
-                    {composerModes.map((mode) => {
-                      const ModeIcon = mode.icon
-                      return (
-                        <button
-                          type="button"
-                          key={mode.id}
-                          className={composerMode === mode.id ? styles.tribuneComposerModeActive : ''}
-                          onClick={() => { setComposerMode(mode.id); setComposerError(''); play('toggle') }}
-                        >
-                          <ModeIcon /> <span>{mode.label}</span>
-                        </button>
-                      )
-                    })}
-                  </nav>
-
                   <div className={styles.tribuneComposerField}>
                     <textarea
+                      {...nonSensitiveTextFieldProps}
+                      name="continut_postare_tribuna"
+                      enterKeyHint="enter"
+                      aria-label="Conținutul postării"
                       value={composerText}
                       maxLength={1000}
                       onChange={(event) => setComposerText(event.target.value)}
@@ -2611,6 +2758,11 @@ export function CommunityView() {
                         <div key={index}>
                           <span>{index + 1}</span>
                           <input
+                            {...nonSensitiveTextFieldProps}
+                            type="text"
+                            name={`varianta_sondaj_${index + 1}`}
+                            enterKeyHint={index === composerPollOptions.length - 1 ? 'done' : 'next'}
+                            aria-label={`Varianta ${index + 1} a sondajului`}
                             value={option}
                             maxLength={80}
                             placeholder={`Varianta ${index + 1}`}
@@ -2627,48 +2779,59 @@ export function CommunityView() {
                   {composerError && <p className={styles.tribuneComposerError}>{composerError}</p>}
 
                   <input id="tribune-photo-input" className={styles.tribuneFileInput} type="file" accept="image/*" multiple onChange={handlePhoto} />
-                  <div className={styles.tribuneAddToPost}>
-                    <span><strong>Adaugă la postare</strong><small>Fă mesajul mai ușor de descoperit</small></span>
+                  <div className={styles.tribuneComposerTools}>
+                    <span><strong>Adaugă</strong><small>Opțional</small></span>
                     <div>
-                      <label htmlFor="tribune-photo-input" title="Adaugă foto sau video">
+                      <label className={composerImages.length > 0 || composerMode === 'fotografie' ? styles.tribuneComposerToolActive : ''} htmlFor="tribune-photo-input" title="Adaugă fotografii">
                         <ImagePlus aria-hidden="true" /><span>Fotografii</span>
                       </label>
-                      <button type="button" className={composerMode === 'sondaj' ? styles.tribuneComposerOptionActive : ''} onClick={() => setComposerMode((current) => current === 'sondaj' ? 'mesaj' : 'sondaj')} title="Adaugă un sondaj">
+                      <button type="button" className={composerMode === 'sondaj' ? styles.tribuneComposerToolActive : ''} onClick={() => { setComposerMode((current) => current === 'sondaj' ? 'mesaj' : 'sondaj'); setComposerAppearanceOpen(false); setComposerError(''); play('toggle') }} title="Adaugă un sondaj" aria-pressed={composerMode === 'sondaj'}>
                         <BarChart3 aria-hidden="true" /><span>Sondaj</span>
                       </button>
-                      <button type="button" className={attachMatch ? styles.tribuneComposerOptionActive : ''} onClick={() => setAttachMatch((current) => !current)} title="Leagă postarea de meci">
-                        <CalendarDays aria-hidden="true" /><span>Despre meci</span>
+                      <button type="button" className={attachMatch ? styles.tribuneComposerToolActive : ''} onClick={() => { setAttachMatch((current) => !current); setComposerAppearanceOpen(false); play('toggle') }} title="Leagă postarea de meci" aria-pressed={attachMatch}>
+                        <CalendarDays aria-hidden="true" /><span>Meci</span>
+                      </button>
+                      <button type="button" className={composerAppearanceOpen || composerTone !== 'verde' ? styles.tribuneComposerToolActive : ''} onClick={() => { setComposerAppearanceOpen((current) => !current); play('toggle') }} title="Alege aspectul postării" aria-expanded={composerAppearanceOpen}>
+                        <Sparkles aria-hidden="true" /><span>Aspect</span>
                       </button>
                     </div>
                   </div>
 
-                  <div className={styles.tribuneComposerPalette}>
-                    <span><Sparkles /><strong>Culoarea postării</strong></span>
-                    <div role="group" aria-label="Alege culoarea postării">
-                      {composerTones.map((tone) => (
-                        <button
-                          type="button"
-                          key={tone.id}
-                          className={composerTone === tone.id ? styles.tribuneComposerToneActive : ''}
-                          style={{ '--composer-tone': tone.color } as CSSProperties}
-                          onClick={() => { setComposerTone(tone.id); play('toggle') }}
-                          aria-label={tone.label}
-                          aria-pressed={composerTone === tone.id}
-                        ><i /></button>
-                      ))}
-                    </div>
-                  </div>
+                  <AnimatePresence initial={false}>
+                    {composerAppearanceOpen && (
+                      <motion.div className={styles.tribuneComposerAppearance} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                        <span><strong>Accentul cardului</strong><small>Alege energia mesajului</small></span>
+                        <div role="group" aria-label="Alege culoarea postării">
+                          {composerTones.map((tone) => (
+                            <button
+                              type="button"
+                              key={tone.id}
+                              className={composerTone === tone.id ? styles.tribuneComposerToneActive : ''}
+                              style={{ '--composer-tone': tone.color } as CSSProperties}
+                              onClick={() => { setComposerTone(tone.id); setComposerAppearanceOpen(false); play('toggle') }}
+                              aria-label={tone.label}
+                              aria-pressed={composerTone === tone.id}
+                            ><i /><span>{tone.label}</span></button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   <footer className={styles.tribuneComposerActions}>
-                    <span><i /><small>Vizibilă instant în fluxul tuturor</small></span>
-                    <button type="submit" disabled={!composerText.trim()}><Send /> Publică în Tribună</button>
+                    <span><i /><small>{composerMode === 'sondaj' && composerValidPollOptions < 2 ? 'Completează două variante' : composerText.trim() || composerImages.length ? 'Ciorna este salvată' : 'Vizibilă tuturor suporterilor'}</small></span>
+                    <button type="submit" disabled={!composerCanPublish}><Send /> Publică</button>
                   </footer>
-                </AppScrollArea>
+                </div>
               </form>
             </motion.div>
           </motion.div>
         )}
+        </AnimatePresence>,
+        document.body,
+      )}
 
+      <AnimatePresence>
         {mediaViewer && (
           <motion.div
             className={`${styles.tribuneOverlay} ${styles.tribuneMediaOverlay}`}
@@ -2958,9 +3121,9 @@ export function HeritageView() {
                 {savedMemory ? (
                   <blockquote><p>„{savedMemory}”</p><footer><span>Amintire păstrată</span><button type="button" onClick={() => { setMemoryDraft(savedMemory); setSavedMemory(''); play('toggle') }}>Editează</button></footer></blockquote>
                 ) : (
-                  <form onSubmit={saveHeritageMemory}>
+                  <form autoComplete="off" onSubmit={saveHeritageMemory}>
                     <label htmlFor="heritage-memory">Care este prima ta amintire de pe Areni?</label>
-                    <textarea id="heritage-memory" value={memoryDraft} maxLength={180} placeholder="Un meci, o voce, o persoană..." onChange={(event) => setMemoryDraft(event.target.value)} />
+                    <textarea {...nonSensitiveTextFieldProps} id="heritage-memory" name="amintire_areni" enterKeyHint="done" value={memoryDraft} maxLength={180} placeholder="Un meci, o voce, o persoană..." onChange={(event) => setMemoryDraft(event.target.value)} />
                     <footer><small>{memoryDraft.length}/180</small><button type="submit" disabled={!memoryDraft.trim()}>Păstrează în arhivă</button></footer>
                   </form>
                 )}
@@ -3235,7 +3398,7 @@ export function SquadView() {
 
                   <label className={styles.playerSearch}>
                     <Search aria-hidden="true" />
-                    <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Caută nume sau număr" />
+                    <input {...nonSensitiveTextFieldProps} type="search" name="cautare_jucator" enterKeyHint="search" autoCapitalize="words" aria-label="Caută un jucător" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Caută nume sau număr" />
                     <span>{filteredSquad.length}</span>
                   </label>
 
@@ -4269,10 +4432,15 @@ export function NewsView() {
                 ))}
               </div>
 
-              <form className={styles.commentComposer} onSubmit={submitComment}>
+              <form className={styles.commentComposer} autoComplete="off" onSubmit={submitComment}>
                 <span>CS</span>
                 <label>
                   <input
+                    {...nonSensitiveTextFieldProps}
+                    type="text"
+                    name="mesaj_articol_cetatea"
+                    enterKeyHint="send"
+                    aria-label="Mesaj pentru Cetatea"
                     value={commentDraft}
                     onChange={(event) => setCommentDraft(event.target.value)}
                     maxLength={220}

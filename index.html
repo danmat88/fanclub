@@ -2,14 +2,29 @@
 <html lang="ro">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta id="app-theme-color" name="theme-color" content="#020916" />
     <script>
       try {
         const tema = localStorage.getItem('cetatea-theme')
-        const teme = ['nocturna', 'zi-de-meci', 'asediu', 'bucovina']
-        if (tema && teme.includes(tema)) document.documentElement.dataset.theme = tema
+        const teme = {
+          'nocturna': '#020916',
+          'zi-de-meci': '#e9f1f8',
+          'asediu': '#11070a',
+          'bucovina': '#04110f',
+          'regal': '#08061a',
+          'peluza': '#060907',
+          'apus-areni': '#120719',
+          'gheata-albastra': '#eaf4f9',
+        }
+        const temaActiva = tema && Object.prototype.hasOwnProperty.call(teme, tema) ? tema : 'nocturna'
+        const culoareBrowser = teme[temaActiva]
+        document.documentElement.dataset.theme = temaActiva
+        document.documentElement.style.backgroundColor = culoareBrowser
+        document.getElementById('app-theme-color').setAttribute('content', culoareBrowser)
       } catch {
         document.documentElement.dataset.theme = 'nocturna'
+        document.documentElement.style.backgroundColor = '#020916'
       }
 
       try {
@@ -18,7 +33,9 @@
           ? modSalvat
           : 'automat'
         const conexiune = navigator.connection
+        const ecranMobil = window.matchMedia('(max-width: 900px)').matches
         const economieAutomata =
+          ecranMobil ||
           window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
           Boolean(conexiune && conexiune.saveData) ||
           (typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4) ||
@@ -26,13 +43,12 @@
 
         document.documentElement.dataset.performanceMode = mod
         document.documentElement.dataset.performance =
-          mod === 'automat' ? (economieAutomata ? 'economie' : 'complet') : mod
+          ecranMobil ? 'economie' : mod === 'automat' ? (economieAutomata ? 'economie' : 'complet') : mod
       } catch {
         document.documentElement.dataset.performanceMode = 'automat'
         document.documentElement.dataset.performance = 'economie'
       }
     </script>
-    <meta name="theme-color" content="#061126" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta
       name="description"
