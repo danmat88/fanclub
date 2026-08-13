@@ -79,41 +79,56 @@
 .sceneAtmosphere {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: 6;
   overflow: hidden;
   pointer-events: none;
 }
 
-.sceneGrid,
-.sceneRings {
+.sceneWall,
+.sceneWordmark {
   position: absolute;
-  z-index: 3;
   display: block;
   pointer-events: none;
 }
 
-.sceneGrid {
+.sceneWall {
   inset: 0;
-  opacity: var(--grid-opacity);
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 54px 54px;
-  mask-image: linear-gradient(105deg, transparent 4%, #000 38%, #000 72%, transparent 100%);
-  transform: perspective(700px) rotateX(57deg) scale(1.45) translateY(23%);
-  transform-origin: bottom;
+  z-index: 4;
+  opacity: .1;
+  background-image: url("data:image/svg+xml,%3Csvg width='180' height='104' viewBox='0 0 180 104' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1'%3E%3Cpath d='M0 .5h180M0 52.5h180M0 103.5h180M45 0v52M135 0v52M0 52h90v52M90 52h90v52'/%3E%3C/g%3E%3C/svg%3E");
+  background-position: center;
+  background-size: 180px 104px;
+  -webkit-mask-image: radial-gradient(ellipse at 58% 48%, #000 0 38%, transparent 80%);
+  mask-image: radial-gradient(ellipse at 58% 48%, #000 0 38%, transparent 80%);
+  mix-blend-mode: soft-light;
 }
 
-.sceneRings {
-  right: -14vw;
-  bottom: -53vw;
-  width: 91vw;
-  aspect-ratio: 1;
-  border: 1px solid var(--ambient-line);
-  border-radius: 50%;
-  box-shadow:
-    0 0 0 11vw var(--stadium-ring),
-    0 0 0 22vw var(--stadium-ring);
+.sceneWordmark {
+  top: 50%;
+  left: 58%;
+  z-index: 5;
+  display: grid;
+  width: min(78vw, 1180px);
+  color: transparent;
+  font-family: var(--font-game);
+  font-size: clamp(4.2rem, 10.8vw, 11rem);
+  font-weight: 800;
+  letter-spacing: -.055em;
+  line-height: .72;
+  text-align: center;
+  text-transform: uppercase;
+  opacity: .11;
+  transform: translate(-50%, -50%);
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--text-primary) 72%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16%, #000 82%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 16%, #000 82%, transparent 100%);
+}
+
+.sceneWordmark span:last-child {
+  margin-left: .2em;
+  font-size: .58em;
+  letter-spacing: .18em;
+  line-height: 1.05;
 }
 
 .sceneAtmosphere::before {
@@ -125,32 +140,6 @@
   mix-blend-mode: soft-light;
 }
 
-.sceneAtmosphere i {
-  position: absolute;
-  top: -38%;
-  width: 16%;
-  height: 122%;
-  opacity: .19;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--tone-cyan) 24%, transparent), transparent 72%);
-  filter: blur(24px);
-  transform: rotate(15deg);
-  transform-origin: top;
-  animation: sceneLightBreathe 4.6s ease-in-out infinite alternate;
-}
-
-.sceneAtmosphere i:nth-child(1) { left: 9%; }
-.sceneAtmosphere i:nth-child(2) { left: 43%; animation-delay: -1.5s; }
-.sceneAtmosphere i:nth-child(3) {
-  right: 3%;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--tone-violet) 22%, transparent), transparent 72%);
-  animation-delay: -2.4s;
-}
-
-@keyframes sceneLightBreathe {
-  from { opacity: .1; transform: rotate(15deg) scaleX(.84); }
-  to { opacity: .26; transform: rotate(12deg) scaleX(1.08); }
-}
-
 .startupLogo {
   position: fixed;
   top: 0;
@@ -159,7 +148,7 @@
   object-fit: contain;
   filter: drop-shadow(0 15px 24px color-mix(in srgb, var(--page-bg) 54%, transparent));
   pointer-events: none;
-  transform-origin: top left;
+  transform-origin: center;
   will-change: transform, width, height, opacity;
 }
 
@@ -1910,7 +1899,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .persistentScene img,
-  .sceneAtmosphere i,
   .headerRouteIcon::after,
   .pulseWave i,
   .brandMark::before,
@@ -1923,7 +1911,8 @@
 
 :global(html[data-performance='economie']) .persistentScene img {
   animation: none;
-  transform: scale(1.02);
+  filter: none;
+  transform: none;
 }
 
 :global(html[data-performance='economie']) .persistentScene span {
@@ -1931,11 +1920,13 @@
   mix-blend-mode: normal;
 }
 
-:global(html[data-performance='economie']) .sceneAtmosphere i { display: none; }
-:global(html[data-performance='economie']) .sceneAtmosphere::before { opacity: .025; }
+:global(html[data-performance='economie']) .sceneAtmosphere { display: none; }
+:global(html[data-performance='economie']) .sceneWall { opacity: .055; }
+:global(html[data-performance='economie']) .sceneWordmark { opacity: .065; }
+:global(html[data-performance='economie']) .startupLogo { filter: none; }
 
 :global(html[data-performance='economie']) .ambient {
-  opacity: .58;
+  display: none;
 }
 
 :global(html[data-performance='economie']) .railMatch:hover,
@@ -2012,6 +2003,9 @@
 /* Pe telefon și tabletă shell-ul devine nativ tactil: conținut pe toată lățimea,
    header utilitar și navigație persistentă în partea de jos. */
 @media (max-width: 900px) {
+  .sceneWall { opacity: .075; background-size: 132px 76px; }
+  .sceneWordmark { left: 50%; width: 112vw; font-size: clamp(3.3rem, 16vw, 7rem); opacity: .085; }
+
   .app,
   .app.appRailCollapsed {
     --rail-width: 0px;

@@ -388,7 +388,8 @@
 
 :global(html[data-performance='economie']) .identity h1 em { filter: none; }
 
-:global(html[data-performance='economie']) .emblemGlow,
+:global(html[data-performance='economie']) .emblemGlow { display: none; }
+
 :global(html[data-performance='economie']) .emblemFrame::before,
 :global(html[data-performance='economie']) .emblemFrame::after,
 :global(html[data-performance='economie']) .topbarBrand i,

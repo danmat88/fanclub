@@ -451,3 +451,8 @@ select:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+html[data-performance='economie'] *,
+html[data-performance='economie'] *::before,
+html[data-performance='economie'] *::after {
+  backdrop-filter: none !important;
+}

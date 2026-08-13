@@ -76,6 +76,20 @@ const reveal: Variants = {
   },
 }
 
+const economyReveal: Variants = {
+  hidden: { opacity: 0, x: 72 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: .48, ease: [0.16, 1, 0.3, 1] },
+  },
+  exit: {
+    opacity: 0,
+    x: -76,
+    transition: { duration: .34, ease: [0.7, 0, 0.84, 0] },
+  },
+}
+
 const groupReveal: Variants = {
   hidden: { opacity: 0, x: 64 },
   visible: {
@@ -118,7 +132,7 @@ const footerReveal: Variants = {
 }
 
 const emblemVariants: Variants = {
-  hidden: { opacity: 0, x: -96, scale: .84, filter: 'blur(9px)' },
+  hidden: { opacity: 0, scale: .84, filter: 'blur(9px)' },
   visible: {
     opacity: 1,
     x: 0,
@@ -132,6 +146,20 @@ const emblemVariants: Variants = {
     scale: .96,
     filter: 'blur(4px)',
     transition: { duration: .5, ease: [0.7, 0, 0.84, 0] },
+  },
+}
+
+const economyEmblemVariants: Variants = {
+  hidden: { opacity: 0, scale: .84 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: .54, ease: [0.16, 1, 0.3, 1] },
+  },
+  exit: {
+    opacity: 0,
+    scale: .96,
+    transition: { duration: .36, ease: [0.7, 0, 0.84, 0] },
   },
 }
 
@@ -186,7 +214,7 @@ export function LoadingScreen({ active, exiting, onComplete }: LoadingScreenProp
   }, [active, isEconomy, onComplete])
 
   const sequence = contentVariants
-  const item = reveal
+  const item = isEconomy ? economyReveal : reveal
 
   return (
     <motion.div
@@ -209,7 +237,7 @@ export function LoadingScreen({ active, exiting, onComplete }: LoadingScreenProp
         </motion.header>
 
         <motion.main className={styles.main} variants={mainVariants}>
-          <motion.div className={styles.emblemStage} variants={emblemVariants}>
+          <motion.div className={styles.emblemStage} variants={isEconomy ? economyEmblemVariants : emblemVariants}>
             <span className={styles.emblemGlow} aria-hidden="true" />
             <span className={styles.emblemFrame} aria-hidden="true"><i /><i /><i /><i /></span>
             <span className={styles.emblemAnchor} data-startup-logo-source aria-hidden="true" />

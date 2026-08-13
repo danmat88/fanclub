@@ -5268,6 +5268,18 @@
 :global(html[data-performance='economie']) .tribuneMediaStageBackdrop { display: none; }
 :global(html[data-performance='economie']) .tribuneMediaImage { filter: brightness(.82); }
 
+:global(html[data-performance='economie']) .broadcastShellFloating::after,
+:global(html[data-performance='economie']) .broadcastRelocationShieldVisible::after,
+:global(html[data-performance='economie']) .broadcastSignal > i,
+:global(html[data-performance='economie']) .broadcastProgress > i {
+  animation: none;
+}
+
+:global(html[data-performance='economie']) .broadcastRelocationShield > svg,
+:global(html[data-performance='economie']) .broadcastCurtainContent > img {
+  filter: none;
+}
+
 .teamModes > button > span,
 .seasonModes > button > span,
 .matchCenterModes > button > span,

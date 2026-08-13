@@ -208,6 +208,16 @@ const interfaceItemReveal = {
   },
 }
 
+const interfaceItemEconomyReveal = {
+  hidden: { opacity: 0, x: -38, y: 8 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    y: 0,
+    transition: { duration: 0.48, ease: [0.16, 1, 0.3, 1] as const },
+  },
+}
+
 const pageVariants = {
   enter: (direction: number) => ({
     opacity: 0,
@@ -233,9 +243,15 @@ const pageVariants = {
 }
 
 const pageEconomyVariants = {
-  enter: { opacity: 0 },
-  center: { opacity: 1 },
-  exit: { opacity: 0 },
+  enter: (direction: number) => ({
+    opacity: 0,
+    x: direction >= 0 ? 64 : -64,
+  }),
+  center: { opacity: 1, x: 0 },
+  exit: (direction: number) => ({
+    opacity: 0,
+    x: direction >= 0 ? -52 : 52,
+  }),
 }
 
 type LogoBox = {
@@ -264,11 +280,6 @@ function readLayoutBox(element: HTMLElement): LogoBox {
   }
 }
 
-function readVisualBox(element: HTMLElement): LogoBox {
-  const box = element.getBoundingClientRect()
-  return { height: box.height, left: box.left, top: box.top, width: box.width }
-}
-
 type StartupLogoProps = {
   onFlightComplete: () => void
   phase: StartupPhase
@@ -284,7 +295,7 @@ function StartupLogo({ onFlightComplete, phase }: StartupLogoProps) {
     const targets = Array.from(document.querySelectorAll<HTMLElement>('[data-startup-logo-target]'))
     const target = targets.find((element) => element.offsetWidth > 0 && element.offsetHeight > 0)
 
-    if (phase === 'loading' && source) setSourceBox(readVisualBox(source))
+    if (phase === 'loading' && source) setSourceBox(readLayoutBox(source))
     if (target) setTargetBox(readLayoutBox(target))
   }, [phase])
 
@@ -320,7 +331,14 @@ function StartupLogo({ onFlightComplete, phase }: StartupLogoProps) {
       className={styles.startupLogo}
       src={fanEmblem}
       alt="Emblema Fan Club Cetatea Suceava"
-      initial={{ opacity: 0, scale: .82 }}
+      initial={{
+        height: sourceBox.height,
+        opacity: 0,
+        scale: .82,
+        width: sourceBox.width,
+        x: sourceBox.left,
+        y: sourceBox.top,
+      }}
       animate={{
         height: destination.height,
         opacity: remainsVisible ? 1 : 0,
@@ -392,7 +410,7 @@ function AppShell({ logoLanded, startupPhase }: AppShellProps) {
     performanceModeOrder[
       (performanceModeOrder.indexOf(performanceMode) + 1) % performanceModeOrder.length
     ]
-  const interfaceReveal = interfaceItemReveal
+  const interfaceReveal = isEconomy ? interfaceItemEconomyReveal : interfaceItemReveal
 
   useEffect(() => {
     const syncFullscreen = () => setIsFullscreen(Boolean(document.fullscreenElement))
@@ -775,7 +793,7 @@ function AppShell({ logoLanded, startupPhase }: AppShellProps) {
               exit="exit"
               transition={
                 isEconomy
-                  ? { duration: 0.2, ease: 'easeOut' }
+                  ? { duration: 0.42, ease: [0.16, 1, 0.3, 1] }
                   : { duration: 0.56, ease: [0.76, 0, 0.24, 1] }
               }
             >
@@ -802,7 +820,7 @@ function AppShell({ logoLanded, startupPhase }: AppShellProps) {
 
         <motion.div
           className={styles.viewportIndex}
-          variants={interfaceItemReveal}
+          variants={interfaceReveal}
           initial={false}
           animate={contentVisible ? 'visible' : 'hidden'}
         >
@@ -947,9 +965,9 @@ export default function App() {
           onError={() => setIsSceneReady(true)}
         />
         <span />
-        <b className={styles.sceneGrid} />
-        <b className={styles.sceneRings} />
-        <div className={styles.sceneAtmosphere}><i /><i /><i /></div>
+        <b className={styles.sceneWall} />
+        <b className={styles.sceneWordmark}><span>Cetatea</span><span>Suceava</span></b>
+        <div className={styles.sceneAtmosphere} />
       </div>
 
       <AppShell logoLanded={logoLanded} startupPhase={startupPhase} />
