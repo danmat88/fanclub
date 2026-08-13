@@ -2601,7 +2601,7 @@ export function CommunityView() {
       [activePostId]: [...(current[activePostId] ?? []), newComment],
     }))
     setCommentDraft('')
-    window.requestAnimationFrame(() => commentInputRef.current?.focus())
+    commentInputRef.current?.blur()
     play('success')
   }
 
@@ -2660,7 +2660,7 @@ export function CommunityView() {
   const discussionPanel = activePost ? (
     <motion.aside
       key={`discutie-${activePost.id}`}
-      className={`${styles.tribuneThread} ${styles.tribuneThreadRail} ${commentComposerActive ? styles.tribuneThreadWriting : ''}`}
+      className={`${styles.tribuneThread} ${styles.tribuneThreadRail} ${activePost.formation ? styles.tribuneThreadFormation : ''} ${commentComposerActive ? styles.tribuneThreadWriting : ''}`}
       aria-label={`Discuție: ${activePost.author}`}
       initial={{ opacity: 0, x: 24 }}
       animate={{ opacity: 1, x: 0 }}

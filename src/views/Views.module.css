@@ -1694,7 +1694,30 @@
 .tribuneReplyComposer > button:disabled { box-shadow: none; opacity: .3; cursor: not-allowed; }
 .tribuneReplyComposer > button svg { width: 16px; }
 
+/* O postare tactică pornește compactă: formula rămâne recognoscibilă, conversația primește spațiul principal. */
+.tribuneThreadFormation { grid-template-rows: auto auto auto minmax(132px, 1fr) auto; }
+.tribuneThreadFormation .tribuneThreadSource { gap: 5px; padding-top: 8px; }
+.tribuneThreadFormation .tribuneThreadSourceBody > p { line-height: 1.3; -webkit-line-clamp: 1; }
+.tribuneThreadFormation .tribuneFormationCard[data-variant='thread'] { margin-top: 1px; }
+.tribuneThreadFormation .tribuneFormationCard[data-variant='thread'] > header { display: none; }
+.tribuneThreadFormation .tribuneFormationThreadSummary { grid-template-columns: 86px minmax(0, 1fr) auto; min-height: 60px; padding-block: 5px; }
+.tribuneThreadFormation .tribuneFormationMiniPitch { width: 86px; height: 52px; }
+.tribuneThreadFormation .tribuneThreadStats { min-height: 17px; }
+.tribuneThreadFormation .tribuneThreadHeading { padding-block: 8px 5px; }
+
 @media (max-width: 900px) {
+  .tribuneThreadFormation { grid-template-rows: auto auto auto minmax(150px, 1fr) auto; }
+  .tribuneThreadFormation .tribuneThreadTopbar { min-height: 52px; padding-block: 6px; }
+  .tribuneThreadFormation .tribuneThreadSource { padding: 7px 12px 0; }
+  .tribuneThreadFormation .tribuneThreadSource > header { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 7px; }
+  .tribuneThreadFormation .tribuneThreadSource > header > .tribunePostAvatar { width: 31px; height: 31px; }
+  .tribuneThreadFormation .tribuneFormationThreadSummary { grid-template-columns: 78px minmax(0, 1fr) 35px; min-height: 55px; gap: 7px; padding: 4px 6px; }
+  .tribuneThreadFormation .tribuneFormationMiniPitch { width: 78px; height: 47px; }
+  .tribuneThreadFormation .tribuneThreadActions { padding-block: 2px !important; }
+  .tribuneThreadFormation .tribuneThreadActions > button,
+  .tribuneThreadFormation .tribuneThreadReactionChoices button { min-height: 31px; }
+  .tribuneThreadFormation .tribuneThreadHeading > span small { display: none; }
+
   .tribuneThreadWriting { grid-template-rows: auto auto 0 minmax(72px, 1fr) auto; }
   .tribuneThreadWriting .tribuneThreadTopbar { min-height: 48px; padding-block: 5px; }
   .tribuneThreadWriting .tribuneThreadSource { gap: 0; padding: 3px 12px 4px; }
