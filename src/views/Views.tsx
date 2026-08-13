@@ -46,6 +46,7 @@ import {
   Play,
   Plus,
   RotateCcw,
+  Save,
   Search,
   Send,
   Share2,
@@ -88,7 +89,7 @@ import { createPortal } from 'react-dom'
 import fanEmblem from '../assets/brand/cetatea-fan-emblem.webp'
 import arenaBackground from '../assets/brand/loading-cetatea-arena.webp'
 import { AppScrollArea } from '../components/AppScrollArea'
-import { panelBackdropVariants, panelFromRightVariants, panelLayerVariants } from '../components/panelMotion'
+import { panelBackdropVariants, panelFromBottomVariants, panelFromRightVariants, panelLayerVariants } from '../components/panelMotion'
 import { useSound } from '../contexts/useSound'
 import { club, latestResult, nextMatch, squad, standings, technicalStaff, upcomingFixtures, type FormResult, type Player, type PlayerPosition } from '../data/clubData'
 import { useMatchCountdown } from '../hooks/useMatchCountdown'
@@ -1215,6 +1216,7 @@ type TribuneFormation = {
   system: SupporterFormationId
   captainId: string
   assignments: Array<{ slotId: string; playerId: string }>
+  matchKey?: string
 }
 type TribuneMotmCandidate = {
   playerId: string
@@ -1257,10 +1259,18 @@ const tribuneFilters: TribuneFilter[] = ['Toate', 'Imagini', 'Sondaje', 'Meci']
 const tribuneSorts: TribuneSort[] = ['Recente', 'În discuție', 'Apreciate', 'Salvate']
 const TRIBUNE_INITIAL_POSTS = 3
 const TRIBUNE_POST_BATCH = 3
-const TRIBUNE_POST_MENU_ESTIMATED_HEIGHT = 168
+const TRIBUNE_POST_MENU_ESTIMATED_HEIGHT = 218
 const TRIBUNE_REACTION_PICKER_ESTIMATED_HEIGHT = 42
 const TRIBUNE_MOTM_STORAGE_KEY = 'cetatea-tribuna-motm-2026-08-08'
 const TRIBUNE_FORMATION_STORAGE_KEY = 'cetatea-primul-11-suporter'
+const TRIBUNE_FORMATION_MATCH_KEY = nextMatch.kickoff
+const TRIBUNE_FORMATION_POST_ID = `primul-11-${nextMatch.kickoff.slice(0, 10)}`
+
+const isCurrentUserFormationPost = (post: TribunePost) => Boolean(
+  post.userCreated
+  && post.formation
+  && (!post.formation.matchKey || post.formation.matchKey === TRIBUNE_FORMATION_MATCH_KEY),
+)
 
 const supporterFormations: SupporterFormation[] = [
   {
@@ -1459,7 +1469,15 @@ const initialTribuneComments: Record<string, TribuneComment[]> = {
 function readStoredPosts() {
   try {
     const stored = JSON.parse(localStorage.getItem('cetatea-tribune-posts') ?? '[]')
-    return Array.isArray(stored) ? stored as TribunePost[] : []
+    if (!Array.isArray(stored)) return []
+
+    let foundCurrentFormation = false
+    return (stored as TribunePost[]).filter((post) => {
+      if (!isCurrentUserFormationPost(post)) return true
+      if (foundCurrentFormation) return false
+      foundCurrentFormation = true
+      return true
+    })
   } catch {
     return []
   }
@@ -1506,10 +1524,39 @@ function readStoredFormationDrafts(): FormationDrafts {
   return defaults
 }
 
-function TribuneFormationCard({ formation, variant = 'feed' }: { formation: TribuneFormation; variant?: 'feed' | 'thread' | 'preview' }) {
+function TribuneFormationCard({ formation, variant = 'feed', onExpand }: { formation: TribuneFormation; variant?: 'feed' | 'thread' | 'preview'; onExpand?: () => void }) {
   const system = supporterFormations.find((item) => item.id === formation.system) ?? supporterFormations[0]
   const assignmentMap = Object.fromEntries(formation.assignments.map((assignment) => [assignment.slotId, assignment.playerId]))
   const captain = squad.find((player) => player.id === formation.captainId)
+
+  if (variant === 'thread') {
+    return (
+      <section className={styles.tribuneFormationCard} data-variant="thread" aria-label={`Primul 11 al suporterului în sistem ${system.id}`}>
+        <header>
+          <span><ShieldCheck aria-hidden="true" /><i><small>Primul meu 11</small><strong>{nextMatch.home.name} – {nextMatch.away.name}</strong></i></span>
+          <em>{system.id}</em>
+        </header>
+        <div className={styles.tribuneFormationThreadSummary}>
+          <div className={styles.tribuneFormationMiniPitch} aria-hidden="true">
+            <i className={styles.tribuneFormationMiniHalf} />
+            {system.slots.map((slot) => (
+              <span
+                key={slot.id}
+                className={formation.captainId === assignmentMap[slot.id] ? styles.tribuneFormationMiniCaptain : ''}
+                style={{ '--formation-x': `${8 + slot.x * .84}%`, '--formation-y': `${8 + slot.y * .84}%` } as CSSProperties}
+              />
+            ))}
+          </div>
+          <span>
+            <small>{system.name}</small>
+            <strong>{system.id} · 11 jucători</strong>
+            <em><Crown aria-hidden="true" /> {captain ? `Căpitan ${captain.name.split(' ').at(-1)}` : 'Căpitan neales'}</em>
+          </span>
+          <button type="button" onClick={onExpand} aria-label="Vezi formula completă"><Maximize2 aria-hidden="true" /><span>Vezi formula</span></button>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className={styles.tribuneFormationCard} data-variant={variant} aria-label={`Primul 11 al suporterului în sistem ${system.id}`}>
@@ -1526,11 +1573,13 @@ function TribuneFormationCard({ formation, variant = 'feed' }: { formation: Trib
           const player = squad.find((item) => item.id === assignmentMap[slot.id])
           if (!player) return null
           const shortName = player.name.split(' ').at(-1) ?? player.name
+          const formationX = variant === 'preview' ? 7 + slot.x * .86 : slot.x
+          const formationY = variant === 'preview' ? 7 + slot.y * .86 : slot.y
           return (
             <span
               key={slot.id}
               className={styles.tribuneFormationPlayer}
-              style={{ '--formation-x': `${slot.x}%`, '--formation-y': `${slot.y}%`, '--formation-tone': positionTone[player.position] } as CSSProperties}
+              style={{ '--formation-x': `${formationX}%`, '--formation-y': `${formationY}%`, '--formation-tone': positionTone[player.position] } as CSSProperties}
             >
               <i><SquadPortrait player={player} lazy />{formation.captainId === player.id && <b>C</b>}</i>
               <strong>{shortName}</strong>
@@ -1717,6 +1766,13 @@ export function CommunityView() {
   const [formationShareOpen, setFormationShareOpen] = useState(false)
   const [formationShareText, setFormationShareText] = useState('Așa aș începe următorul meci. Voi pe cine ați schimba?')
   const [formationPublishedId, setFormationPublishedId] = useState<string | null>(null)
+  const [formationWasUpdated, setFormationWasUpdated] = useState(false)
+  const [formationEditPostId, setFormationEditPostId] = useState<string | null>(null)
+  const [formationPlayerPickerOpen, setFormationPlayerPickerOpen] = useState(false)
+  const [formationSystemPickerOpen, setFormationSystemPickerOpen] = useState(false)
+  const [formationViewer, setFormationViewer] = useState<TribuneFormation | null>(null)
+  const [formationTouchMode, setFormationTouchMode] = useState(() => window.matchMedia('(pointer: coarse), (hover: none)').matches)
+  const [commentComposerActive, setCommentComposerActive] = useState(false)
   const [formationDrag, setFormationDrag] = useState<{ playerId: string; x: number; y: number } | null>(null)
   const [formationDropSlot, setFormationDropSlot] = useState<string | null>(null)
   const [activePostId, setActivePostId] = useState<string | null>(null)
@@ -1738,6 +1794,7 @@ export function CommunityView() {
   const postMenuPanelRef = useRef<HTMLDivElement>(null)
   const reactionPickerAnchorRef = useRef<HTMLButtonElement>(null)
   const reactionPickerPanelRef = useRef<HTMLDivElement>(null)
+  const commentsViewportRef = useRef<HTMLDivElement>(null)
   const formationPointerRef = useRef<{ playerId: string; sourceSlotId?: string; pointerId: number; startX: number; startY: number; dragged: boolean } | null>(null)
   const formationSuppressClickRef = useRef(false)
   const [composerViewport, setComposerViewport] = useState({
@@ -1793,6 +1850,7 @@ export function CommunityView() {
 
   const renderedPosts = visiblePosts.slice(0, visiblePostCount)
   const hasMorePosts = visiblePostCount < visiblePosts.length
+  const publishedFormationPost = posts.find(isCurrentUserFormationPost)
   const activeSupporterFormation = supporterFormations.find((formation) => formation.id === formationSystem) ?? supporterFormations[0]
   const activeFormationDraft = formationDrafts[formationSystem]
   const activeFormationSlot = activeSupporterFormation.slots.find((slot) => slot.id === selectedFormationSlot) ?? activeSupporterFormation.slots.at(-1)!
@@ -1811,6 +1869,7 @@ export function CommunityView() {
   const formationForSharing: TribuneFormation = {
     system: formationSystem,
     captainId: resolvedFormationCaptain,
+    matchKey: TRIBUNE_FORMATION_MATCH_KEY,
     assignments: activeSupporterFormation.slots
       .map((slot) => ({ slotId: slot.id, playerId: activeFormationDraft[slot.id] }))
       .filter((assignment) => Boolean(assignment.playerId)),
@@ -1831,6 +1890,14 @@ export function CommunityView() {
   useEffect(() => {
     localStorage.setItem('cetatea-primul-11-capitan', formationCaptain)
   }, [formationCaptain])
+
+  useEffect(() => {
+    const touchQuery = window.matchMedia('(pointer: coarse), (hover: none)')
+    const updateTouchMode = () => setFormationTouchMode(touchQuery.matches)
+    updateTouchMode()
+    touchQuery.addEventListener('change', updateTouchMode)
+    return () => touchQuery.removeEventListener('change', updateTouchMode)
+  }, [])
 
   useEffect(() => {
     const viewport = feedViewportRef.current
@@ -1984,6 +2051,22 @@ export function CommunityView() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      if (formationViewer) {
+        setFormationViewer(null)
+        return
+      }
+      if (formationSystemPickerOpen) {
+        setFormationSystemPickerOpen(false)
+        return
+      }
+      if (formationPlayerPickerOpen) {
+        setFormationPlayerPickerOpen(false)
+        return
+      }
+      if (formationShareOpen) {
+        setFormationShareOpen(false)
+        return
+      }
       if (mediaViewer) {
         setMediaViewer(null)
         return
@@ -2004,12 +2087,13 @@ export function CommunityView() {
       }
       if (activePostId) {
         setActivePostId(null)
+        setCommentComposerActive(false)
         setMobileTribuneSection('flux')
       }
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [activePostId, composerOpen, mediaViewer, postMenuId, reactionPickerPostId])
+  }, [activePostId, composerOpen, formationPlayerPickerOpen, formationShareOpen, formationSystemPickerOpen, formationViewer, mediaViewer, postMenuId, reactionPickerPostId])
 
   useEffect(() => {
     const closePostMenu = (event: PointerEvent) => {
@@ -2169,6 +2253,8 @@ export function CommunityView() {
     setFormationSystem(system)
     setSelectedFormationSlot('a')
     setFormationRosterMode('potriviti')
+    setFormationPlayerPickerOpen(false)
+    setFormationSystemPickerOpen(false)
     play('navigate')
   }
 
@@ -2243,53 +2329,100 @@ export function CommunityView() {
     if (formationSuppressClickRef.current) return
     setSelectedFormationSlot(slotId)
     setFormationRosterMode('potriviti')
+    if (window.matchMedia('(max-width: 900px)').matches) setFormationPlayerPickerOpen(true)
     play('navigate')
   }
 
   const handleFormationRosterClick = (playerId: string) => {
     if (formationSuppressClickRef.current) return
     assignFormationPlayer(activeFormationSlot.id, playerId)
+    if (window.matchMedia('(max-width: 900px)').matches) setFormationPlayerPickerOpen(false)
   }
 
   const openFormationShare = () => {
     if (formationCompleteCount !== 11) return
-    setFormationShareText('Așa aș începe următorul meci. Voi pe cine ați schimba?')
+    setFormationShareText(publishedFormationPost?.text || 'Așa aș începe următorul meci. Voi pe cine ați schimba?')
     setFormationShareOpen(true)
     play('toggle')
   }
 
-  const publishFormationPost = (event: FormEvent) => {
-    event.preventDefault()
+  const saveFormationPost = (returnToFeed = true) => {
     if (formationCompleteCount !== 11) return
-    const postId = `primul-11-${Date.now()}`
+    const existingPost = posts.find(isCurrentUserFormationPost)
+    const postId = existingPost?.id ?? TRIBUNE_FORMATION_POST_ID
     const newPost: TribunePost = {
+      ...existingPost,
       id: postId,
       author: 'Suporter Cetatea',
       initials: 'SC',
       role: 'Pe Areni, împreună',
-      time: 'acum',
+      time: existingPost ? 'actualizat acum' : 'acum',
       text: formationShareText.trim() || 'Acesta este primul meu 11 pentru următorul meci.',
       label: 'Primul 11 · Meci',
-      reactionBase: 0,
-      commentBase: 0,
+      reactionBase: existingPost?.reactionBase ?? 0,
+      commentBase: existingPost?.commentBase ?? 0,
       tone: 'var(--tone-green)',
       userCreated: true,
       formation: formationForSharing,
     }
-    const nextPosts = [newPost, ...posts]
+    const nextPosts = [newPost, ...posts.filter((post) => !isCurrentUserFormationPost(post))]
     setPosts(nextPosts)
     persistUserPosts(nextPosts)
     setFormationShareOpen(false)
+    setFormationPlayerPickerOpen(false)
     setFormationPublishedId(postId)
-    setMobileTribuneSection('flux')
-    setActivePostId(null)
-    setFilter('Toate')
-    setFeedSort('Recente')
-    setVisiblePostCount(TRIBUNE_INITIAL_POSTS)
-    setShowFloatingComposer(false)
-    window.requestAnimationFrame(() => feedViewportRef.current?.scrollTo({ top: 0, behavior: 'smooth' }))
+    setFormationWasUpdated(Boolean(existingPost))
+    setFormationEditPostId(null)
+    if (returnToFeed) {
+      setMobileTribuneSection('flux')
+      setActivePostId(null)
+      setFilter('Toate')
+      setFeedSort('Recente')
+      setVisiblePostCount(TRIBUNE_INITIAL_POSTS)
+      setShowFloatingComposer(false)
+      window.requestAnimationFrame(() => feedViewportRef.current?.scrollTo({ top: 0, behavior: 'smooth' }))
+    }
     window.setTimeout(() => setFormationPublishedId((current) => current === postId ? null : current), 3200)
     play('success')
+  }
+
+  const publishFormationPost = (event: FormEvent) => {
+    event.preventDefault()
+    saveFormationPost(true)
+  }
+
+  const loadFormationPostInEditor = (post: TribunePost) => {
+    if (!post.formation) return
+    const system = supporterFormations.find((item) => item.id === post.formation?.system) ?? supporterFormations[0]
+    const assignments = Object.fromEntries(post.formation.assignments.map((assignment) => [assignment.slotId, assignment.playerId]))
+    const draft = Object.fromEntries(system.slots.map((slot) => [slot.id, assignments[slot.id] ?? '']))
+
+    setFormationDrafts((current) => ({ ...current, [system.id]: draft }))
+    setFormationSystem(system.id)
+    setFormationCaptain(post.formation.captainId)
+    setFormationShareText(post.text)
+    setSelectedFormationSlot(system.slots.at(-1)?.id ?? 'a')
+    setFormationRosterMode('potriviti')
+  }
+
+  const editFormationPost = (post: TribunePost) => {
+    loadFormationPostInEditor(post)
+    setFormationEditPostId(post.id)
+    setFormationPlayerPickerOpen(false)
+    setInteractiveFeature('primul-11')
+    setMobileTribuneSection('interactiv')
+    setActivePostId(null)
+    setPostMenuId(null)
+    setReactionPickerPostId(null)
+    play('navigate')
+  }
+
+  const cancelFormationEdit = () => {
+    if (publishedFormationPost) loadFormationPostInEditor(publishedFormationPost)
+    setFormationEditPostId(null)
+    setFormationPlayerPickerOpen(false)
+    setMobileTribuneSection('flux')
+    play('toggle')
   }
 
   const toggleReaction = (postId: string, reaction: TribuneReaction) => {
@@ -2412,6 +2545,8 @@ export function CommunityView() {
     setComposerOpen(false)
     setPostMenuId(null)
     setReactionPickerPostId(null)
+    setFormationViewer(null)
+    setCommentComposerActive(false)
     setActivePostId(postId)
     setMobileTribuneSection('discutie')
     play('toggle')
@@ -2466,7 +2601,15 @@ export function CommunityView() {
       [activePostId]: [...(current[activePostId] ?? []), newComment],
     }))
     setCommentDraft('')
+    window.requestAnimationFrame(() => commentInputRef.current?.focus())
     play('success')
+  }
+
+  const focusLatestComments = () => {
+    setCommentComposerActive(true)
+    const scrollToLatest = () => commentsViewportRef.current?.scrollTo({ top: commentsViewportRef.current.scrollHeight, behavior: 'smooth' })
+    window.requestAnimationFrame(scrollToLatest)
+    window.setTimeout(scrollToLatest, 180)
   }
 
   const replyToComment = (author: string) => {
@@ -2517,14 +2660,14 @@ export function CommunityView() {
   const discussionPanel = activePost ? (
     <motion.aside
       key={`discutie-${activePost.id}`}
-      className={`${styles.tribuneThread} ${styles.tribuneThreadRail}`}
+      className={`${styles.tribuneThread} ${styles.tribuneThreadRail} ${commentComposerActive ? styles.tribuneThreadWriting : ''}`}
       aria-label={`Discuție: ${activePost.author}`}
       initial={{ opacity: 0, x: 24 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 18 }}
     >
       <header className={styles.tribuneThreadTopbar}>
-        <button type="button" onClick={() => { setActivePostId(null); setMobileTribuneSection('flux') }} aria-label="Înapoi la fluxul Tribunei"><ArrowLeft /></button>
+        <button type="button" onClick={() => { setActivePostId(null); setCommentComposerActive(false); setFormationViewer(null); setMobileTribuneSection('flux') }} aria-label="Înapoi la fluxul Tribunei"><ArrowLeft /></button>
         <span>
           <strong>Conversație</strong>
           <small>{activePostCommentCount === 1 ? 'Un răspuns' : `${activePostCommentCount} răspunsuri`} de la suporteri</small>
@@ -2556,7 +2699,7 @@ export function CommunityView() {
             />
           )}
         </div>
-        {activePost.formation && <TribuneFormationCard formation={activePost.formation} variant="thread" />}
+        {activePost.formation && <TribuneFormationCard formation={activePost.formation} variant="thread" onExpand={() => { setFormationViewer(activePost.formation ?? null); play('toggle') }} />}
         <div className={styles.tribuneThreadStats}>
           <span><i><Zap /><Heart /><Flame /></i><b>{activePost.reactionBase + (activePostReaction ? 1 : 0)} reacții</b></span>
           <span>{activePostCommentCount === 1 ? '1 comentariu' : `${activePostCommentCount} comentarii`}</span>
@@ -2580,6 +2723,7 @@ export function CommunityView() {
         horizontalScroll={false}
         label="Comentariile postării"
         scrollToEndKey={`${activePost.id}:${activePostComments.length}`}
+        viewportRef={commentsViewportRef}
       >
         {activePostComments.map((comment) => (
           <article key={comment.id} className={comment.author === 'Tu' ? styles.tribuneOwnComment : ''}>
@@ -2598,7 +2742,15 @@ export function CommunityView() {
           <div className={styles.tribuneNoComments}><span><MessageCircle /><i /></span><strong>Fii prima voce.</strong><small>Spune ce ai văzut, ce ai simțit sau ce ai schimba.</small><button type="button" onClick={() => commentInputRef.current?.focus()}>Scrie primul comentariu</button></div>
         )}
       </AppScrollArea>
-      <form className={styles.tribuneReplyComposer} autoComplete="off" onSubmit={submitComment}>
+      <form
+        className={styles.tribuneReplyComposer}
+        autoComplete="off"
+        onSubmit={submitComment}
+        onFocusCapture={focusLatestComments}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setCommentComposerActive(false)
+        }}
+      >
         <span className={styles.tribuneReplyAvatar}>SC</span>
         <div className={styles.tribuneReplyField}>
           <input {...nonSensitiveTextFieldProps} ref={commentInputRef} type="text" name="comentariu_tribuna" enterKeyHint="send" aria-label="Comentariu în Tribună" value={commentDraft} onChange={(event) => setCommentDraft(event.target.value)} placeholder="Scrie un comentariu…" maxLength={240} />
@@ -2830,6 +2982,7 @@ export function CommunityView() {
                               animate={{ opacity: 1, y: 0, scale: 1 }}
                               exit={{ opacity: 0, y: postMenuPlacement === 'above' ? 4 : -4, scale: .97 }}
                             >
+                              {isCurrentUserFormationPost(post) && <button role="menuitem" type="button" onClick={() => editFormationPost(post)}><PencilLine aria-hidden="true" /><span><strong>Modifică primul 11</strong><small>Revino la teren și salvează formula</small></span></button>}
                               <button role="menuitem" type="button" onClick={() => { toggleBookmark(post.id); setPostMenuId(null) }}><Bookmark aria-hidden="true" fill={bookmarked ? 'currentColor' : 'none'} /><span><strong>{bookmarked ? 'Elimină din salvate' : 'Salvează postarea'}</strong><small>Păstreaz-o pentru mai târziu</small></span></button>
                               <button role="menuitem" type="button" onClick={() => { void copyPostText(post) }}><Copy aria-hidden="true" /><span><strong>Copiază textul</strong><small>Trimite ideea mai departe</small></span></button>
                               <button role="menuitem" type="button" onClick={() => hidePost(post.id)}><EyeOff aria-hidden="true" /><span><strong>Ascunde postarea</strong><small>Nu va mai apărea în feed</small></span></button>
@@ -2990,7 +3143,7 @@ export function CommunityView() {
               </motion.div>
             ) : formationPublishedId ? (
               <motion.div key="formatie-publicata" className={styles.tribuneFeedNotice} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>
-                <ShieldCheck aria-hidden="true" /><span><strong>Primul tău 11 este în Tribună</strong><small>Suporterii îl pot vedea și comenta acum.</small></span>
+                <ShieldCheck aria-hidden="true" /><span><strong>{formationWasUpdated ? 'Primul tău 11 a fost actualizat' : 'Primul tău 11 este în Tribună'}</strong><small>{formationWasUpdated ? 'Postarea existentă păstrează reacțiile și discuția.' : 'Suporterii îl pot vedea și comenta acum.'}</small></span>
               </motion.div>
             ) : null}
           </AnimatePresence>
@@ -3213,6 +3366,15 @@ export function CommunityView() {
                       <button type="button" className={styles.supporterFormationReset} onClick={resetSupporterFormation} title="Revino la selecția inițială"><RotateCcw aria-hidden="true" /><span>Resetează</span></button>
                     </div>
 
+                    <div className={styles.supporterFormationMobileToolbar}>
+                      <button type="button" className={styles.supporterFormationSystemTrigger} aria-haspopup="dialog" aria-expanded={formationSystemPickerOpen} onClick={() => { setFormationSystemPickerOpen(true); play('toggle') }}>
+                        <span><small>Sistem tactic</small><strong>{activeSupporterFormation.id} · {activeSupporterFormation.name}</strong></span>
+                        <ChevronDown aria-hidden="true" />
+                      </button>
+                      <span><b>{formationCompleteCount}</b>/11</span>
+                      <button type="button" onClick={resetSupporterFormation} aria-label="Resetează formula"><RotateCcw aria-hidden="true" /></button>
+                    </div>
+
                     <div className={styles.supporterFormationWorkspace}>
                       <div className={styles.supporterFormationBoard}>
                         <header><span><CircleDot aria-hidden="true" /><i><small>{activeSupporterFormation.name}</small><strong>{activeSupporterFormation.id}</strong></i></span><small><Move aria-hidden="true" /> Trage sau atinge</small></header>
@@ -3228,8 +3390,9 @@ export function CommunityView() {
                                 data-formation-slot={slot.id}
                                 className={`${styles.supporterFormationSlot} ${selected ? styles.supporterFormationSlotActive : ''} ${formationDropSlot === slot.id ? styles.supporterFormationSlotDrop : ''}`}
                                 style={{ '--formation-x': `${slot.x}%`, '--formation-y': `${slot.y}%`, '--formation-tone': player ? positionTone[player.position] : 'var(--tone-green)' } as CSSProperties}
-                                draggable={Boolean(player)}
+                                draggable={Boolean(player) && !formationTouchMode}
                                 onClick={() => handleFormationSlotClick(slot.id)}
+                                onContextMenu={(event) => event.preventDefault()}
                                 onDragStart={(event) => player && handleFormationDragStart(event, player.id, slot.id)}
                                 onDragEnd={() => { setFormationDrag(null); setFormationDropSlot(null) }}
                                 onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setFormationDropSlot(slot.id) }}
@@ -3272,8 +3435,9 @@ export function CommunityView() {
                                 key={player.id}
                                 className={`${isCurrent ? styles.supporterRosterPlayerActive : ''} ${assignedSlot && !isCurrent ? styles.supporterRosterPlayerUsed : ''}`}
                                 style={{ '--formation-tone': positionTone[player.position] } as CSSProperties}
-                                draggable
+                                draggable={!formationTouchMode}
                                 onClick={() => handleFormationRosterClick(player.id)}
+                                onContextMenu={(event) => event.preventDefault()}
                                 onDragStart={(event) => handleFormationDragStart(event, player.id, assignedSlot?.id)}
                                 onDragEnd={() => { setFormationDrag(null); setFormationDropSlot(null) }}
                                 aria-pressed={isCurrent}
@@ -3289,8 +3453,16 @@ export function CommunityView() {
                     </div>
 
                     <footer className={styles.supporterFormationActions}>
-                      <span><ShieldCheck aria-hidden="true" /><i><small>Selecția ta pentru</small><strong>{nextMatch.home.name} – {nextMatch.away.name}</strong></i></span>
-                      <button type="button" disabled={formationCompleteCount !== 11} onClick={openFormationShare}><Share2 aria-hidden="true" /><span><small>Arată tuturor</small><strong>Publică în Tribună</strong></span><ArrowRight aria-hidden="true" /></button>
+                      <span>
+                        {formationEditPostId ? <PencilLine aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}
+                        <i><small>{formationEditPostId ? 'Editezi postarea din feed' : publishedFormationPost ? 'O singură formulă pentru acest meci' : 'Selecția ta pentru'}</small><strong>{formationEditPostId ? 'Modifică pe teren, apoi salvează' : `${nextMatch.home.name} – ${nextMatch.away.name}`}</strong></i>
+                        {formationEditPostId && <button type="button" onClick={cancelFormationEdit} aria-label="Renunță la modificări" title="Renunță"><X aria-hidden="true" /></button>}
+                      </span>
+                      <button type="button" disabled={formationCompleteCount !== 11} onClick={formationEditPostId ? () => saveFormationPost(true) : openFormationShare}>
+                        {formationEditPostId || publishedFormationPost ? <Save aria-hidden="true" /> : <Share2 aria-hidden="true" />}
+                        <span><small>{formationEditPostId ? 'Fără o postare nouă' : publishedFormationPost ? 'Înlocuiește formula existentă' : 'Arată tuturor'}</small><strong>{formationEditPostId ? 'Salvează modificările' : publishedFormationPost ? 'Actualizează în Tribună' : 'Publică în Tribună'}</strong></span>
+                        <ArrowRight aria-hidden="true" />
+                      </button>
                     </footer>
                   </motion.section>
                 )}
@@ -3308,7 +3480,7 @@ export function CommunityView() {
               <motion.button type="button" className={styles.slidingPanelBackdrop} variants={panelBackdropVariants} onClick={() => setFormationShareOpen(false)} aria-label="Închide publicarea formației" />
               <motion.aside className={styles.formationSharePanel} role="dialog" aria-modal="true" aria-labelledby="formation-share-title" variants={panelFromRightVariants}>
                 <header>
-                  <span><Share2 aria-hidden="true" /><i><small>Postare tactică</small><strong id="formation-share-title">Publică primul tău 11</strong></i></span>
+                  <span>{publishedFormationPost ? <Save aria-hidden="true" /> : <Share2 aria-hidden="true" />}<i><small>Postare tactică unică</small><strong id="formation-share-title">{publishedFormationPost ? 'Actualizează primul tău 11' : 'Publică primul tău 11'}</strong></i></span>
                   <button type="button" onClick={() => setFormationShareOpen(false)} aria-label="Închide"><X aria-hidden="true" /></button>
                 </header>
                 <div className={styles.formationShareBody}>
@@ -3318,9 +3490,105 @@ export function CommunityView() {
                     <textarea {...nonSensitiveTextFieldProps} name="mesaj_primul_11" value={formationShareText} maxLength={240} onChange={(event) => setFormationShareText(event.target.value)} placeholder="Spune de ce ai ales această echipă…" />
                   </label>
                   <TribuneFormationCard formation={formationForSharing} variant="preview" />
-                  <div className={styles.formationShareNote}><ShieldCheck aria-hidden="true" /><span><strong>Card interactiv în feed</strong><small>Formația, sistemul și căpitanul rămân clare pe orice ecran.</small></span></div>
+                  <div className={styles.formationShareNote}><ShieldCheck aria-hidden="true" /><span><strong>{publishedFormationPost ? 'Actualizezi aceeași postare' : 'O singură formulă per meci'}</strong><small>{publishedFormationPost ? 'Reacțiile și comentariile rămân la locul lor.' : 'O poți modifica ulterior direct din feed.'}</small></span></div>
                 </div>
-                <footer><button type="button" onClick={() => setFormationShareOpen(false)}>Mai modific</button><button type="button" onClick={publishFormationPost}><Send aria-hidden="true" /> Publică în Tribună</button></footer>
+                <footer><button type="button" onClick={() => setFormationShareOpen(false)}>Mai modific</button><button type="button" onClick={publishFormationPost}>{publishedFormationPost ? <Save aria-hidden="true" /> : <Send aria-hidden="true" />} {publishedFormationPost ? 'Salvează actualizarea' : 'Publică în Tribună'}</button></footer>
+              </motion.aside>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
+
+      {createPortal(
+        <AnimatePresence initial={false} mode="sync">
+          {formationSystemPickerOpen && (
+            <motion.div className={`${styles.tribuneOverlay} ${styles.formationSystemPickerOverlay}`} variants={panelLayerVariants} initial="closed" animate="open" exit="closed">
+              <motion.button type="button" className={styles.slidingPanelBackdrop} variants={panelBackdropVariants} onClick={() => setFormationSystemPickerOpen(false)} aria-label="Închide alegerea sistemului" />
+              <motion.aside className={styles.formationSystemPickerPanel} role="dialog" aria-modal="true" aria-labelledby="formation-system-picker-title" variants={panelFromBottomVariants}>
+                <header>
+                  <span><small>Așezarea echipei</small><strong id="formation-system-picker-title">Alege sistemul tactic</strong></span>
+                  <button type="button" onClick={() => setFormationSystemPickerOpen(false)} aria-label="Închide"><X aria-hidden="true" /></button>
+                </header>
+                <div>
+                  {supporterFormations.map((formation) => {
+                    const active = formation.id === formationSystem
+                    return (
+                      <button type="button" key={formation.id} className={active ? styles.formationSystemPickerActive : ''} aria-pressed={active} onClick={() => selectSupporterFormation(formation.id)}>
+                        <span className={styles.formationSystemMiniPitch} aria-hidden="true">
+                          <i />
+                          {formation.slots.map((slot) => <b key={slot.id} style={{ '--formation-x': `${10 + slot.x * .8}%`, '--formation-y': `${10 + slot.y * .8}%` } as CSSProperties} />)}
+                        </span>
+                        <span><small>{formation.name}</small><strong>{formation.id}</strong><em>{formation.idea}</em></span>
+                        <i>{active ? <BadgeCheck aria-hidden="true" /> : <ChevronRight aria-hidden="true" />}</i>
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.aside>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
+
+      {createPortal(
+        <AnimatePresence initial={false} mode="sync">
+          {formationViewer && (
+            <motion.div className={`${styles.tribuneOverlay} ${styles.formationViewerOverlay}`} variants={panelLayerVariants} initial="closed" animate="open" exit="closed">
+              <motion.button type="button" className={styles.slidingPanelBackdrop} variants={panelBackdropVariants} onClick={() => setFormationViewer(null)} aria-label="Închide formula" />
+              <motion.aside className={styles.formationViewerPanel} role="dialog" aria-modal="true" aria-labelledby="formation-viewer-title" variants={panelFromRightVariants}>
+                <header>
+                  <span><ShieldCheck aria-hidden="true" /><i><small>Postare tactică</small><strong id="formation-viewer-title">Formula completă</strong></i></span>
+                  <button type="button" onClick={() => setFormationViewer(null)} aria-label="Închide"><X aria-hidden="true" /></button>
+                </header>
+                <div><TribuneFormationCard formation={formationViewer} variant="preview" /></div>
+                <footer>
+                  <span><small>{nextMatch.competition} · {nextMatch.round}</small><strong>{nextMatch.home.name} – {nextMatch.away.name}</strong></span>
+                  {activePost && isCurrentUserFormationPost(activePost)
+                    ? <button type="button" onClick={() => { setFormationViewer(null); editFormationPost(activePost) }}><PencilLine aria-hidden="true" /> Modifică formula</button>
+                    : <button type="button" onClick={() => setFormationViewer(null)}>Înapoi la discuție</button>}
+                </footer>
+              </motion.aside>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
+
+      {createPortal(
+        <AnimatePresence initial={false} mode="sync">
+          {formationPlayerPickerOpen && (
+            <motion.div className={`${styles.tribuneOverlay} ${styles.formationPlayerPickerOverlay}`} variants={panelLayerVariants} initial="closed" animate="open" exit="closed">
+              <motion.button type="button" className={styles.slidingPanelBackdrop} variants={panelBackdropVariants} onClick={() => setFormationPlayerPickerOpen(false)} aria-label="Închide selecția jucătorului" />
+              <motion.aside className={styles.formationPlayerPickerPanel} role="dialog" aria-modal="true" aria-labelledby="formation-player-picker-title" variants={panelFromBottomVariants}>
+                <header>
+                  <span><small>Poziția selectată</small><strong id="formation-player-picker-title">{activeFormationSlot.label}</strong></span>
+                  <em>{activeFormationSlot.shortLabel}</em>
+                  <button type="button" onClick={() => setFormationPlayerPickerOpen(false)} aria-label="Închide"><X aria-hidden="true" /></button>
+                </header>
+                <div className={styles.formationPlayerPickerCurrent} style={{ '--formation-tone': selectedFormationPlayer ? positionTone[selectedFormationPlayer.position] : 'var(--tone-green)' } as CSSProperties}>
+                  {selectedFormationPlayer && <span><SquadPortrait player={selectedFormationPlayer} /><b>{displayPlayerNumber(selectedFormationPlayer.number, true)}</b></span>}
+                  <i><small>Acum pe poziție</small><strong>{selectedFormationPlayer?.name ?? 'Alege un jucător'}</strong></i>
+                  {selectedFormationPlayer && <button type="button" className={resolvedFormationCaptain === selectedFormationPlayer.id ? styles.supporterCaptainActive : ''} onClick={() => { setFormationCaptain(selectedFormationPlayer.id); play('success') }} aria-label={`Alege căpitan: ${selectedFormationPlayer.name}`} aria-pressed={resolvedFormationCaptain === selectedFormationPlayer.id}><Crown aria-hidden="true" /><span>{resolvedFormationCaptain === selectedFormationPlayer.id ? 'Căpitan' : 'Alege căpitan'}</span></button>}
+                </div>
+                <div className={styles.formationPlayerPickerFilters} role="group" aria-label="Filtrul lotului">
+                  <button type="button" className={formationRosterMode === 'potriviti' ? styles.supporterRosterFilterActive : ''} aria-pressed={formationRosterMode === 'potriviti'} onClick={() => setFormationRosterMode('potriviti')}>Potriviți poziției</button>
+                  <button type="button" className={formationRosterMode === 'tot-lotul' ? styles.supporterRosterFilterActive : ''} aria-pressed={formationRosterMode === 'tot-lotul'} onClick={() => setFormationRosterMode('tot-lotul')}>Tot lotul</button>
+                </div>
+                <AppScrollArea className={styles.formationPlayerPickerScroll} contentClassName={styles.formationPlayerPickerList} horizontalScroll={false} label={`Jucători pentru ${activeFormationSlot.label}`}>
+                  {formationRosterPlayers.map((player) => {
+                    const assignedSlot = activeSupporterFormation.slots.find((slot) => activeFormationDraft[slot.id] === player.id)
+                    const isCurrent = activeFormationDraft[activeFormationSlot.id] === player.id
+                    return (
+                      <button type="button" key={player.id} className={isCurrent ? styles.formationPlayerPickerSelected : ''} style={{ '--formation-tone': positionTone[player.position] } as CSSProperties} onClick={() => handleFormationRosterClick(player.id)} onContextMenu={(event) => event.preventDefault()} aria-pressed={isCurrent}>
+                        <span><SquadPortrait player={player} lazy /><b>{displayPlayerNumber(player.number, true)}</b></span>
+                        <i><strong>{player.name}</strong><small>{player.role}</small></i>
+                        <em>{isCurrent ? <BadgeCheck aria-label="Selectat" /> : assignedSlot ? assignedSlot.shortLabel : <Plus aria-label="Adaugă" />}</em>
+                      </button>
+                    )
+                  })}
+                </AppScrollArea>
               </motion.aside>
             </motion.div>
           )}
