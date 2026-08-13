@@ -17,13 +17,11 @@ import {
   CircleDot,
   Clock3,
   Copy,
-  Crosshair,
   Eye,
   EyeOff,
   ExternalLink,
   Flag,
   Flame,
-  Gamepad2,
   GitCompareArrows,
   GripHorizontal,
   Heart,
@@ -48,11 +46,9 @@ import {
   Search,
   Send,
   Share2,
-  Shield,
   SlidersHorizontal,
   Sparkles,
   Star,
-  Swords,
   Quote,
   ThumbsUp,
   TicketCheck,
@@ -89,7 +85,7 @@ import arenaBackground from '../assets/brand/loading-cetatea-arena.webp'
 import { AppScrollArea } from '../components/AppScrollArea'
 import { panelBackdropVariants, panelFromRightVariants, panelLayerVariants } from '../components/panelMotion'
 import { useSound } from '../contexts/useSound'
-import { club, nextMatch, squad, standings, technicalStaff, upcomingFixtures, type FormResult, type Player, type PlayerPosition } from '../data/clubData'
+import { club, latestResult, nextMatch, squad, standings, technicalStaff, upcomingFixtures, type FormResult, type Player, type PlayerPosition } from '../data/clubData'
 import { useMatchCountdown } from '../hooks/useMatchCountdown'
 import styles from './Views.module.css'
 
@@ -1193,22 +1189,12 @@ type ComposerTone = 'verde' | 'cyan' | 'violet' | 'chihlimbar' | 'roz'
 type TribuneSort = 'Recente' | 'În discuție' | 'Apreciate' | 'Salvate'
 type TribuneReaction = 'inima' | 'foc' | 'forta'
 type AnchoredPanelPlacement = 'above' | 'below'
-type TribuneArenaGame = 'penalty' | 'quiz' | 'jucator' | 'cronologie'
-type PenaltyOpponent = 'suporter' | 'calculator'
-type PenaltyRole = 'executant' | 'portar'
-type PenaltyTechnique = 'plasat' | 'putere' | 'panenka'
-type PenaltyZone = 'stanga-sus' | 'stanga-jos' | 'centru' | 'dreapta-sus' | 'dreapta-jos'
-
-type PenaltyResolution = {
-  userChoice: PenaltyZone
-  opponentChoice: PenaltyZone
-  role: PenaltyRole
-  goal: boolean
-}
-
-type PenaltyHistoryItem = {
-  side: 'user' | 'opponent'
-  goal: boolean
+type TribuneMotmCandidate = {
+  playerId: string
+  matchLine: string
+  reason: string
+  baseVotes: number
+  tone: string
 }
 
 type TribunePost = {
@@ -1245,6 +1231,16 @@ const TRIBUNE_INITIAL_POSTS = 3
 const TRIBUNE_POST_BATCH = 3
 const TRIBUNE_POST_MENU_ESTIMATED_HEIGHT = 168
 const TRIBUNE_REACTION_PICKER_ESTIMATED_HEIGHT = 42
+const TRIBUNE_MOTM_STORAGE_KEY = 'cetatea-tribuna-motm-2026-08-08'
+
+const tribuneMotmCandidates: TribuneMotmCandidate[] = [
+  { playerId: 'gabriel-raducan', matchLine: 'Gol · atacant central', reason: 'A atacat permanent spațiul și a deschis drumul victoriei.', baseVotes: 382, tone: 'var(--tone-green)' },
+  { playerId: 'gabriel-david', matchLine: 'Gol · 78 de minute', reason: 'A controlat centrul terenului și a închis tabela.', baseVotes: 346, tone: 'var(--tone-cyan)' },
+  { playerId: 'alin-ciobanu', matchLine: 'Poartă intactă · 90 de minute', reason: 'Sigur la intervenții într-un meci câștigat fără gol primit.', baseVotes: 273, tone: 'var(--tone-violet)' },
+  { playerId: 'stephane-ferhaoui', matchLine: 'Pasă decisivă · energie în atac', reason: 'A creat superioritate și a oferit pasa care a rupt echilibrul.', baseVotes: 198, tone: 'var(--tone-amber)' },
+  { playerId: 'ciprian-perju', matchLine: '90 de minute · flancul stâng', reason: 'A păstrat echipa compactă și a câștigat duelurile importante.', baseVotes: 124, tone: 'var(--tone-rose)' },
+]
+const [tribuneMotmHomeScore = '0', tribuneMotmAwayScore = '0'] = latestResult.score.split('–').map((score) => score.trim())
 
 const resolveAnchoredPanelPlacement = (
   anchor: HTMLElement,
@@ -1340,51 +1336,6 @@ const seedTribunePosts: TribunePost[] = [
   },
 ]
 
-const penaltyZones: Array<{ id: PenaltyZone; label: string; x: number; y: number }> = [
-  { id: 'stanga-sus', label: 'Stânga sus', x: 18, y: 22 },
-  { id: 'stanga-jos', label: 'Stânga jos', x: 20, y: 68 },
-  { id: 'centru', label: 'Centru', x: 50, y: 48 },
-  { id: 'dreapta-sus', label: 'Dreapta sus', x: 82, y: 22 },
-  { id: 'dreapta-jos', label: 'Dreapta jos', x: 80, y: 68 },
-]
-
-const penaltyTechniques: Array<{ id: PenaltyTechnique; label: string; detail: string; hint: string; points: number }> = [
-  { id: 'plasat', label: 'Plasat', detail: 'Sigur', hint: 'Execuție sigură: dacă portarul ghicește colțul, apără.', points: 15 },
-  { id: 'putere', label: 'Putere', detail: 'Risc', hint: 'Poate învinge portarul pe același colț, dar poate rata poarta.', points: 20 },
-  { id: 'panenka', label: 'Panenka', detail: 'Curaj', hint: 'Bonus maxim dacă tragi pe centru și portarul pleacă.', points: 30 },
-]
-
-const tribuneArenaGames = [
-  { id: 'penalty' as const, label: 'Penalty-uri', detail: 'Atacant contra portar', icon: Crosshair, tone: 'var(--tone-cyan)' },
-  { id: 'quiz' as const, label: 'Quiz Blitz', detail: 'Patru variante, una corectă', icon: Zap, tone: 'var(--tone-amber)' },
-  { id: 'jucator' as const, label: 'Ghicește jucătorul', detail: 'Indiciile dezvăluie omul', icon: Shield, tone: 'var(--tone-green)' },
-  { id: 'cronologie' as const, label: 'Cronologia', detail: 'Pune istoria în ordine', icon: History, tone: 'var(--tone-violet)' },
-]
-
-const tribuneQuiz = {
-  question: 'În ce an a fost fondat clubul Cetatea Suceava?',
-  options: ['1924', '1932', '1948', '2024'],
-  correct: 1,
-}
-
-const arenaPlayerChallenge = {
-  clues: ['Poartă numărul 10.', 'Joacă la mijloc.', 'Prenumele său este Ilie.'],
-  options: ['Ilie Marian', 'Mario Bai', 'Gabriel David', 'Cosmin Tucaliuc'],
-  correct: 0,
-}
-
-const arenaTimelineEvents = [
-  { id: 'reinfiintare', label: 'Clubul este reînființat', year: 2024 },
-  { id: 'victorie', label: 'Victoria cu 2–0 la Târgu Mureș', year: 2026 },
-  { id: 'fondare', label: 'Este fondată Cetatea Suceava', year: 1932 },
-]
-
-const arenaLeaderboard = [
-  { position: 1, name: 'Mara / Areni', points: 1280 },
-  { position: 2, name: 'Radu / Burdujeni', points: 1175 },
-  { position: 3, name: 'Ioana / Centru', points: 1090 },
-]
-
 const initialTribuneComments: Record<string, TribuneComment[]> = {
   'suporter-sondaj': [
     { id: 'c-1', author: 'Ioana P.', text: 'Atitudinea. Echipa a rămas compactă până la final.', time: '09:41' },
@@ -1422,6 +1373,11 @@ function readStoredRecord<T>(key: string, fallback: T): T {
   } catch {
     return fallback
   }
+}
+
+function readStoredMotmVote() {
+  const storedVote = readStoredRecord<string | null>(TRIBUNE_MOTM_STORAGE_KEY, null)
+  return tribuneMotmCandidates.some((candidate) => candidate.playerId === storedVote) ? storedVote : null
 }
 
 function readStoredReactions() {
@@ -1561,7 +1517,7 @@ export function CommunityView() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [showFloatingComposer, setShowFloatingComposer] = useState(false)
   const [visiblePostCount, setVisiblePostCount] = useState(TRIBUNE_INITIAL_POSTS)
-  const [mobileTribuneSection, setMobileTribuneSection] = useState<'flux' | 'arena' | 'discutie'>('flux')
+  const [mobileTribuneSection, setMobileTribuneSection] = useState<'flux' | 'interactiv' | 'discutie'>('flux')
   const [posts, setPosts] = useState<TribunePost[]>(() => [...readStoredPosts(), ...seedTribunePosts])
   const [reactions, setReactions] = useState<Record<string, TribuneReaction>>(() => readStoredReactions())
   const [comments, setComments] = useState<Record<string, TribuneComment[]>>(
@@ -1590,21 +1546,11 @@ export function CommunityView() {
   const [reactionBurst, setReactionBurst] = useState<{ postId: string; reaction: TribuneReaction } | null>(null)
   const [reactionPickerPostId, setReactionPickerPostId] = useState<string | null>(null)
   const [reactionPickerPlacement, setReactionPickerPlacement] = useState<AnchoredPanelPlacement>('above')
-  const [activeArenaGame, setActiveArenaGame] = useState<TribuneArenaGame>('penalty')
-  const [arenaPoints, setArenaPoints] = useState(
-    () => readStoredRecord('cetatea-arena-puncte', 640),
+  const [motmVote, setMotmVote] = useState<string | null>(() => readStoredMotmVote())
+  const [motmSelection, setMotmSelection] = useState(
+    () => readStoredMotmVote() ?? tribuneMotmCandidates[0].playerId,
   )
-  const [penaltyOpponent, setPenaltyOpponent] = useState<PenaltyOpponent>('suporter')
-  const [penaltyTechnique, setPenaltyTechnique] = useState<PenaltyTechnique>('plasat')
-  const [penaltyTurn, setPenaltyTurn] = useState(0)
-  const [penaltyScore, setPenaltyScore] = useState({ user: 0, opponent: 0 })
-  const [penaltyResolution, setPenaltyResolution] = useState<PenaltyResolution | null>(null)
-  const [penaltyHistory, setPenaltyHistory] = useState<PenaltyHistoryItem[]>([])
-  const [quizAnswer, setQuizAnswer] = useState<number | null>(null)
-  const [playerGuess, setPlayerGuess] = useState<number | null>(null)
-  const [revealedClues, setRevealedClues] = useState(1)
-  const [timelineOrder, setTimelineOrder] = useState<string[]>([])
-  const [timelineChecked, setTimelineChecked] = useState(false)
+  const [motmEditingVote, setMotmEditingVote] = useState(false)
   const [activePostId, setActivePostId] = useState<string | null>(null)
   const [commentDraft, setCommentDraft] = useState('')
   const [likedComments, setLikedComments] = useState<Record<string, boolean>>(
@@ -1755,28 +1701,20 @@ export function CommunityView() {
   const totalContributions = posts.reduce((total, post) => (
     total + post.reactionBase + post.commentBase + (comments[post.id]?.length ?? 0)
   ), 0)
-  const penaltyRole: PenaltyRole = penaltyTurn % 2 === 0 ? 'executant' : 'portar'
-  const penaltyRound = Math.min(5, Math.floor(penaltyTurn / 2) + 1)
-  const penaltyComplete = penaltyTurn >= 10
-  const timelineCorrect = timelineOrder.join('|') === 'fondare|reinfiintare|victorie'
-  const activeArenaDefinition = tribuneArenaGames.find((game) => game.id === activeArenaGame) ?? tribuneArenaGames[0]
-  const ActiveArenaIcon = activeArenaDefinition.icon
-  const penaltyBallZone = penaltyResolution
-    ? penaltyZones.find((zone) => zone.id === (penaltyResolution.role === 'executant' ? penaltyResolution.userChoice : penaltyResolution.opponentChoice))
-    : null
-  const penaltyKeeperZone = penaltyResolution
-    ? penaltyZones.find((zone) => zone.id === (penaltyResolution.role === 'portar' ? penaltyResolution.userChoice : penaltyResolution.opponentChoice))
-    : null
-  const penaltyPositiveMoments = penaltyHistory.filter((item) => item.side === 'user' ? item.goal : !item.goal).length
-  const penaltyMomentum = Math.min(100, 28 + (penaltyPositiveMoments * 14))
-  const penaltyStreakBreak = [...penaltyHistory].reverse().findIndex((item) => item.side === 'user' ? !item.goal : item.goal)
-  const penaltyStreak = penaltyStreakBreak === -1 ? penaltyHistory.length : penaltyStreakBreak
-  const arenaMissionProgress = [
-    penaltyHistory.length > 0,
-    quizAnswer !== null,
-    playerGuess === arenaPlayerChallenge.correct || (timelineChecked && timelineCorrect),
-  ].filter(Boolean).length
-  const arenaUserRank = arenaPoints >= 1280 ? 1 : arenaPoints >= 1175 ? 2 : arenaPoints >= 1090 ? 3 : arenaPoints >= 900 ? 8 : arenaPoints >= 760 ? 10 : 12
+  const motmCandidates = useMemo(() => tribuneMotmCandidates.map((candidate) => ({
+    ...candidate,
+    player: squad.find((player) => player.id === candidate.playerId) ?? squad[0],
+    votes: candidate.baseVotes + (motmVote === candidate.playerId ? 1 : 0),
+  })), [motmVote])
+  const motmResults = useMemo(() => [...motmCandidates].sort((left, right) => right.votes - left.votes), [motmCandidates])
+  const motmTotalVotes = motmResults.reduce((total, candidate) => total + candidate.votes, 0)
+  const motmLeader = motmResults[0]
+  const selectedMotmCandidate = motmCandidates.find((candidate) => candidate.playerId === motmSelection) ?? motmCandidates[0]
+  const userMotmCandidate = motmVote ? motmCandidates.find((candidate) => candidate.playerId === motmVote) : null
+  const motmResultsVisible = Boolean(motmVote) && !motmEditingVote
+  const motmLead = motmResults.length > 1 ? motmResults[0].votes - motmResults[1].votes : 0
+  const motmDuelVotes = (motmResults[0]?.votes ?? 0) + (motmResults[1]?.votes ?? 0)
+  const motmDuelShare = motmDuelVotes ? Math.round(((motmResults[0]?.votes ?? 0) / motmDuelVotes) * 100) : 50
 
   useEffect(() => {
     localStorage.setItem('cetatea-tribune-reactions', JSON.stringify(reactions))
@@ -1803,8 +1741,9 @@ export function CommunityView() {
   }, [pollVotes])
 
   useEffect(() => {
-    localStorage.setItem('cetatea-arena-puncte', JSON.stringify(arenaPoints))
-  }, [arenaPoints])
+    if (motmVote) localStorage.setItem(TRIBUNE_MOTM_STORAGE_KEY, JSON.stringify(motmVote))
+    else localStorage.removeItem(TRIBUNE_MOTM_STORAGE_KEY)
+  }, [motmVote])
 
   useEffect(() => {
     if (composerText.trim()) localStorage.setItem('cetatea-tribune-draft', composerText)
@@ -2200,90 +2139,27 @@ export function CommunityView() {
     play('toggle')
   }
 
-  const selectArenaGame = (game: TribuneArenaGame) => {
-    setActiveArenaGame(game)
-    play('toggle')
+  const selectMotmCandidate = (playerId: string) => {
+    setMotmSelection(playerId)
+    play('navigate')
   }
 
-  const resetPenaltyDuel = (opponent: PenaltyOpponent = penaltyOpponent) => {
-    setPenaltyOpponent(opponent)
-    setPenaltyTurn(0)
-    setPenaltyScore({ user: 0, opponent: 0 })
-    setPenaltyResolution(null)
-    setPenaltyHistory([])
-    setPenaltyTechnique('plasat')
-    play('toggle')
+  const stepMotmCandidate = (direction: -1 | 1) => {
+    const currentIndex = motmCandidates.findIndex((candidate) => candidate.playerId === motmSelection)
+    const nextIndex = (currentIndex + direction + motmCandidates.length) % motmCandidates.length
+    selectMotmCandidate(motmCandidates[nextIndex].playerId)
   }
 
-  const playPenaltyZone = (userChoice: PenaltyZone) => {
-    if (penaltyResolution || penaltyComplete) return
-    const opponentChoice = penaltyZones[Math.floor(Math.random() * penaltyZones.length)]?.id ?? 'centru'
-    const chance = Math.random()
-    let goal = userChoice !== opponentChoice
-    if (penaltyRole === 'executant' && penaltyTechnique === 'putere') {
-      goal = userChoice === opponentChoice ? chance < .28 : chance > .12
-    }
-    if (penaltyRole === 'executant' && penaltyTechnique === 'panenka') {
-      goal = userChoice === 'centru' ? opponentChoice !== 'centru' : userChoice !== opponentChoice && chance > .42
-    }
-    const resolution: PenaltyResolution = { userChoice, opponentChoice, role: penaltyRole, goal }
-
-    setPenaltyResolution(resolution)
-    setPenaltyHistory((current) => [...current, { side: penaltyRole === 'executant' ? 'user' : 'opponent', goal }])
-    if (goal) {
-      setPenaltyScore((current) => penaltyRole === 'executant'
-        ? { ...current, user: current.user + 1 }
-        : { ...current, opponent: current.opponent + 1 })
-    }
-    const positiveResult = penaltyRole === 'executant' ? goal : !goal
-    const techniquePoints = penaltyTechniques.find((technique) => technique.id === penaltyTechnique)?.points ?? 15
-    setArenaPoints((current) => current + (positiveResult ? (penaltyRole === 'portar' ? 20 : techniquePoints) : 3))
-    play(positiveResult ? 'success' : 'toggle')
+  const confirmMotmVote = () => {
+    if (!motmSelection) return
+    setMotmVote(motmSelection)
+    setMotmEditingVote(false)
+    play('success')
   }
 
-  const continuePenaltyDuel = () => {
-    setPenaltyResolution(null)
-    setPenaltyTurn((current) => Math.min(10, current + 1))
-    play('toggle')
-  }
-
-  const answerArenaQuiz = (answer: number) => {
-    if (quizAnswer !== null) return
-    setQuizAnswer(answer)
-    if (answer === tribuneQuiz.correct) setArenaPoints((current) => current + 40)
-    play(answer === tribuneQuiz.correct ? 'success' : 'toggle')
-  }
-
-  const guessArenaPlayer = (answer: number) => {
-    if (playerGuess === arenaPlayerChallenge.correct) return
-    setPlayerGuess(answer)
-    if (answer === arenaPlayerChallenge.correct) {
-      setArenaPoints((current) => current + Math.max(15, 50 - ((revealedClues - 1) * 15)))
-      play('success')
-      return
-    }
-    setRevealedClues((current) => Math.min(arenaPlayerChallenge.clues.length, current + 1))
-    play('toggle')
-  }
-
-  const selectTimelineEvent = (eventId: string) => {
-    setTimelineChecked(false)
-    setTimelineOrder((current) => current.includes(eventId)
-      ? current.filter((id) => id !== eventId)
-      : [...current, eventId])
-    play('toggle')
-  }
-
-  const checkArenaTimeline = () => {
-    if (timelineOrder.length !== arenaTimelineEvents.length) return
-    setTimelineChecked(true)
-    if (timelineCorrect) setArenaPoints((current) => current + 45)
-    play(timelineCorrect ? 'success' : 'toggle')
-  }
-
-  const resetArenaTimeline = () => {
-    setTimelineOrder([])
-    setTimelineChecked(false)
+  const editMotmVote = () => {
+    if (motmVote) setMotmSelection(motmVote)
+    setMotmEditingVote(true)
     play('toggle')
   }
 
@@ -2410,14 +2286,14 @@ export function CommunityView() {
           className={mobileTribuneSection !== 'flux' ? styles.tribuneMobileSectionActive : ''}
           aria-pressed={mobileTribuneSection !== 'flux'}
           onClick={() => {
-            setMobileTribuneSection(activePost ? 'discutie' : 'arena')
+            setMobileTribuneSection(activePost ? 'discutie' : 'interactiv')
             setComposerOpen(false)
             play('toggle')
           }}
         >
-          {activePost ? <MessageCircle aria-hidden="true" /> : <Gamepad2 aria-hidden="true" />}
-          <span>{activePost ? 'Discuție' : 'Arena'}</span>
-          <small>{activePost ? activePostCommentCount : 'Jocuri'}</small>
+          {activePost ? <MessageCircle aria-hidden="true" /> : <Trophy aria-hidden="true" />}
+          <span>{activePost ? 'Discuție' : 'Interactiv'}</span>
+          <small>{activePost ? activePostCommentCount : 'Vot'}</small>
         </button>
       </nav>
 
@@ -2770,240 +2646,196 @@ export function CommunityView() {
 
         <AnimatePresence mode="sync" initial={false}>
           {discussionPanel ?? (
-        <motion.div key="arena-tribunei" className={styles.tribuneArenaShell} variants={reveal} initial="hidden" animate="visible" exit={{ opacity: 0, x: 20 }} custom={0.13}>
-          <AppScrollArea className={styles.tribuneArenaScroll} contentClassName={styles.tribuneActiveRail} label="Arena Tribunei">
-            <header className={styles.tribuneArenaHeader}>
-              <div>
-                <span><Gamepad2 aria-hidden="true" /> Arena Tribunei</span>
-                <strong>Joacă, provoacă și urcă în Liga Suporterilor.</strong>
-              </div>
-              <span><i /> 126 jucători activi</span>
-            </header>
-
-            <section className={styles.arenaGameStage} style={{ '--arena-game-tone': activeArenaDefinition.tone } as CSSProperties}>
-              <header className={styles.arenaStageHeader}>
-                <span><ActiveArenaIcon aria-hidden="true" /></span>
-                <div><small>Joc activ</small><strong>{activeArenaDefinition.label}</strong></div>
-                <em><Trophy aria-hidden="true" /> {arenaPoints} puncte</em>
+            <motion.aside
+              key="jucatorul-tribunei"
+              className={styles.tribuneInteractiveShell}
+              initial={{ opacity: 0, x: 34 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 24 }}
+              transition={{ duration: .48, ease: [0.16, 1, 0.3, 1] }}
+              aria-label="Vot pentru Jucătorul Tribunei"
+            >
+              <header className={styles.motmHeader}>
+                <div>
+                  <span><Sparkles aria-hidden="true" /> Tribuna Interactivă <b>01</b></span>
+                  <strong>Jucătorul Tribunei</strong>
+                  <small>Alege omul victoriei de la Târgu Mureș.</small>
+                </div>
+                <div className={styles.motmVoteStatus}>
+                  <span><i /> Vot deschis</span>
+                  <small><Clock3 aria-hidden="true" /> încă 22 ore</small>
+                </div>
               </header>
 
-              {activeArenaGame === 'penalty' && (
-                <div className={styles.penaltyGame}>
-                  <div className={styles.penaltyModeSwitch} role="group" aria-label="Alege adversarul">
-                    <button type="button" className={penaltyOpponent === 'suporter' ? styles.penaltyModeActive : ''} onClick={() => resetPenaltyDuel('suporter')}><UsersRound aria-hidden="true" /> Suporter</button>
-                    <button type="button" className={penaltyOpponent === 'calculator' ? styles.penaltyModeActive : ''} onClick={() => resetPenaltyDuel('calculator')}><Shield aria-hidden="true" /> Străjerul</button>
+              <section className={styles.motmMatchStamp} aria-label={`${latestResult.home} ${tribuneMotmHomeScore} la ${tribuneMotmAwayScore} ${latestResult.away}`}>
+                <header>
+                  <span><Flag aria-hidden="true" /> Meciul precedent</span>
+                  <strong><i /> Final</strong>
+                </header>
+                <div className={styles.motmScoreboard}>
+                  <div className={styles.motmTeamHome}>
+                    <span><small>Gazde</small><strong>{latestResult.home}</strong></span>
+                    <img src="/echipe/asa-targu-mures.png" alt="Emblema ASA Târgu Mureș" />
                   </div>
-
-                  <div className={styles.penaltyScoreboard}>
-                    <span><small>Tu</small><strong>{penaltyScore.user}</strong><i>{penaltyHistory.filter((item) => item.side === 'user').map((item, index) => <b key={index} className={item.goal ? styles.penaltyGoalMark : styles.penaltyMissMark} />)}</i></span>
-                    <em><b>Runda {penaltyRound}/5</b><small>{penaltyOpponent === 'suporter' ? 'Duel asincron' : 'Contra calculatorului'}</small></em>
-                    <span><small>{penaltyOpponent === 'suporter' ? 'Mara / Areni' : 'Străjerul'}</small><strong>{penaltyScore.opponent}</strong><i>{penaltyHistory.filter((item) => item.side === 'opponent').map((item, index) => <b key={index} className={item.goal ? styles.penaltyGoalMark : styles.penaltyMissMark} />)}</i></span>
+                  <div className={styles.motmScore} aria-label={`Scor ${tribuneMotmHomeScore} la ${tribuneMotmAwayScore}`}>
+                    <strong>{tribuneMotmHomeScore}</strong><i>–</i><strong>{tribuneMotmAwayScore}</strong>
                   </div>
-
-                  <div className={styles.penaltyPlayOptions}>
-                    {penaltyRole === 'executant' ? (
-                      <div className={styles.penaltyTechniques} role="group" aria-label="Alege tehnica șutului">
-                        {penaltyTechniques.map((technique) => (
-                          <button type="button" key={technique.id} title={technique.hint} disabled={Boolean(penaltyResolution)} className={penaltyTechnique === technique.id ? styles.penaltyTechniqueActive : ''} onClick={() => { setPenaltyTechnique(technique.id); play('toggle') }}>
-                            <strong>{technique.label}</strong><small>{technique.detail} · +{technique.points}</small>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className={styles.penaltyKeeperBrief}><Eye aria-hidden="true" /><span><strong>Citește executantul</strong><small>Alege colțul înaintea șutului.</small></span></div>
-                    )}
-                    <div className={styles.penaltyMomentum}>
-                      <span><small>Pulsul peluzei</small><em>{penaltyMomentum}%</em></span>
-                      <i><b style={{ width: `${penaltyMomentum}%` }} /></i>
-                      <small>Serie personală: <b>{penaltyStreak}</b></small>
-                    </div>
+                  <div className={styles.motmTeamAway}>
+                    <img src={fanEmblem} alt="Emblema Fan Club Cetatea Suceava" />
+                    <span><small>Oaspeți</small><strong>{latestResult.away}</strong></span>
                   </div>
+                </div>
+                <footer>
+                  <span><CalendarDays aria-hidden="true" /> {latestResult.round} · {latestResult.date}</span>
+                  <span><MapPin aria-hidden="true" /> {latestResult.venue}</span>
+                  <strong><Trophy aria-hidden="true" /> Victorie Cetatea</strong>
+                </footer>
+              </section>
 
-                  <div className={styles.penaltyGoalScene}>
-                    <div className={styles.penaltyGoalFrame} aria-label={penaltyRole === 'executant' ? 'Alege unde tragi' : 'Alege unde plonjezi'}>
-                      <i className={styles.penaltyNet} aria-hidden="true" />
-                      <span className={styles.penaltyGoalVenue} aria-hidden="true">ARENI · POARTA NORD</span>
-                      <span className={styles.penaltyCrowd} aria-hidden="true">
-                        {[12, 20, 9, 24, 15, 22, 11, 19, 25, 13, 21, 16, 23, 10, 18, 24, 14, 22].map((height, index) => <i key={`${height}-${index}`} style={{ '--fan-height': `${height}px` } as CSSProperties} />)}
-                      </span>
-                      <motion.span
-                        className={styles.penaltyKeeper}
-                        aria-hidden="true"
-                        animate={{ left: `${penaltyKeeperZone?.x ?? 50}%`, top: `${penaltyKeeperZone?.y ?? 68}%`, x: '-50%', y: '-50%', rotate: penaltyKeeperZone ? (penaltyKeeperZone.x - 50) * .28 : 0 }}
-                        transition={{ type: 'spring', stiffness: 260, damping: 21 }}
-                      ><i /><b /></motion.span>
-                      <motion.span
-                        className={styles.penaltyBall}
-                        aria-hidden="true"
-                        animate={{ left: `${penaltyBallZone?.x ?? 50}%`, top: `${penaltyBallZone?.y ?? 88}%`, x: '-50%', y: '-50%', scale: penaltyBallZone ? .7 : 1 }}
-                        transition={{ type: 'spring', stiffness: 310, damping: 24 }}
-                      ><CircleDot /></motion.span>
-                      <div className={styles.penaltyTargets}>
-                        {penaltyZones.map((zone) => (
-                          <button
-                            type="button"
-                            key={zone.id}
-                            disabled={Boolean(penaltyResolution) || penaltyComplete}
-                            className={penaltyResolution?.userChoice === zone.id ? styles.penaltyTargetSelected : ''}
-                            style={{ '--zone-x': `${zone.x}%`, '--zone-y': `${zone.y}%` } as CSSProperties}
-                            onClick={() => playPenaltyZone(zone.id)}
-                            aria-label={`${penaltyRole === 'executant' ? 'Trage' : 'Plonjează'} ${zone.label.toLowerCase()}`}
-                          >
-                            <i /><span>{zone.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className={styles.penaltyInstruction}>
-                      {penaltyComplete ? (
-                        <>
-                          <span><Medal aria-hidden="true" /></span>
-                          <div><small>Duel încheiat</small><strong>{penaltyScore.user === penaltyScore.opponent ? 'Egalitate. Revanșa decide.' : penaltyScore.user > penaltyScore.opponent ? 'Ai câștigat duelul!' : 'Adversarul câștigă de data asta.'}</strong></div>
-                          <button type="button" onClick={() => resetPenaltyDuel()}>Revanșă</button>
-                        </>
-                      ) : penaltyResolution ? (
-                        <>
-                          <span className={penaltyRole === 'executant' ? (penaltyResolution.goal ? styles.penaltyPositive : styles.penaltyNegative) : (!penaltyResolution.goal ? styles.penaltyPositive : styles.penaltyNegative)}>
-                            {penaltyRole === 'executant' ? (penaltyResolution.goal ? <Zap /> : <Shield />) : (!penaltyResolution.goal ? <Shield /> : <CircleDot />)}
-                          </span>
-                          <div>
-                            <small>{penaltyRole === 'executant' ? `Execuție ${penaltyTechnique}` : 'Tu în poartă'}</small>
-                            <strong>{penaltyRole === 'executant' ? (penaltyResolution.goal ? 'GOL!' : 'Portarul a apărat.') : (!penaltyResolution.goal ? 'PARADĂ!' : 'Adversarul a înscris.')}</strong>
+              <AnimatePresence mode="wait" initial={false}>
+                {!motmResultsVisible ? (
+                  <motion.section
+                    key="motm-vot"
+                    className={styles.motmVoteExperience}
+                    initial={{ opacity: 0, x: -18 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 18 }}
+                    transition={{ duration: .36, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <div className={styles.motmCandidateHero} style={{ '--motm-tone': selectedMotmCandidate.tone } as CSSProperties}>
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.div
+                          key={selectedMotmCandidate.playerId}
+                          className={styles.motmHeroScene}
+                          initial={{ opacity: 0, x: 18, scale: .985 }}
+                          animate={{ opacity: 1, x: 0, scale: 1 }}
+                          exit={{ opacity: 0, x: -14, scale: .99 }}
+                          transition={{ duration: .32, ease: [0.16, 1, 0.3, 1] }}
+                        >
+                          <span className={styles.motmHeroNumber}>{selectedMotmCandidate.player.number ?? 'CS'}</span>
+                          <div className={styles.motmHeroPortrait}>
+                            <i /><i />
+                            <SquadPortrait player={selectedMotmCandidate.player} alt={`Portret ${selectedMotmCandidate.player.name}`} />
                           </div>
-                          <button type="button" onClick={continuePenaltyDuel}>{penaltyTurn === 9 ? 'Rezultat' : penaltyRole === 'executant' ? 'Acum aperi' : 'Runda următoare'}</button>
-                        </>
-                      ) : (
-                        <>
-                          <span><Crosshair aria-hidden="true" /></span>
-                          <div><small>{penaltyRole === 'executant' ? 'Ești executant' : 'Ești portar'}</small><strong>{penaltyRole === 'executant' ? 'Alege locul șutului.' : 'Anticipează și alege plonjonul.'}</strong></div>
-                          <em>+{penaltyRole === 'executant' ? penaltyTechniques.find((technique) => technique.id === penaltyTechnique)?.points ?? 15 : 20} pct.</em>
-                        </>
-                      )}
+                          <div className={styles.motmHeroIdentity}>
+                            <small><BadgeCheck aria-hidden="true" /> Alegerea curentă</small>
+                            <strong>{selectedMotmCandidate.player.name}</strong>
+                            <span>{selectedMotmCandidate.matchLine}</span>
+                            <p>{selectedMotmCandidate.reason}</p>
+                          </div>
+                        </motion.div>
+                      </AnimatePresence>
                     </div>
-                  </div>
-                </div>
-              )}
 
-              {activeArenaGame === 'quiz' && (
-                <div className={styles.arenaQuickChallenge}>
-                  <span className={styles.arenaChallengeIndex}>01 / 05</span>
-                  <small>Quiz Blitz · întrebarea zilei</small>
-                  <h3>{tribuneQuiz.question}</h3>
-                  <div className={styles.arenaAnswerGrid}>
-                    {tribuneQuiz.options.map((option, index) => (
-                      <button
-                        type="button"
-                        key={option}
-                        className={quizAnswer === null ? '' : index === tribuneQuiz.correct ? styles.arenaAnswerCorrect : quizAnswer === index ? styles.arenaAnswerWrong : ''}
-                        onClick={() => answerArenaQuiz(index)}
-                      ><span>{String.fromCharCode(65 + index)}</span><strong>{option}</strong></button>
-                    ))}
-                  </div>
-                  <footer>{quizAnswer === null ? <><Clock3 /> Răspunde pentru 40 de puncte.</> : quizAnswer === tribuneQuiz.correct ? <><Trophy /> Corect. Ai câștigat 40 de puncte.</> : <><Shield /> Răspunsul corect era 1932.</>}</footer>
-                </div>
-              )}
+                    <div className={styles.motmBallot}>
+                      <header>
+                        <span><small>Buletinul tău de vot</small><strong>Alege un singur jucător</strong></span>
+                        <em>{motmCandidates.length} candidați</em>
+                      </header>
+                      <div className={styles.motmCandidateList} role="radiogroup" aria-label="Candidații pentru Jucătorul Tribunei">
+                        {motmCandidates.map((candidate, index) => {
+                          const selected = candidate.playerId === selectedMotmCandidate.playerId
+                          return (
+                            <button
+                              type="button"
+                              role="radio"
+                              aria-checked={selected}
+                              tabIndex={selected ? 0 : -1}
+                              key={candidate.playerId}
+                              className={selected ? styles.motmCandidateSelected : ''}
+                              style={{ '--motm-tone': candidate.tone } as CSSProperties}
+                              onClick={() => selectMotmCandidate(candidate.playerId)}
+                              onKeyDown={(event) => {
+                                if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return
+                                event.preventDefault()
+                                const direction = event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : 1
+                                const nextIndex = (index + direction + motmCandidates.length) % motmCandidates.length
+                                const nextButton = event.currentTarget.parentElement?.querySelectorAll('button')[nextIndex]
+                                stepMotmCandidate(direction)
+                                window.requestAnimationFrame(() => nextButton?.focus())
+                              }}
+                              aria-label={`${candidate.player.name}, ${candidate.matchLine}`}
+                            >
+                              <b>{String(index + 1).padStart(2, '0')}</b>
+                              <span className={styles.motmCandidatePortrait}><SquadPortrait player={candidate.player} /></span>
+                              <span><strong>{candidate.player.name}</strong><small>{candidate.matchLine}</small></span>
+                              <i>{selected ? <BadgeCheck aria-hidden="true" /> : <ChevronRight aria-hidden="true" />}</i>
+                              {selected && <motion.span className={styles.motmCandidateSelection} layoutId="motm-candidate-selection" transition={{ type: 'spring', stiffness: 430, damping: 38 }} />}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <footer>
+                        <span><EyeOff aria-hidden="true" /><small>Rezultatele apar după vot</small></span>
+                        <button type="button" onClick={confirmMotmVote}>
+                          <Trophy aria-hidden="true" /><span><small>Confirmă alegerea</small><strong>Votează {selectedMotmCandidate.player.name.split(' ').at(-1)}</strong></span><ArrowRight aria-hidden="true" />
+                        </button>
+                        {motmEditingVote && <button type="button" className={styles.motmCancelEdit} onClick={() => setMotmEditingVote(false)}>Păstrează votul anterior</button>}
+                      </footer>
+                    </div>
+                  </motion.section>
+                ) : (
+                  <motion.section
+                    key="motm-rezultate"
+                    className={styles.motmResultsExperience}
+                    aria-live="polite"
+                    initial={{ opacity: 0, x: 18 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -18 }}
+                    transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <div className={styles.motmLeaderStage} style={{ '--motm-tone': motmLeader.tone } as CSSProperties}>
+                      <span className={styles.motmLeaderOrbit} aria-hidden="true"><i /><i /><i /></span>
+                      <header><span><Medal aria-hidden="true" /> Liderul Tribunei</span><em>{Math.round((motmLeader.votes / motmTotalVotes) * 100)}%</em></header>
+                      <div className={styles.motmLeaderPortrait}>
+                        <span>{motmLeader.player.number ?? 'CS'}</span>
+                        <SquadPortrait player={motmLeader.player} alt={`Portret ${motmLeader.player.name}`} />
+                      </div>
+                      <div className={styles.motmLeaderIdentity}>
+                        <small>Locul 1 · momentan</small>
+                        <strong>{motmLeader.player.name}</strong>
+                        <span>{motmLeader.matchLine}</span>
+                      </div>
+                      <footer><span><i /><b>{motmLeader.votes}</b> voturi</span><small>Avans de {motmLead} voturi</small></footer>
+                    </div>
 
-              {activeArenaGame === 'jucator' && (
-                <div className={styles.arenaQuickChallenge}>
-                  <span className={styles.arenaChallengeIndex}>{revealedClues} / {arenaPlayerChallenge.clues.length} indicii</span>
-                  <small>Dosarul misterios</small>
-                  <h3>Cine este jucătorul?</h3>
-                  <div className={styles.arenaClues}>
-                    {arenaPlayerChallenge.clues.slice(0, revealedClues).map((clue, index) => <span key={clue}><b>{index + 1}</b>{clue}</span>)}
-                  </div>
-                  <div className={styles.arenaAnswerGrid}>
-                    {arenaPlayerChallenge.options.map((option, index) => (
-                      <button
-                        type="button"
-                        key={option}
-                        className={playerGuess === arenaPlayerChallenge.correct && index === arenaPlayerChallenge.correct ? styles.arenaAnswerCorrect : playerGuess === index ? styles.arenaAnswerWrong : ''}
-                        onClick={() => guessArenaPlayer(index)}
-                      ><span>{squad.find((player) => player.name === option)?.number ?? '?'}</span><strong>{option}</strong></button>
-                    ))}
-                  </div>
-                  <footer>{playerGuess === arenaPlayerChallenge.correct ? <><Trophy /> Identificat. Punctele au fost adăugate.</> : <><Eye /> Un răspuns greșit dezvăluie încă un indiciu.</>}</footer>
-                </div>
-              )}
-
-              {activeArenaGame === 'cronologie' && (
-                <div className={styles.arenaQuickChallenge}>
-                  <span className={styles.arenaChallengeIndex}>{timelineOrder.length} / {arenaTimelineEvents.length}</span>
-                  <small>Cronologia Cetății</small>
-                  <h3>Alege evenimentele de la cel mai vechi la cel mai nou.</h3>
-                  <div className={styles.arenaTimelineOrder}>
-                    {timelineOrder.length === 0 && <small>Ordinea ta va apărea aici.</small>}
-                    {timelineOrder.map((eventId, index) => {
-                      const event = arenaTimelineEvents.find((item) => item.id === eventId)
-                      return <span key={eventId}><b>{index + 1}</b>{event?.label}</span>
-                    })}
-                  </div>
-                  <div className={styles.arenaTimelineChoices}>
-                    {arenaTimelineEvents.map((event) => (
-                      <button type="button" key={event.id} disabled={timelineOrder.includes(event.id)} onClick={() => selectTimelineEvent(event.id)}>{event.label}</button>
-                    ))}
-                  </div>
-                  <footer>
-                    <span>{timelineChecked ? (timelineCorrect ? 'Ordine perfectă · +45 puncte' : 'Ordinea nu este corectă.') : 'Completează cele trei poziții.'}</span>
-                    {timelineChecked && !timelineCorrect ? <button type="button" onClick={resetArenaTimeline}>Încearcă din nou</button> : <button type="button" disabled={timelineOrder.length !== arenaTimelineEvents.length || timelineChecked} onClick={checkArenaTimeline}>Verifică</button>}
-                  </footer>
-                </div>
-              )}
-            </section>
-
-            <section className={styles.arenaGameLibrary}>
-              <header><span><Swords aria-hidden="true" /> Alege provocarea</span><em>4 jocuri</em></header>
-              <div>
-                {tribuneArenaGames.map((game) => {
-                  const GameIcon = game.icon
-                  return (
-                    <button type="button" key={game.id} className={activeArenaGame === game.id ? styles.arenaGameSelected : ''} style={{ '--game-tone': game.tone } as CSSProperties} onClick={() => selectArenaGame(game.id)}>
-                      <span><GameIcon aria-hidden="true" /></span>
-                      <strong>{game.label}</strong>
-                      <small>{game.detail}</small>
-                      <i><ChevronRight aria-hidden="true" /></i>
-                    </button>
-                  )
-                })}
-              </div>
-            </section>
-
-            <section className={styles.arenaLeague}>
-              <header><span><Medal aria-hidden="true" /> Liga Suporterilor</span><em>Săptămâna 03</em></header>
-              <div>
-                {arenaLeaderboard.map((player) => (
-                  <span key={player.name}><b>{player.position}</b><strong>{player.name}</strong><em>{player.points}</em></span>
-                ))}
-              </div>
-              <footer>
-                <span><b>{arenaUserRank}</b><strong>Tu</strong></span>
-                <em>{arenaPoints} pct.</em>
-                <i><b style={{ width: `${Math.min(100, Math.round((arenaPoints / 900) * 100))}%` }} /></i>
-                <small>{arenaPoints >= 900 ? 'Ai intrat în lupta pentru Top 10.' : `${900 - arenaPoints} pct. până la Top 10`}</small>
-              </footer>
-            </section>
-
-            <section className={styles.arenaMissions}>
-              <header>
-                <span><Star aria-hidden="true" /> Misiunile zilei</span>
-                <em>{arenaMissionProgress}/3</em>
-              </header>
-              <div>
-                <button type="button" className={penaltyHistory.length > 0 ? styles.arenaMissionDone : ''} onClick={() => selectArenaGame('penalty')}>
-                  <CircleDot aria-hidden="true" /><span><strong>Intră într-un duel</strong><small>Joacă prima fază</small></span><em>{penaltyHistory.length > 0 ? 'GATA' : '+20'}</em>
-                </button>
-                <button type="button" className={quizAnswer !== null ? styles.arenaMissionDone : ''} onClick={() => selectArenaGame('quiz')}>
-                  <Zap aria-hidden="true" /><span><strong>Răspuns fulger</strong><small>Încheie Quiz Blitz</small></span><em>{quizAnswer !== null ? 'GATA' : '+40'}</em>
-                </button>
-                <button type="button" className={playerGuess === arenaPlayerChallenge.correct || (timelineChecked && timelineCorrect) ? styles.arenaMissionDone : ''} onClick={() => selectArenaGame('jucator')}>
-                  <Shield aria-hidden="true" /><span><strong>Detectivul lotului</strong><small>Identifică jucătorul</small></span><em>{playerGuess === arenaPlayerChallenge.correct || (timelineChecked && timelineCorrect) ? 'GATA' : '+50'}</em>
-                </button>
-              </div>
-            </section>
-          </AppScrollArea>
-        </motion.div>
+                    <div className={styles.motmRanking}>
+                      <header>
+                        <span><small>Rezultate în timp real</small><strong>Cursa pentru trofeu</strong></span>
+                        <em><UsersRound aria-hidden="true" /> {motmTotalVotes.toLocaleString('ro-RO')} voturi</em>
+                        <div className={styles.motmHeadToHead} style={{ '--motm-duel-share': `${motmDuelShare}%` } as CSSProperties}>
+                          <span><b>01</b><strong>{motmResults[0].player.name.split(' ').at(-1)}</strong></span>
+                          <i><motion.b initial={{ width: '50%' }} animate={{ width: `${motmDuelShare}%` }} transition={{ duration: .7, ease: [0.16, 1, 0.3, 1] }} /></i>
+                          <span><strong>{motmResults[1].player.name.split(' ').at(-1)}</strong><b>02</b></span>
+                          <small>{motmLead === 1 ? 'Un singur vot între ei' : `${motmLead} voturi între ei`}</small>
+                        </div>
+                      </header>
+                      <div>
+                        {motmResults.map((candidate, index) => {
+                          const percentage = Math.round((candidate.votes / motmTotalVotes) * 100)
+                          const isUserVote = candidate.playerId === motmVote
+                          return (
+                            <motion.article layout key={candidate.playerId} className={isUserVote ? styles.motmUserChoice : ''} style={{ '--motm-tone': candidate.tone } as CSSProperties}>
+                              <b>{index + 1}</b>
+                              <span className={styles.motmResultPortrait}><SquadPortrait player={candidate.player} /></span>
+                              <span><strong>{candidate.player.name}</strong><small>{isUserVote ? 'Votul tău' : candidate.matchLine}</small><i><motion.b initial={{ width: 0 }} animate={{ width: `${percentage}%` }} transition={{ duration: .62, delay: index * .06, ease: [0.16, 1, 0.3, 1] }} /></i></span>
+                              <em><strong>{percentage}%</strong><small>{candidate.votes} voturi</small></em>
+                            </motion.article>
+                          )
+                        })}
+                      </div>
+                      <footer>
+                        <span><BadgeCheck aria-hidden="true" /><i><small>Vot înregistrat</small><strong>{userMotmCandidate?.player.name}</strong></i></span>
+                        <button type="button" onClick={editMotmVote}>Modifică votul</button>
+                      </footer>
+                    </div>
+                  </motion.section>
+                )}
+              </AnimatePresence>
+            </motion.aside>
           )}
         </AnimatePresence>
+
       </div>
 
       {createPortal(
