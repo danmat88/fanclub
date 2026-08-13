@@ -575,8 +575,8 @@
 .tribuneView .viewIntro { margin-bottom: clamp(8px, 1.3vh, 14px); }
 
 .tribuneLayout {
-  --tribune-feed-min: 455px;
-  --tribune-motm-min: 470px;
+  --tribune-feed-min: 385px;
+  --tribune-motm-min: 425px;
   display: grid;
   grid-template-columns: minmax(var(--tribune-feed-min), .92fr) minmax(var(--tribune-motm-min), 1.08fr);
   flex: 1;
@@ -5337,98 +5337,54 @@
   .viewIntro h1 { max-width: 72%; font-size: clamp(1.16rem, 5.7vw, 1.62rem); }
 }
 
-.tribuneMobileSectionTabs { display: none; }
+.tribuneMobileSectionTabs {
+  position: relative;
+  display: none;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  min-height: 43px;
+  margin-bottom: 8px;
+  padding: 3px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 82%, transparent);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surface-solid) 46%, transparent);
+}
+
+.tribuneMobileSectionTabs::before { content: ''; position: absolute; top: 8px; bottom: 8px; left: 50%; width: 1px; background: var(--line); }
+.tribuneMobileSectionTabs button { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; min-width: 0; gap: 8px; align-items: center; padding: 7px 11px; border: 0; border-radius: 8px; background: transparent; color: var(--text-subtle); cursor: pointer; }
+.tribuneMobileSectionTabs button::after { content: ''; position: absolute; right: 10px; bottom: 1px; left: 10px; height: 2px; background: linear-gradient(90deg, var(--tone-green), var(--tone-cyan)); opacity: 0; transform: scaleX(.35); transition: opacity 160ms ease, transform 200ms cubic-bezier(.16, 1, .3, 1); }
+.tribuneMobileSectionTabs svg { width: 17px; height: 17px; color: var(--text-dim); }
+.tribuneMobileSectionTabs span { overflow: hidden; font: 750 .63rem/1 var(--font-game); letter-spacing: .035em; text-align: left; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.tribuneMobileSectionTabs small { color: var(--text-dim); font: 760 .44rem/1 var(--font-tech); letter-spacing: .04em; white-space: nowrap; }
+.tribuneMobileSectionTabs .tribuneMobileSectionActive { background: linear-gradient(110deg, color-mix(in srgb, var(--tone-green) 15%, transparent), color-mix(in srgb, var(--tone-cyan) 7%, transparent)); color: var(--text-primary); }
+.tribuneMobileSectionTabs .tribuneMobileSectionActive::after { opacity: 1; transform: scaleX(1); }
+.tribuneMobileSectionTabs .tribuneMobileSectionActive svg { color: var(--tone-green); }
+.tribuneMobileSectionTabs .tribuneMobileSectionActive small { color: var(--tone-cyan); }
+
+@container app-stage (max-width: 890px) {
+  .tribuneMobileSectionTabs { display: grid; }
+
+  .tribuneLayout[data-mobile-section='flux'],
+  .tribuneLayout[data-mobile-section='interactiv'],
+  .tribuneLayout[data-mobile-section='discutie'] { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 0; overflow: hidden; }
+
+  .tribuneLayout > .tribuneFeedColumn,
+  .tribuneLayout > .tribuneInteractiveShell,
+  .tribuneLayout > .tribuneThreadRail { grid-column: 1; grid-row: 1; }
+
+  .tribuneLayout[data-mobile-section='flux'] > .tribuneInteractiveShell,
+  .tribuneLayout[data-mobile-section='flux'] > .tribuneThreadRail,
+  .tribuneLayout[data-mobile-section='interactiv'] > .tribuneFeedColumn,
+  .tribuneLayout[data-mobile-section='interactiv'] > .tribuneThreadRail,
+  .tribuneLayout[data-mobile-section='discutie'] > .tribuneFeedColumn,
+  .tribuneLayout[data-mobile-section='discutie'] > .tribuneInteractiveShell { display: none; }
+
+  .tribuneInteractiveShell { width: 100%; height: 100%; padding: 3px 2px 4px; }
+}
 
 @media (max-width: 900px) {
-  .tribuneMobileSectionTabs {
-    position: relative;
-    display: grid;
-    flex: 0 0 auto;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-    min-height: 43px;
-    margin-bottom: 8px;
-    padding: 3px;
-    overflow: hidden;
-    border: 1px solid color-mix(in srgb, var(--line-strong) 82%, transparent);
-    border-radius: 11px;
-    background: color-mix(in srgb, var(--surface-solid) 46%, transparent);
-  }
-
-  .tribuneMobileSectionTabs::before {
-    content: '';
-    position: absolute;
-    top: 8px;
-    bottom: 8px;
-    left: 50%;
-    width: 1px;
-    background: var(--line);
-  }
-
-  .tribuneMobileSectionTabs button {
-    position: relative;
-    display: grid;
-    grid-template-columns: 18px minmax(0, 1fr) auto;
-    gap: 8px;
-    align-items: center;
-    min-width: 0;
-    padding: 7px 11px;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--text-subtle);
-    cursor: pointer;
-  }
-
-  .tribuneMobileSectionTabs button::after {
-    content: '';
-    position: absolute;
-    right: 10px;
-    bottom: 1px;
-    left: 10px;
-    height: 2px;
-    background: linear-gradient(90deg, var(--tone-green), var(--tone-cyan));
-    opacity: 0;
-    transform: scaleX(.35);
-    transition: opacity 160ms ease, transform 200ms cubic-bezier(.16, 1, .3, 1);
-  }
-
-  .tribuneMobileSectionTabs svg {
-    width: 17px;
-    height: 17px;
-    color: var(--text-dim);
-  }
-
-  .tribuneMobileSectionTabs span {
-    overflow: hidden;
-    font: 750 .63rem/1 var(--font-game);
-    letter-spacing: .035em;
-    text-align: left;
-    text-overflow: ellipsis;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-
-  .tribuneMobileSectionTabs small {
-    color: var(--text-dim);
-    font: 760 .44rem/1 var(--font-tech);
-    letter-spacing: .04em;
-    white-space: nowrap;
-  }
-
-  .tribuneMobileSectionTabs .tribuneMobileSectionActive {
-    background: linear-gradient(110deg, color-mix(in srgb, var(--tone-green) 15%, transparent), color-mix(in srgb, var(--tone-cyan) 7%, transparent));
-    color: var(--text-primary);
-  }
-
-  .tribuneMobileSectionTabs .tribuneMobileSectionActive::after {
-    opacity: 1;
-    transform: scaleX(1);
-  }
-
-  .tribuneMobileSectionTabs .tribuneMobileSectionActive svg { color: var(--tone-green); }
-  .tribuneMobileSectionTabs .tribuneMobileSectionActive small { color: var(--tone-cyan); }
-
   .tribuneLayout[data-mobile-section='flux'],
   .tribuneLayout[data-mobile-section='interactiv'],
   .tribuneLayout[data-mobile-section='discutie'] {
@@ -6124,6 +6080,35 @@
   .motmLeaderStage > footer > small { display: none; }
 }
 
+@media (max-width: 650px) and (max-height: 760px) {
+  .motmVoteExperience,
+  .motmResultsExperience { grid-template-rows: minmax(0, 1fr); }
+  .motmCandidateHero,
+  .motmLeaderStage { display: none; }
+  .motmBallot,
+  .motmRanking { width: 100%; height: 100%; }
+}
+
+@media (max-width: 650px) and (max-height: 640px) {
+  .tribuneView .viewIntro { display: none; }
+  .tribuneMobileSectionTabs { min-height: 37px; margin-bottom: 4px; }
+  .tribuneMobileSectionTabs button { padding-block: 5px; }
+  .motmHeader > div:first-child > span { display: none; }
+  .motmMatchStamp { grid-template-rows: auto minmax(36px, auto) auto; min-height: 70px; }
+  .motmMatchStamp > header { padding-block: 2px 1px; }
+  .motmMatchStamp > footer { padding-block: 2px 3px; }
+  .motmCandidatePortrait,
+  .motmResultPortrait { width: 28px; height: 28px; }
+  .motmCandidateList > button { grid-template-columns: 20px 29px minmax(0, 1fr) 18px; gap: 6px; padding-block: 1px; }
+  .motmBallot > header,
+  .motmRanking > header { padding-block: 5px; }
+  .motmBallot > footer,
+  .motmRanking > footer { padding-block: 4px; }
+  .motmBallot > footer > button:not(.motmCancelEdit) { min-height: 35px; }
+  .motmRanking article { grid-template-columns: 20px 29px minmax(0, 1fr) 47px; gap: 6px; padding-block: 1px; }
+  .motmHeadToHead { display: none; }
+}
+
 @media (max-height: 690px) {
   .tribuneInteractiveShell { gap: 6px; }
   .motmHeader { padding-bottom: 6px; }
@@ -6146,6 +6131,67 @@
   .motmHeadToHead > small { display: none; }
   .motmBallot > footer > button:not(.motmCancelEdit) { min-height: 38px; }
   .motmLeaderIdentity { padding-block: 5px; }
+}
+
+@media (max-width: 900px) and (max-height: 560px) {
+  .tribuneView .viewIntro { display: none; }
+  .tribuneMobileSectionTabs { min-height: 35px; margin-bottom: 4px; }
+  .tribuneMobileSectionTabs button { padding-block: 4px; }
+  .tribuneInteractiveShell { gap: 4px; padding-top: 0; }
+  .motmHeader { min-height: 25px; align-items: center; padding-bottom: 3px; }
+  .motmHeader > div:first-child > span,
+  .motmHeader > div:first-child > small,
+  .motmVoteStatus > small { display: none; }
+  .motmHeader > div:first-child > strong { font-size: .68rem; }
+  .motmMatchStamp { grid-template-rows: minmax(0, 1fr); min-height: 43px; }
+  .motmMatchStamp > header,
+  .motmMatchStamp > footer { display: none; }
+  .motmScoreboard { height: 100%; padding: 2px 8px; }
+  .motmScoreboard img { width: 29px; height: 29px; }
+  .motmTeamHome { grid-template-columns: minmax(0, 1fr) 29px; }
+  .motmTeamAway { grid-template-columns: 29px minmax(0, 1fr); }
+  .motmTeamHome small,
+  .motmTeamAway small { display: none; }
+  .motmScore strong { height: 27px; }
+  .motmVoteExperience,
+  .motmResultsExperience { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 0; }
+  .motmCandidateHero,
+  .motmLeaderStage { display: none; }
+  .motmBallot,
+  .motmRanking { width: 100%; height: 100%; }
+  .motmBallot > header,
+  .motmRanking > header { min-height: 29px; padding: 4px 8px; }
+  .motmBallot > header small,
+  .motmRanking > header small { display: none; }
+  .motmBallot > header strong,
+  .motmRanking > header strong { font-size: .55rem; }
+  .motmHeadToHead { display: none; }
+  .motmCandidateList { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); }
+  .motmCandidateList > button { grid-template-columns: minmax(0, 1fr); grid-template-rows: 25px auto; gap: 2px; justify-items: center; padding: 2px 4px; border-right: 1px solid var(--line); border-bottom: 0; text-align: center; }
+  .motmCandidateList > button:last-child { border-right: 0; }
+  .motmCandidateList > button > b,
+  .motmCandidateList > button > i,
+  .motmCandidateList > button small { display: none; }
+  .motmCandidatePortrait { width: 25px; height: 25px; }
+  .motmCandidateList > button strong { max-width: 100%; font-size: .43rem; }
+  .motmBallot > footer { grid-template-columns: minmax(0, 1fr); min-height: 35px; padding: 3px 7px; }
+  .motmBallot > footer > span { display: none; }
+  .motmBallot > footer > button:not(.motmCancelEdit) { min-height: 31px; }
+  .motmBallot > footer > button small { display: none; }
+  .motmRanking > div { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); }
+  .motmRanking article { grid-template-columns: 25px minmax(0, 1fr); grid-template-rows: repeat(2, auto); gap: 2px 5px; align-content: center; padding: 2px 4px; border-right: 1px solid var(--line); border-bottom: 0; }
+  .motmRanking article:last-child { border-right: 0; }
+  .motmRanking article > b { display: none; }
+  .motmResultPortrait { grid-row: 1 / 3; width: 25px; height: 25px; }
+  .motmRanking article > span:nth-child(3) { align-self: end; }
+  .motmRanking article > span:nth-child(3) > strong { font-size: .42rem; }
+  .motmRanking article > span:nth-child(3) > small,
+  .motmRanking article > span:nth-child(3) > i,
+  .motmRanking article > em small { display: none; }
+  .motmRanking article > em { justify-items: start; align-self: start; }
+  .motmRanking article > em strong { font-size: .45rem; }
+  .motmRanking > footer { min-height: 33px; padding: 3px 8px; }
+  .motmRanking > footer > span > svg { width: 15px; height: 15px; }
 }
 
 :global(html[data-performance='economie']) .motmVoteStatus > span i,
