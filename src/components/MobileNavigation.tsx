@@ -13,12 +13,15 @@ import {
 import { useEffect, useState, type CSSProperties } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { nextMatch } from '../data/clubData'
+import { panelBackdropVariants, panelFromBottomVariants, panelLayerVariants } from './panelMotion'
 import styles from './MobileNavigation.module.css'
 
 type MobileNavigationProps = {
   activePath: string
+  economy?: boolean
   matchBadge: string
   onNavigate: (path: string) => void
+  startupVisible?: boolean
 }
 
 type MobileDestination = {
@@ -41,7 +44,13 @@ const secondaryDestinations: MobileDestination[] = [
   { path: '/mostenire', label: 'Moștenirea', detail: 'Istorie, Areni și cântări', tone: 'var(--tone-violet)', icon: Landmark },
 ]
 
-export function MobileNavigation({ activePath, matchBadge, onNavigate }: MobileNavigationProps) {
+export function MobileNavigation({
+  activePath,
+  economy = false,
+  matchBadge,
+  onNavigate,
+  startupVisible = true,
+}: MobileNavigationProps) {
   const navigate = useNavigate()
   const [moreOpen, setMoreOpen] = useState(false)
   const secondaryActive = secondaryDestinations.some((item) => item.path === activePath)
@@ -66,25 +75,35 @@ export function MobileNavigation({ activePath, matchBadge, onNavigate }: MobileN
   }
 
   return (
-    <div className={styles.mobileNavigationShell}>
-      <AnimatePresence>
+    <motion.div
+      className={styles.mobileNavigationShell}
+      initial={false}
+      animate={{ opacity: startupVisible ? 1 : 0, y: startupVisible ? 0 : 54 }}
+      transition={{ delay: startupVisible ? .12 : 0, duration: economy ? .34 : .62, ease: [0.16, 1, 0.3, 1] }}
+      aria-hidden={!startupVisible}
+    >
+      <AnimatePresence initial={false} mode="sync">
         {moreOpen && (
           <motion.div
             className={styles.moreLayer}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            variants={panelLayerVariants}
+            initial="closed"
+            animate="open"
+            exit="closed"
           >
-            <button className={styles.moreBackdrop} type="button" onClick={() => setMoreOpen(false)} aria-label="Închide meniul" />
+            <motion.button
+              className={styles.moreBackdrop}
+              type="button"
+              variants={panelBackdropVariants}
+              onClick={() => setMoreOpen(false)}
+              aria-label="Închide meniul"
+            />
             <motion.section
               id="navigatie-mobila-secundara"
               className={styles.moreSheet}
               role="dialog"
               aria-label="Mai multe destinații"
-              initial={{ y: 42, opacity: 0, scale: .98 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 30, opacity: 0, scale: .985 }}
-              transition={{ duration: .24, ease: [0.16, 1, 0.3, 1] }}
+              variants={panelFromBottomVariants}
             >
               <header>
                 <span><small>Explorează Cetatea</small><strong>Mai multe destinații</strong></span>
@@ -176,6 +195,6 @@ export function MobileNavigation({ activePath, matchBadge, onNavigate }: MobileN
           <small>Mai mult</small>
         </button>
       </nav>
-    </div>
+    </motion.div>
   )
 }

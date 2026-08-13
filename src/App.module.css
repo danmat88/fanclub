@@ -22,11 +22,13 @@
   height: 104%;
   object-fit: cover;
   object-position: center;
-  opacity: var(--scene-image-opacity);
+  opacity: 0;
   filter: var(--scene-image-filter);
   animation: appSceneDrift 26s ease-in-out infinite alternate;
-  transition: filter 720ms ease, opacity 620ms ease;
+  transition: filter 720ms ease, opacity 820ms cubic-bezier(.16, 1, .3, 1);
 }
+
+.persistentSceneReady img { opacity: var(--scene-image-opacity); }
 
 @keyframes appSceneDrift {
   from { transform: scale(1.015) translate3d(-.25%, 0, 0); }
@@ -56,6 +58,118 @@
   transition: background 720ms ease;
 }
 
+.persistentScene::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background:
+    radial-gradient(circle at 86% 8%, color-mix(in srgb, var(--tone-violet) 13%, transparent), transparent 25%),
+    radial-gradient(circle at 48% 100%, color-mix(in srgb, var(--tone-amber) 8%, transparent), transparent 31%),
+    radial-gradient(circle at 68% 40%, var(--scene-glow), transparent 34%),
+    radial-gradient(circle at 12% 78%, var(--scene-glow-secondary), transparent 26%),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--page-bg) 46%, transparent),
+      color-mix(in srgb, var(--page-bg-deep) 64%, transparent)
+    );
+  transition: background 720ms ease;
+}
+
+.sceneAtmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sceneGrid,
+.sceneRings {
+  position: absolute;
+  z-index: 3;
+  display: block;
+  pointer-events: none;
+}
+
+.sceneGrid {
+  inset: 0;
+  opacity: var(--grid-opacity);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 54px 54px;
+  mask-image: linear-gradient(105deg, transparent 4%, #000 38%, #000 72%, transparent 100%);
+  transform: perspective(700px) rotateX(57deg) scale(1.45) translateY(23%);
+  transform-origin: bottom;
+}
+
+.sceneRings {
+  right: -14vw;
+  bottom: -53vw;
+  width: 91vw;
+  aspect-ratio: 1;
+  border: 1px solid var(--ambient-line);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 11vw var(--stadium-ring),
+    0 0 0 22vw var(--stadium-ring);
+}
+
+.sceneAtmosphere::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: .045;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.28'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+}
+
+.sceneAtmosphere i {
+  position: absolute;
+  top: -38%;
+  width: 16%;
+  height: 122%;
+  opacity: .19;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone-cyan) 24%, transparent), transparent 72%);
+  filter: blur(24px);
+  transform: rotate(15deg);
+  transform-origin: top;
+  animation: sceneLightBreathe 4.6s ease-in-out infinite alternate;
+}
+
+.sceneAtmosphere i:nth-child(1) { left: 9%; }
+.sceneAtmosphere i:nth-child(2) { left: 43%; animation-delay: -1.5s; }
+.sceneAtmosphere i:nth-child(3) {
+  right: 3%;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone-violet) 22%, transparent), transparent 72%);
+  animation-delay: -2.4s;
+}
+
+@keyframes sceneLightBreathe {
+  from { opacity: .1; transform: rotate(15deg) scaleX(.84); }
+  to { opacity: .26; transform: rotate(12deg) scaleX(1.08); }
+}
+
+.startupLogo {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 140;
+  object-fit: contain;
+  filter: drop-shadow(0 15px 24px color-mix(in srgb, var(--page-bg) 54%, transparent));
+  pointer-events: none;
+  transform-origin: top left;
+  will-change: transform, width, height, opacity;
+}
+
+.startupTargetLogo {
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.startupTargetLogoVisible { opacity: 1; }
+
 .app {
   --rail-width: clamp(292px, 21vw, 326px);
   --nav-zone: clamp(382px, 28vw, 430px);
@@ -70,50 +184,10 @@
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 86% 8%, color-mix(in srgb, var(--tone-violet) 13%, transparent), transparent 25%),
-    radial-gradient(circle at 48% 100%, color-mix(in srgb, var(--tone-amber) 8%, transparent), transparent 31%),
-    radial-gradient(circle at 68% 40%, var(--scene-glow), transparent 34%),
-    radial-gradient(circle at 12% 78%, var(--scene-glow-secondary), transparent 26%),
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--page-bg) 46%, transparent),
-      color-mix(in srgb, var(--page-bg-deep) 64%, transparent)
-    );
+  background: transparent;
   color: var(--text-primary);
   isolation: isolate;
   transition: grid-template-columns 420ms cubic-bezier(.16, 1, .3, 1);
-}
-
-.app::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -3;
-  opacity: var(--grid-opacity);
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 54px 54px;
-  mask-image: linear-gradient(105deg, transparent 4%, #000 38%, #000 72%, transparent 100%);
-  transform: perspective(700px) rotateX(57deg) scale(1.45) translateY(23%);
-  transform-origin: bottom;
-}
-
-.app::after {
-  content: '';
-  position: absolute;
-  right: -14vw;
-  bottom: -53vw;
-  z-index: -2;
-  width: 91vw;
-  aspect-ratio: 1;
-  border: 1px solid var(--ambient-line);
-  border-radius: 50%;
-  box-shadow:
-    0 0 0 11vw var(--stadium-ring),
-    0 0 0 22vw var(--stadium-ring);
-  pointer-events: none;
 }
 
 .ambient {
@@ -1378,6 +1452,41 @@
   overflow: hidden;
 }
 
+.stageStartupVisible .page > * > * {
+  animation: appContentSlideFromRight .76s cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.stageStartupVisible .page > * > *:nth-child(1) { animation-delay: .08s; }
+.stageStartupVisible .page > * > *:nth-child(2) { animation-delay: .2s; animation-name: appContentSlideFromLeft; }
+.stageStartupVisible .page > * > *:nth-child(3) { animation-delay: .32s; }
+.stageStartupVisible .page > * > *:nth-child(4) { animation-delay: .44s; animation-name: appContentSlideFromLeft; }
+.stageStartupVisible .page > * > *:nth-child(n + 5) { animation-delay: .56s; }
+
+.stageStartupVisible .page > * > * > * {
+  animation: appContentDetailSlide .68s cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.stageStartupVisible .page > * > * > *:nth-child(1) { animation-delay: .34s; }
+.stageStartupVisible .page > * > * > *:nth-child(2) { animation-delay: .47s; }
+.stageStartupVisible .page > * > * > *:nth-child(3) { animation-delay: .6s; }
+.stageStartupVisible .page > * > * > *:nth-child(4) { animation-delay: .73s; }
+.stageStartupVisible .page > * > * > *:nth-child(n + 5) { animation-delay: .84s; }
+
+@keyframes appContentSlideFromRight {
+  from { opacity: 0; transform: translate3d(82px, 0, 0) scale(.985); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes appContentSlideFromLeft {
+  from { opacity: 0; transform: translate3d(-62px, 0, 0) scale(.99); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes appContentDetailSlide {
+  from { opacity: 0; transform: translate3d(0, 34px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
 .page {
   position: absolute;
   inset: 0;
@@ -1420,7 +1529,7 @@
 }
 
 @media (max-width: 880px) {
-  .topbar { grid-template-columns: minmax(0, 1fr) auto; }
+  .topbar { grid-template-columns: minmax(48px, 1fr) auto; }
   .communityPulse { display: none; }
   .controls { padding-left: 8px; }
 }
@@ -1801,12 +1910,15 @@
 
 @media (prefers-reduced-motion: reduce) {
   .persistentScene img,
+  .sceneAtmosphere i,
   .headerRouteIcon::after,
   .pulseWave i,
   .brandMark::before,
   .railMatchActive::before,
   .matchAlert:hover svg,
-  .matchAlert.alertActive svg { animation: none; }
+  .matchAlert.alertActive svg,
+  .stageStartupVisible .page > * > *,
+  .stageStartupVisible .page > * > * > * { animation: none; }
 }
 
 :global(html[data-performance='economie']) .persistentScene img {
@@ -1818,6 +1930,9 @@
   opacity: .38;
   mix-blend-mode: normal;
 }
+
+:global(html[data-performance='economie']) .sceneAtmosphere i { display: none; }
+:global(html[data-performance='economie']) .sceneAtmosphere::before { opacity: .025; }
 
 :global(html[data-performance='economie']) .ambient {
   opacity: .58;

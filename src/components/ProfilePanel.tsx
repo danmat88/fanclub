@@ -17,8 +17,10 @@ import {
   Zap,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import fanEmblem from '../assets/brand/cetatea-fan-emblem.webp'
 import { useSound } from '../contexts/useSound'
+import { panelBackdropVariants, panelFromRightVariants, panelLayerVariants } from './panelMotion'
 import styles from './ProfilePanel.module.css'
 
 type ProfileTab = 'profil' | 'preferinte' | 'misiuni'
@@ -116,24 +118,22 @@ export function ProfilePanel({
     play('success')
   }
 
-  return (
-    <AnimatePresence>
+  return createPortal(
+    <AnimatePresence initial={false} mode="sync">
       {open && (
         <motion.div
           className={styles.layer}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: .24 }}
+          variants={panelLayerVariants}
+          initial="closed"
+          animate="open"
+          exit="closed"
         >
           <motion.button
             type="button"
             className={styles.backdrop}
             aria-label="Închide panoul profilului"
             onClick={onClose}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            variants={panelBackdropVariants}
           />
 
           <motion.aside
@@ -143,10 +143,7 @@ export function ProfilePanel({
             role="dialog"
             aria-modal="true"
             aria-labelledby="profile-panel-title"
-            initial={{ x: '108%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '108%' }}
-            transition={{ duration: .56, ease: [0.16, 1, 0.3, 1] }}
+            variants={panelFromRightVariants}
           >
             <header className={styles.panelHeader}>
               <div>
@@ -284,7 +281,8 @@ export function ProfilePanel({
           </motion.aside>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
 

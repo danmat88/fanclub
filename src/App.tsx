@@ -22,7 +22,7 @@ import {
   Wifi,
   type LucideIcon,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import styles from './App.module.css'
 import fanEmblem from './assets/brand/cetatea-fan-emblem.webp'
@@ -66,6 +66,19 @@ const viewMap: Record<string, React.ComponentType> = {
 }
 
 const routeOrder = [...navigationItems.map((item) => item.path), '/meci']
+type StartupPhase = 'background' | 'loading' | 'loadingExit' | 'logo' | 'rail' | 'header' | 'content' | 'ready'
+
+const startupPhaseOrder: Record<StartupPhase, number> = {
+  background: 0,
+  loading: 1,
+  loadingExit: 2,
+  logo: 3,
+  rail: 4,
+  header: 5,
+  content: 6,
+  ready: 7,
+}
+
 type HeaderView = {
   label: string
   eyebrow: string
@@ -133,57 +146,65 @@ const headerViews: Record<string, HeaderView> = {
   },
 }
 
-const appReveal = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { duration: 0.32, staggerChildren: 0.1, delayChildren: 0.06 },
-  },
-}
-
 const railReveal = {
-  hidden: { opacity: 0, x: -46 },
+  hidden: { opacity: 0, x: -64 },
   visible: {
     opacity: 1,
     x: 0,
     transition: {
-      duration: 0.68,
+      duration: 0.78,
       ease: [0.16, 1, 0.3, 1] as const,
       staggerChildren: 0.11,
-      delayChildren: 0.08,
-    },
-  },
-}
-
-const workspaceReveal = {
-  hidden: { opacity: 0, x: 52 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: {
-      duration: 0.72,
-      ease: [0.16, 1, 0.3, 1] as const,
-      staggerChildren: 0.13,
       delayChildren: 0.12,
     },
   },
 }
 
-const interfaceItemReveal = {
-  hidden: { opacity: 0, y: 22, filter: 'blur(8px)' },
-  visible: {
-    opacity: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    transition: { duration: 0.58, ease: [0.16, 1, 0.3, 1] as const },
-  },
-}
-
-const interfaceItemEconomyReveal = {
+const headerStartupReveal = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { duration: 0.22, ease: 'easeOut' as const },
+    transition: {
+      duration: 0.68,
+      ease: [0.16, 1, 0.3, 1] as const,
+      delayChildren: .08,
+      staggerChildren: .13,
+    },
+  },
+}
+
+const headerLogoStartupReveal = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: .16, ease: 'easeOut' as const } },
+}
+
+const headerItemStartupReveal = {
+  hidden: { opacity: 0, x: 46 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: .58, ease: [0.16, 1, 0.3, 1] as const },
+  },
+}
+
+const contentStartupReveal = {
+  hidden: { opacity: 0, x: 72, scale: 0.988 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    scale: 1,
+    transition: { duration: 0.78, ease: [0.16, 1, 0.3, 1] as const },
+  },
+}
+
+const interfaceItemReveal = {
+  hidden: { opacity: 0, x: -38, y: 8, filter: 'blur(8px)' },
+  visible: {
+    opacity: 1,
+    x: 0,
+    y: 0,
+    filter: 'blur(0px)',
+    transition: { duration: 0.58, ease: [0.16, 1, 0.3, 1] as const },
   },
 }
 
@@ -217,7 +238,119 @@ const pageEconomyVariants = {
   exit: { opacity: 0 },
 }
 
-function AppShell() {
+type LogoBox = {
+  height: number
+  left: number
+  top: number
+  width: number
+}
+
+function readLayoutBox(element: HTMLElement): LogoBox {
+  let left = 0
+  let top = 0
+  let current: HTMLElement | null = element
+
+  while (current) {
+    left += current.offsetLeft
+    top += current.offsetTop
+    current = current.offsetParent as HTMLElement | null
+  }
+
+  return {
+    height: element.offsetHeight,
+    left,
+    top,
+    width: element.offsetWidth,
+  }
+}
+
+function readVisualBox(element: HTMLElement): LogoBox {
+  const box = element.getBoundingClientRect()
+  return { height: box.height, left: box.left, top: box.top, width: box.width }
+}
+
+type StartupLogoProps = {
+  onFlightComplete: () => void
+  phase: StartupPhase
+}
+
+function StartupLogo({ onFlightComplete, phase }: StartupLogoProps) {
+  const [sourceBox, setSourceBox] = useState<LogoBox | null>(null)
+  const [targetBox, setTargetBox] = useState<LogoBox | null>(null)
+  const flightReported = useRef(false)
+
+  const measure = useCallback(() => {
+    const source = document.querySelector<HTMLElement>('[data-startup-logo-source]')
+    const targets = Array.from(document.querySelectorAll<HTMLElement>('[data-startup-logo-target]'))
+    const target = targets.find((element) => element.offsetWidth > 0 && element.offsetHeight > 0)
+
+    if (phase === 'loading' && source) setSourceBox(readVisualBox(source))
+    if (target) setTargetBox(readLayoutBox(target))
+  }, [phase])
+
+  useLayoutEffect(() => {
+    const firstFrame = window.requestAnimationFrame(measure)
+    const secondFrame = window.requestAnimationFrame(() => window.requestAnimationFrame(measure))
+    const settleMeasurements = phase === 'loading'
+      ? [600, 1200, 1800].map((delay) => window.setTimeout(measure, delay))
+      : []
+    window.addEventListener('resize', measure)
+    return () => {
+      window.cancelAnimationFrame(firstFrame)
+      window.cancelAnimationFrame(secondFrame)
+      settleMeasurements.forEach((timer) => window.clearTimeout(timer))
+      window.removeEventListener('resize', measure)
+    }
+  }, [measure, phase])
+
+  useEffect(() => {
+    if (phase === 'loading') flightReported.current = false
+  }, [phase])
+
+  if (!sourceBox) return null
+
+  const phaseStep = startupPhaseOrder[phase]
+  const fliesToInterface = phaseStep >= startupPhaseOrder.logo
+  const remainsVisible = phaseStep >= startupPhaseOrder.loading && phaseStep < startupPhaseOrder.header
+  const destination = fliesToInterface && targetBox ? targetBox : sourceBox
+  const flightDuration = 1.02
+
+  return (
+    <motion.img
+      className={styles.startupLogo}
+      src={fanEmblem}
+      alt="Emblema Fan Club Cetatea Suceava"
+      initial={{ opacity: 0, scale: .82 }}
+      animate={{
+        height: destination.height,
+        opacity: remainsVisible ? 1 : 0,
+        scale: 1,
+        width: destination.width,
+        x: destination.left,
+        y: destination.top,
+      }}
+      transition={
+        phaseStep >= startupPhaseOrder.header
+          ? { duration: .5, ease: [0.16, 1, 0.3, 1] }
+          : fliesToInterface
+            ? { duration: flightDuration, ease: [0.16, 1, 0.3, 1] }
+            : { delay: .62, duration: .72, ease: [0.16, 1, 0.3, 1] }
+      }
+      onAnimationComplete={() => {
+        if (phase !== 'logo' || !targetBox || flightReported.current) return
+        flightReported.current = true
+        onFlightComplete()
+      }}
+    />
+  )
+}
+
+type AppShellProps = {
+  logoLanded: boolean
+  startupPhase: StartupPhase
+}
+
+function AppShell({ logoLanded, startupPhase }: AppShellProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const countdown = useMatchCountdown()
@@ -259,7 +392,7 @@ function AppShell() {
     performanceModeOrder[
       (performanceModeOrder.indexOf(performanceMode) + 1) % performanceModeOrder.length
     ]
-  const interfaceReveal = isEconomy ? interfaceItemEconomyReveal : interfaceItemReveal
+  const interfaceReveal = interfaceItemReveal
 
   useEffect(() => {
     const syncFullscreen = () => setIsFullscreen(Boolean(document.fullscreenElement))
@@ -360,14 +493,29 @@ function AppShell() {
     play('toggle')
   }
 
+  const startupStep = startupPhaseOrder[startupPhase]
+  const appVisible = startupStep >= startupPhaseOrder.rail
+  const railVisible = startupStep >= startupPhaseOrder.rail
+  const headerVisible = startupStep >= startupPhaseOrder.header
+  const contentVisible = startupStep >= startupPhaseOrder.content
+  const interfaceReady = startupPhase === 'ready'
+
   return (
     <motion.div
       className={`${styles.app} ${isRailCollapsed ? styles.appRailCollapsed : ''}`}
-      variants={appReveal}
-      initial="hidden"
-      animate="visible"
+      initial={false}
+      animate={{ opacity: appVisible ? 1 : 0 }}
+      transition={{ duration: isEconomy ? .12 : .28, ease: 'easeOut' }}
+      aria-hidden={!appVisible}
+      inert={interfaceReady ? undefined : true}
     >
-      <motion.div className={styles.ambient} variants={interfaceReveal} aria-hidden="true">
+      <motion.div
+        className={styles.ambient}
+        variants={interfaceItemReveal}
+        initial={false}
+        animate={contentVisible ? 'visible' : 'hidden'}
+        aria-hidden="true"
+      >
         <span className={styles.orbitOne} />
         <span className={styles.orbitTwo} />
         <span className={styles.axis} />
@@ -376,11 +524,18 @@ function AppShell() {
       <motion.aside
         className={`${styles.rail} ${isRailCollapsed ? styles.railCollapsed : ''}`}
         variants={railReveal}
+        initial={false}
+        animate={railVisible ? 'visible' : 'hidden'}
         aria-label="Panoul clubului suporterilor"
       >
         <motion.div className={styles.brand} variants={interfaceReveal}>
           <span className={styles.brandMark}>
-            <img src={fanEmblem} alt="" />
+            <img
+              data-startup-logo-target="desktop"
+              className={`${styles.startupTargetLogo} ${logoLanded ? styles.startupTargetLogoVisible : ''}`}
+              src={fanEmblem}
+              alt=""
+            />
           </span>
           <span className={styles.brandCopy}>
             <small>Clubul suporterilor</small>
@@ -461,6 +616,7 @@ function AppShell() {
             activePath={canonicalPath}
             collapsed={isRailCollapsed}
             onNavigate={handleNavigate}
+            startupVisible={railVisible}
           />
         </motion.div>
 
@@ -471,16 +627,35 @@ function AppShell() {
         </motion.div>
       </motion.aside>
 
-      <motion.main className={styles.workspace} variants={workspaceReveal}>
+      <motion.main className={styles.workspace}>
         <motion.header
           className={styles.topbar}
-          variants={interfaceReveal}
+          variants={headerStartupReveal}
+          initial={false}
+          animate={headerVisible ? 'visible' : 'hidden'}
           style={{ '--header-tone': currentHeader.tone } as CSSProperties}
         >
-          <button type="button" className={styles.mobileBrand} onClick={goToCommunity} aria-label="Deschide Tribuna Cetății">
-            <span><img src={fanEmblem} alt="" /><i /></span>
-          </button>
-          <div className={styles.headerContext}>
+          <motion.button
+            type="button"
+            className={styles.mobileBrand}
+            variants={headerLogoStartupReveal}
+            onClick={goToCommunity}
+            aria-label="Deschide Tribuna Cetății"
+          >
+            <span>
+              <img
+                data-startup-logo-target="header"
+                className={`${styles.startupTargetLogo} ${logoLanded ? styles.startupTargetLogoVisible : ''}`}
+                src={fanEmblem}
+                alt=""
+              />
+              <i />
+            </span>
+          </motion.button>
+          <motion.div
+            className={styles.headerContext}
+            variants={headerItemStartupReveal}
+          >
             <span className={styles.headerSequence} aria-hidden="true">0{currentIndex + 1}</span>
             <span className={styles.headerRouteIcon} aria-hidden="true"><HeaderIcon strokeWidth={1.8} /></span>
             <motion.span
@@ -497,16 +672,27 @@ function AppShell() {
               <Wifi strokeWidth={1.8} aria-hidden="true" />
               <span><b>{firebaseConfigured ? 'Conectat' : 'Mod local'}</b><small>{currentHeader.detail}</small></span>
             </span>
-          </div>
+          </motion.div>
 
-          <button type="button" className={styles.communityPulse} onClick={goToCommunity} aria-label="Deschide Tribuna Cetății: 12 reacții noi în comunitate">
+          <motion.button
+            type="button"
+            className={styles.communityPulse}
+            variants={headerItemStartupReveal}
+            onClick={goToCommunity}
+            aria-label="Deschide Tribuna Cetății: 12 reacții noi în comunitate"
+          >
             <span className={styles.pulseMark} aria-hidden="true"><Activity strokeWidth={1.9} /></span>
             <span className={styles.pulseCopy}><small>Tribuna Cetății</small><strong>Zidul este activ</strong></span>
             <span className={styles.pulseWave} aria-hidden="true"><i /><i /><i /><i /><i /><i /></span>
             <span className={styles.pulseUpdates}><MessageCircle strokeWidth={1.8} aria-hidden="true" /><b>12</b><small>noi</small></span>
-          </button>
+          </motion.button>
 
-          <div className={styles.controls} role="group" aria-label="Comenzile aplicației">
+          <motion.div
+            className={styles.controls}
+            variants={headerItemStartupReveal}
+            role="group"
+            aria-label="Comenzile aplicației"
+          >
             <button
               className={`${styles.control} ${isThemePanelOpen ? styles.themeControlActive : ''}`}
               onClick={openThemePanel}
@@ -569,10 +755,15 @@ function AppShell() {
               <span className={styles.controlLabel}>Profil</span>
               <i className={styles.controlNode} aria-hidden="true" />
             </button>
-          </div>
+          </motion.div>
         </motion.header>
 
-        <motion.div className={styles.stage} variants={interfaceReveal}>
+        <motion.div
+          className={`${styles.stage} ${startupPhase === 'content' ? styles.stageStartupVisible : ''}`}
+          variants={contentStartupReveal}
+          initial={false}
+          animate={contentVisible ? 'visible' : 'hidden'}
+        >
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               className={styles.page}
@@ -603,11 +794,18 @@ function AppShell() {
 
         <MobileNavigation
           activePath={canonicalPath}
+          economy={isEconomy}
           matchBadge={mobileMatchBadge}
           onNavigate={handleNavigate}
+          startupVisible={contentVisible}
         />
 
-        <motion.div className={styles.viewportIndex} variants={interfaceReveal}>
+        <motion.div
+          className={styles.viewportIndex}
+          variants={interfaceItemReveal}
+          initial={false}
+          animate={contentVisible ? 'visible' : 'hidden'}
+        >
           {String(currentIndex + 1).padStart(2, '0')} / {String(routeOrder.length).padStart(2, '0')}
         </motion.div>
       </motion.main>
@@ -644,22 +842,104 @@ function AppShell() {
 }
 
 export default function App() {
-  const [isLoading, setIsLoading] = useState(true)
+  const [startupPhase, setStartupPhase] = useState<StartupPhase>('background')
   const [isSceneReady, setIsSceneReady] = useState(false)
-  const finishLoading = useCallback(() => setIsLoading(false), [])
-  const content = useMemo(
-    () =>
-      isLoading ? (
-        <LoadingScreen key="loader" isSceneReady={isSceneReady} onComplete={finishLoading} />
-      ) : (
-        <AppShell key="app" />
-      ),
-    [finishLoading, isLoading, isSceneReady],
-  )
+  const [isSceneSettled, setIsSceneSettled] = useState(false)
+  const [areFontsReady, setAreFontsReady] = useState(false)
+  const [logoLanded, setLogoLanded] = useState(false)
+
+  useEffect(() => {
+    if (!isSceneReady) return
+    const sceneTimer = window.setTimeout(
+      () => setIsSceneSettled(true),
+      1050,
+    )
+    return () => window.clearTimeout(sceneTimer)
+  }, [isSceneReady])
+
+  useEffect(() => {
+    if (!isSceneReady) return
+    let cancelled = false
+    let settleTimer = 0
+    let fontFallbackTimer = 0
+
+    const loadInterfaceFonts = async () => {
+      try {
+        if ('fonts' in document) {
+          const fontsLoaded = Promise.all([
+            document.fonts.load('700 1rem "Exo 2 Variable"'),
+            document.fonts.load('600 1rem "Space Grotesk Variable"'),
+            document.fonts.load('700 1rem "Chakra Petch"'),
+            document.fonts.load('800 1rem "Barlow Condensed"'),
+          ]).then(() => document.fonts.ready)
+
+          const fontFallback = new Promise<void>((resolve) => {
+            fontFallbackTimer = window.setTimeout(resolve, 2600)
+          })
+
+          await Promise.race([fontsLoaded, fontFallback])
+        }
+      } finally {
+        window.clearTimeout(fontFallbackTimer)
+        settleTimer = window.setTimeout(() => {
+          if (!cancelled) setAreFontsReady(true)
+        }, 160)
+      }
+    }
+
+    void loadInterfaceFonts()
+    return () => {
+      cancelled = true
+      window.clearTimeout(settleTimer)
+      window.clearTimeout(fontFallbackTimer)
+    }
+  }, [isSceneReady])
+
+  useEffect(() => {
+    if (startupPhase !== 'background' || !isSceneSettled || !areFontsReady) return
+    setStartupPhase('loading')
+  }, [areFontsReady, isSceneSettled, startupPhase])
+
+  useEffect(() => {
+    let phaseTimer = 0
+
+    if (startupPhase === 'loadingExit') {
+      phaseTimer = window.setTimeout(
+        () => setStartupPhase('logo'),
+        1450,
+      )
+    } else if (startupPhase === 'logo') {
+      phaseTimer = window.setTimeout(
+        () => setStartupPhase('rail'),
+        1350,
+      )
+    } else if (startupPhase === 'rail') {
+      phaseTimer = window.setTimeout(() => {
+        setLogoLanded(true)
+        setStartupPhase('header')
+      }, 720)
+    } else if (startupPhase === 'header') {
+      phaseTimer = window.setTimeout(
+        () => setStartupPhase('content'),
+        390,
+      )
+    } else if (startupPhase === 'content') {
+      phaseTimer = window.setTimeout(
+        () => setStartupPhase('ready'),
+        1800,
+      )
+    }
+
+    return () => window.clearTimeout(phaseTimer)
+  }, [startupPhase])
+
+  const finishLoading = useCallback(() => setStartupPhase('loadingExit'), [])
+  const finishLogoFlight = useCallback(() => setStartupPhase('rail'), [])
+  const showLoading = startupPhase === 'loading' || startupPhase === 'loadingExit'
 
   return (
     <div className={styles.applicationRoot}>
-      <div className={styles.persistentScene} aria-hidden="true">
+      <div className={`${styles.persistentScene} ${isSceneReady ? styles.persistentSceneReady : ''}`} aria-hidden="true">
         <img
           src={arenaBackground}
           alt=""
@@ -667,8 +947,28 @@ export default function App() {
           onError={() => setIsSceneReady(true)}
         />
         <span />
+        <b className={styles.sceneGrid} />
+        <b className={styles.sceneRings} />
+        <div className={styles.sceneAtmosphere}><i /><i /><i /></div>
       </div>
-      <AnimatePresence mode="wait">{content}</AnimatePresence>
+
+      <AppShell logoLanded={logoLanded} startupPhase={startupPhase} />
+
+      <AnimatePresence>
+        {showLoading && (
+          <LoadingScreen
+            key="loader"
+            active={startupPhase === 'loading'}
+            exiting={startupPhase === 'loadingExit'}
+            onComplete={finishLoading}
+          />
+        )}
+      </AnimatePresence>
+
+      <StartupLogo
+        phase={startupPhase}
+        onFlightComplete={finishLogoFlight}
+      />
     </div>
   )
 }

@@ -2,6 +2,8 @@
   position: fixed;
   inset: 0;
   z-index: 135;
+  overflow: hidden;
+  isolation: isolate;
   pointer-events: none;
 }
 
@@ -12,8 +14,7 @@
   height: 100%;
   padding: 0;
   border: 0;
-  background: color-mix(in srgb, var(--page-bg) 58%, transparent);
-  backdrop-filter: blur(5px) saturate(.82);
+  background: color-mix(in srgb, var(--page-bg-deep) 72%, transparent);
   cursor: default;
   pointer-events: auto;
 }
@@ -39,6 +40,10 @@
   color: var(--text-primary);
   pointer-events: auto;
   clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+  contain: layout paint;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
 }
 
 .header {
@@ -159,5 +164,3 @@
 @media (prefers-reduced-motion: reduce) {
   .themeOption { transition: none; }
 }
-
-:global(html[data-performance='economie']) .backdrop { backdrop-filter: none; }

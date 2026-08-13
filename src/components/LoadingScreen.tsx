@@ -1,132 +1,180 @@
-import { Castle, RadioTower, ShieldCheck, UsersRound, type LucideIcon } from 'lucide-react'
-import { motion, type Variants } from 'motion/react'
-import { useEffect, useState } from 'react'
-import fanEmblem from '../assets/brand/cetatea-fan-emblem.webp'
+import { Check, Database, LayoutDashboard, LoaderCircle, UserRound, type LucideIcon } from 'lucide-react'
+import { AnimatePresence, motion, type Variants } from 'motion/react'
+import { useEffect, useMemo, useState } from 'react'
 import { usePerformance } from '../contexts/usePerformance'
 import styles from './LoadingScreen.module.css'
 
 type LoadingScreenProps = {
-  isSceneReady: boolean
+  active: boolean
+  exiting: boolean
   onComplete: () => void
 }
 
-type LoadingPhase = {
+type StartupStep = {
+  id: 'application' | 'data' | 'account'
   label: string
-  meta: string
+  status: string
+  startsAt: number
   icon: LucideIcon
 }
 
-const loadingPhases: LoadingPhase[] = [
-  { label: 'Aprindem cetatea', meta: 'Identitate', icon: Castle },
-  { label: 'Chemăm tribuna', meta: 'Comunitate', icon: UsersRound },
-  { label: 'Deschidem porțile', meta: 'Zi de meci', icon: ShieldCheck },
+const startupSteps: StartupStep[] = [
+  {
+    id: 'application',
+    label: 'Aplicație',
+    status: 'Pregătim aplicația',
+    startsAt: 0,
+    icon: LayoutDashboard,
+  },
+  {
+    id: 'data',
+    label: 'Informații',
+    status: 'Încărcăm informațiile',
+    startsAt: 34,
+    icon: Database,
+  },
+  {
+    id: 'account',
+    label: 'Cont',
+    status: 'Pregătim accesul în Tribună',
+    startsAt: 72,
+    icon: UserRound,
+  },
 ]
 
-const loaderSequence: Variants = {
+const loaderVariants: Variants = {
   hidden: { opacity: 1 },
   visible: { opacity: 1 },
+  exit: { opacity: 1, transition: { duration: 0 } },
+}
+
+const contentVariants: Variants = {
+  hidden: {},
+  visible: { transition: { delayChildren: .38, staggerChildren: .24 } },
+  exit: { transition: { delayChildren: .04, staggerChildren: .15, staggerDirection: -1 } },
+}
+
+const mainVariants: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: .26, delayChildren: .14 } },
+  exit: { transition: { staggerChildren: .12, staggerDirection: -1 } },
+}
+
+const reveal: Variants = {
+  hidden: { opacity: 0, x: 72, filter: 'blur(7px)' },
+  visible: {
+    opacity: 1,
+    x: 0,
+    filter: 'blur(0px)',
+    transition: { duration: .68, ease: [0.16, 1, 0.3, 1] },
+  },
   exit: {
     opacity: 0,
-    transition: { delay: .34, duration: .44, ease: [0.76, 0, 0.24, 1] },
+    x: -76,
+    filter: 'blur(5px)',
+    transition: { duration: .46, ease: [0.7, 0, 0.84, 0] },
   },
 }
 
-const loaderEconomySequence: Variants = {
-  hidden: { opacity: 1 },
-  visible: { opacity: 1 },
-  exit: { opacity: 0, transition: { delay: .08, duration: .18, ease: 'easeOut' } },
+const groupReveal: Variants = {
+  hidden: { opacity: 0, x: 64 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: {
+      duration: .66,
+      ease: [0.16, 1, 0.3, 1],
+      delayChildren: .1,
+      staggerChildren: .14,
+    },
+  },
+  exit: {
+    opacity: 0,
+    x: -68,
+    transition: { duration: .46, staggerChildren: .08, staggerDirection: -1 },
+  },
 }
 
-const interfaceSequence: Variants = {
+const stepSequence: Variants = {
   hidden: {},
-  visible: { transition: { delayChildren: .28, staggerChildren: .12 } },
-  exit: { transition: { staggerChildren: .045, staggerDirection: -1 } },
+  visible: { transition: { delayChildren: .1, staggerChildren: .16 } },
+  exit: { transition: { staggerChildren: .09, staggerDirection: -1 } },
 }
 
-const interfaceEconomySequence: Variants = {
-  hidden: {},
-  visible: { transition: { delayChildren: .1, staggerChildren: .04 } },
-  exit: { transition: { staggerChildren: .02, staggerDirection: -1 } },
-}
-
-const revealItem: Variants = {
-  hidden: { opacity: 0, y: 18, filter: 'blur(8px)' },
+const footerReveal: Variants = {
+  hidden: { opacity: 0, y: 34 },
   visible: {
     opacity: 1,
     y: 0,
-    filter: 'blur(0px)',
-    transition: { duration: .55, ease: [0.16, 1, 0.3, 1] },
+    transition: {
+      delay: .62,
+      duration: .62,
+      ease: [0.16, 1, 0.3, 1],
+      delayChildren: .08,
+      staggerChildren: .14,
+    },
   },
-  exit: {
-    opacity: 0,
-    y: -14,
-    filter: 'blur(6px)',
-    transition: { duration: .25, ease: [0.7, 0, 0.84, 0] },
-  },
+  exit: { opacity: 0, y: 34, transition: { duration: .4, staggerChildren: .08, staggerDirection: -1 } },
 }
 
-const revealEconomyItem: Variants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: .16, ease: 'easeOut' } },
-  exit: { opacity: 0, transition: { duration: .1 } },
-}
-
-const identitySequence: Variants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: .14, delayChildren: .08 } },
-  exit: { transition: { staggerChildren: .04, staggerDirection: -1 } },
-}
-
-const emblemSequence: Variants = {
-  hidden: { opacity: 0, scale: .74, rotate: -5, filter: 'blur(10px)' },
+const emblemVariants: Variants = {
+  hidden: { opacity: 0, x: -96, scale: .84, filter: 'blur(9px)' },
   visible: {
     opacity: 1,
+    x: 0,
     scale: 1,
-    rotate: 0,
     filter: 'blur(0px)',
-    transition: { duration: .78, ease: [0.16, 1, 0.3, 1] },
+    transition: { duration: .72, ease: [0.16, 1, 0.3, 1] },
   },
-  exit: { opacity: 0, scale: 1.12, filter: 'blur(7px)', transition: { duration: .3 } },
-}
-
-const titleItem: Variants = {
-  hidden: { opacity: 0, y: '105%' },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: .62, ease: [0.16, 1, 0.3, 1] },
+  exit: {
+    opacity: 0,
+    x: -96,
+    scale: .96,
+    filter: 'blur(4px)',
+    transition: { duration: .5, ease: [0.7, 0, 0.84, 0] },
   },
-  exit: { opacity: 0, y: '-70%', transition: { duration: .24, ease: [0.7, 0, 0.84, 0] } },
 }
 
-const economyTitleItem: Variants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: .16, ease: 'easeOut' } },
-  exit: { opacity: 0, transition: { duration: .1 } },
-}
-
-export function LoadingScreen({ isSceneReady, onComplete }: LoadingScreenProps) {
+export function LoadingScreen({ active, exiting, onComplete }: LoadingScreenProps) {
   const [progress, setProgress] = useState(0)
   const { isEconomy } = usePerformance()
-  const activePhase = progress < 34 ? 0 : progress < 72 ? 1 : 2
-  const status = loadingPhases[activePhase].label
+  const activeStepIndex = progress >= 100
+    ? startupSteps.length
+    : startupSteps.findLastIndex((step) => progress >= step.startsAt)
+  const status = progress >= 100
+    ? 'Totul este gata'
+    : startupSteps[Math.max(0, activeStepIndex)].status
+
+  const stepStates = useMemo(() => startupSteps.map((step, index) => ({
+    ...step,
+    state: progress >= 100 || index < activeStepIndex
+      ? 'done'
+      : index === activeStepIndex
+        ? 'active'
+        : 'pending',
+  } as const)), [activeStepIndex, progress])
 
   useEffect(() => {
-    if (!isSceneReady) return
+    if (!active) return
 
-    const startedAt = performance.now() + (isEconomy ? 180 : 480)
-    const duration = isEconomy ? 1800 : 4200
+    const introDelay = 1850
+    const duration = 3900
+    const startedAt = performance.now() + introDelay
     let frame = 0
     let completionTimer = 0
 
     const updateProgress = (now: number) => {
-      const nextProgress = Math.max(0, Math.min((now - startedAt) / duration, 1))
-      setProgress(Math.round(nextProgress * 100))
+      const elapsed = Math.max(0, now - startedAt)
+      const linearProgress = Math.min(elapsed / duration, 1)
+      const easedProgress = linearProgress < .86
+        ? linearProgress
+        : .86 + ((linearProgress - .86) / .14) * .14
+      setProgress(Math.round(easedProgress * 100))
 
-      if (nextProgress < 1) {
+      if (linearProgress < 1) {
         frame = requestAnimationFrame(updateProgress)
       } else {
-        completionTimer = window.setTimeout(onComplete, isEconomy ? 120 : 280)
+        completionTimer = window.setTimeout(onComplete, 360)
       }
     }
 
@@ -135,94 +183,99 @@ export function LoadingScreen({ isSceneReady, onComplete }: LoadingScreenProps) 
       cancelAnimationFrame(frame)
       window.clearTimeout(completionTimer)
     }
-  }, [isEconomy, isSceneReady, onComplete])
+  }, [active, isEconomy, onComplete])
 
-  const itemVariant = isEconomy ? revealEconomyItem : revealItem
-  const headingVariant = isEconomy ? economyTitleItem : titleItem
+  const sequence = contentVariants
+  const item = reveal
 
   return (
     <motion.div
-      className={styles.loader}
-      variants={isEconomy ? loaderEconomySequence : loaderSequence}
+      className={`${styles.loader} ${active || exiting ? styles.loaderVisible : ''} ${progress >= 100 ? styles.loaderReady : ''}`}
+      variants={loaderVariants}
       initial="hidden"
-      animate={isSceneReady ? 'visible' : 'hidden'}
+      animate={exiting ? 'exit' : active ? 'visible' : 'hidden'}
       exit="exit"
       role="progressbar"
       aria-label={`${status}. Se încarcă aplicația.`}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={progress}
+      aria-valuetext={status}
     >
-      <div className={styles.cinematicShade} />
-      <div className={styles.noise} />
-      <div className={styles.lightSweep} />
-
-      <motion.div className={styles.interface} variants={isEconomy ? interfaceEconomySequence : interfaceSequence}>
-        <motion.header className={styles.signalBar} variants={itemVariant}>
-          <span className={styles.citySignal}><i /> Cetatea / Suceava</span>
-          <span className={styles.networkSignal}><RadioTower strokeWidth={1.8} aria-hidden="true" /> Semnalul tribunei <b>activ</b></span>
-          <span className={styles.locationSignal}>47.6514° N · Stadionul Areni</span>
+      <motion.div className={styles.content} variants={sequence}>
+        <motion.header className={styles.topbar} variants={groupReveal}>
+          <motion.span className={styles.topbarBrand} variants={item}><i /> Fan Club Cetatea Suceava</motion.span>
+          <motion.span className={styles.topbarMeta} variants={item}>Aplicație neoficială pentru suporteri</motion.span>
         </motion.header>
 
-        <motion.aside className={styles.phaseRail} variants={itemVariant} aria-label="Etapele încărcării">
-          <span className={styles.phaseAxis} aria-hidden="true" />
-          {loadingPhases.map((phase, index) => {
-            const PhaseIcon = phase.icon
-            const phaseClass = index < activePhase
-              ? styles.phaseDone
-              : index === activePhase
-                ? styles.phaseActive
-                : ''
-
-            return (
-              <div className={`${styles.phase} ${phaseClass}`} key={phase.meta}>
-                <span className={styles.phaseIndex}>0{index + 1}</span>
-                <PhaseIcon strokeWidth={1.7} aria-hidden="true" />
-                <span className={styles.phaseCopy}>
-                  <small>{phase.meta}</small>
-                  <strong>{phase.label}</strong>
-                </span>
-              </div>
-            )
-          })}
-        </motion.aside>
-
-        <motion.main className={styles.identity} variants={identitySequence}>
-          <motion.div className={styles.emblemStage} variants={isEconomy ? revealEconomyItem : emblemSequence}>
-            <motion.span className={styles.orbitPrimary} animate={isEconomy ? undefined : { rotate: 360 }} transition={{ duration: 16, repeat: Infinity, ease: 'linear' }} />
-            <motion.span className={styles.orbitSecondary} animate={isEconomy ? undefined : { rotate: -360 }} transition={{ duration: 23, repeat: Infinity, ease: 'linear' }} />
-            <span className={styles.emblemCode}>CSM · 1932</span>
-            <img src={fanEmblem} alt="Emblema Clubului Suporterilor Cetatea Suceava" />
+        <motion.main className={styles.main} variants={mainVariants}>
+          <motion.div className={styles.emblemStage} variants={emblemVariants}>
+            <span className={styles.emblemGlow} aria-hidden="true" />
+            <span className={styles.emblemFrame} aria-hidden="true"><i /><i /><i /><i /></span>
+            <span className={styles.emblemAnchor} data-startup-logo-source aria-hidden="true" />
           </motion.div>
 
-          <motion.div className={styles.title} variants={identitySequence} aria-label="Cetatea se ridică">
-            <motion.small variants={headingVariant}>Din oraș. Pentru oraș.</motion.small>
-            <span className={styles.titleMask}><motion.strong variants={headingVariant}>CETATEA</motion.strong></span>
-            <span className={styles.titleMask}><motion.strong variants={headingVariant}>SE RIDICĂ</motion.strong></span>
-            <motion.em variants={headingVariant}>O cetate. O tribună. O singură voce.</motion.em>
-          </motion.div>
+          <motion.section className={styles.identity} variants={groupReveal}>
+            <motion.span className={styles.eyebrow} variants={item}>Fan Club</motion.span>
+            <motion.h1 variants={item}>Cetatea <em>Suceava</em></motion.h1>
+            <motion.p variants={item}>Comunitatea suporterilor Cetății.</motion.p>
+          </motion.section>
+
+          <motion.section
+            className={styles.loadingPanel}
+            variants={groupReveal}
+            aria-label="Starea încărcării"
+          >
+            <motion.div className={styles.currentStatus} variants={item}>
+              <span className={`${styles.statusIcon} ${progress >= 100 ? styles.statusIconReady : ''}`} aria-hidden="true">
+                {progress >= 100 ? <Check /> : <LoaderCircle />}
+              </span>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  className={styles.statusCopy}
+                  key={status}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  transition={{ duration: isEconomy ? .1 : .2 }}
+                >
+                  <small>{progress >= 100 ? 'Gata' : 'În curs'}</small>
+                  <strong>{status}</strong>
+                </motion.span>
+              </AnimatePresence>
+            </motion.div>
+
+            <motion.div className={styles.progressTrack} variants={item} aria-hidden="true">
+              <motion.span
+                className={styles.progressFill}
+                animate={{ scaleX: progress / 100 }}
+                transition={{ duration: .08, ease: 'linear' }}
+              />
+            </motion.div>
+
+            <motion.div className={styles.steps} variants={stepSequence}>
+              {stepStates.map((step) => {
+                const StepIcon = step.icon
+                return (
+                  <motion.div
+                    className={`${styles.step} ${styles[`step${step.state[0].toUpperCase()}${step.state.slice(1)}`]}`}
+                    key={step.id}
+                    variants={item}
+                  >
+                    <span className={styles.stepIcon} aria-hidden="true">
+                      {step.state === 'done' ? <Check /> : <StepIcon />}
+                    </span>
+                    <span><small>{step.state === 'done' ? 'Finalizat' : step.state === 'active' ? 'Se încarcă' : 'În așteptare'}</small><strong>{step.label}</strong></span>
+                  </motion.div>
+                )
+              })}
+            </motion.div>
+          </motion.section>
         </motion.main>
 
-        <motion.div className={styles.fanPulse} variants={itemVariant} aria-hidden="true">
-          <span className={styles.pulseOrbit}><i /><i /><i /></span>
-          <strong>1932</strong>
-          <small>Puls alb-albastru</small>
-          <span className={styles.equalizer}><i /><i /><i /><i /><i /><i /><i /></span>
-        </motion.div>
-
-        <motion.footer className={styles.progressArea} variants={itemVariant}>
-          <div className={styles.progressMeta}>
-            <span><i /> {status}</span>
-            <small>Ține aproape. Intrăm împreună.</small>
-            <strong>{progress.toString().padStart(2, '0')}<em>%</em></strong>
-          </div>
-          <div className={styles.track}>
-            <motion.div className={styles.fill} animate={{ scaleX: progress / 100 }} transition={{ duration: .07, ease: 'linear' }} />
-            <span className={styles.progressHead} style={{ left: `${progress}%` }} />
-          </div>
-          <div className={styles.progressCoordinates} aria-hidden="true">
-            <span>SV / BUCOVINA</span><span>CLUBUL SUPORTERILOR</span><span>GATA DE MECI</span>
-          </div>
+        <motion.footer className={styles.footer} variants={footerReveal}>
+          <motion.span variants={item}>Suceava</motion.span>
+          <motion.span variants={item}>Creat pentru suporterii Cetății</motion.span>
         </motion.footer>
       </motion.div>
     </motion.div>

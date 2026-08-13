@@ -119,7 +119,7 @@
     align-items: end;
     overflow: hidden;
   }
-  .moreBackdrop { position: absolute; inset: 0; border: 0; background: color-mix(in srgb, var(--layer-backdrop) 86%, transparent); backdrop-filter: blur(7px) saturate(.84); cursor: default; }
+  .moreBackdrop { position: absolute; inset: 0; border: 0; background: color-mix(in srgb, var(--page-bg-deep) 74%, transparent); cursor: default; }
   .moreSheet {
     position: relative;
     z-index: 2;
@@ -133,6 +133,10 @@
     border-radius: 20px 20px 12px 12px;
     background: color-mix(in srgb, var(--surface-solid) 97%, var(--page-bg));
     box-shadow: 0 24px 70px rgba(0, 0, 0, .48);
+    contain: layout paint;
+    backface-visibility: hidden;
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
   }
   .moreSheet::before { content: ''; position: absolute; top: 0; right: 14%; left: 14%; height: 2px; background: linear-gradient(90deg, var(--tone-rose), var(--tone-violet)); }
   .moreSheet > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

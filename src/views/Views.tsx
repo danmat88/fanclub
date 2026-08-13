@@ -77,6 +77,7 @@ import {
   type CSSProperties,
   type ChangeEvent,
   type FormEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type RefCallback,
   type SyntheticEvent,
@@ -86,6 +87,7 @@ import { createPortal } from 'react-dom'
 import fanEmblem from '../assets/brand/cetatea-fan-emblem.webp'
 import arenaBackground from '../assets/brand/loading-cetatea-arena.webp'
 import { AppScrollArea } from '../components/AppScrollArea'
+import { panelBackdropVariants, panelFromRightVariants, panelLayerVariants } from '../components/panelMotion'
 import { useSound } from '../contexts/useSound'
 import { club, nextMatch, squad, standings, technicalStaff, upcomingFixtures, type FormResult, type Player, type PlayerPosition } from '../data/clubData'
 import { useMatchCountdown } from '../hooks/useMatchCountdown'
@@ -1190,6 +1192,7 @@ type ComposerMode = 'mesaj' | 'fotografie' | 'sondaj'
 type ComposerTone = 'verde' | 'cyan' | 'violet' | 'chihlimbar' | 'roz'
 type TribuneSort = 'Recente' | 'În discuție' | 'Apreciate' | 'Salvate'
 type TribuneReaction = 'inima' | 'foc' | 'forta'
+type AnchoredPanelPlacement = 'above' | 'below'
 type TribuneArenaGame = 'penalty' | 'quiz' | 'jucator' | 'cronologie'
 type PenaltyOpponent = 'suporter' | 'calculator'
 type PenaltyRole = 'executant' | 'portar'
@@ -1240,6 +1243,26 @@ const tribuneFilters: TribuneFilter[] = ['Toate', 'Imagini', 'Sondaje', 'Meci']
 const tribuneSorts: TribuneSort[] = ['Recente', 'În discuție', 'Apreciate', 'Salvate']
 const TRIBUNE_INITIAL_POSTS = 3
 const TRIBUNE_POST_BATCH = 3
+const TRIBUNE_POST_MENU_ESTIMATED_HEIGHT = 168
+const TRIBUNE_REACTION_PICKER_ESTIMATED_HEIGHT = 42
+
+const resolveAnchoredPanelPlacement = (
+  anchor: HTMLElement,
+  panelHeight: number,
+  viewport: HTMLElement | null,
+): AnchoredPanelPlacement => {
+  const anchorBounds = anchor.getBoundingClientRect()
+  const viewportBounds = viewport?.getBoundingClientRect()
+  const visibleTop = Math.max(0, viewportBounds?.top ?? 0) + 10
+  const visibleBottom = Math.min(window.innerHeight, viewportBounds?.bottom ?? window.innerHeight) - 10
+  const availableAbove = anchorBounds.top - visibleTop
+  const availableBelow = visibleBottom - anchorBounds.bottom
+  const requiredSpace = panelHeight + 12
+
+  if (availableBelow >= requiredSpace) return 'below'
+  if (availableAbove >= requiredSpace) return 'above'
+  return availableAbove > availableBelow ? 'above' : 'below'
+}
 const composerTones: Array<{ id: ComposerTone; label: string; color: string }> = [
   { id: 'verde', label: 'Verde Cetatea', color: 'var(--tone-green)' },
   { id: 'cyan', label: 'Albastru Areni', color: 'var(--tone-cyan)' },
@@ -1561,10 +1584,12 @@ export function CommunityView() {
     () => readStoredRecord('cetatea-tribune-hidden', {}),
   )
   const [postMenuId, setPostMenuId] = useState<string | null>(null)
+  const [postMenuPlacement, setPostMenuPlacement] = useState<AnchoredPanelPlacement>('below')
   const [copiedPostId, setCopiedPostId] = useState<string | null>(null)
   const [lastHiddenPostId, setLastHiddenPostId] = useState<string | null>(null)
   const [reactionBurst, setReactionBurst] = useState<{ postId: string; reaction: TribuneReaction } | null>(null)
   const [reactionPickerPostId, setReactionPickerPostId] = useState<string | null>(null)
+  const [reactionPickerPlacement, setReactionPickerPlacement] = useState<AnchoredPanelPlacement>('above')
   const [activeArenaGame, setActiveArenaGame] = useState<TribuneArenaGame>('penalty')
   const [arenaPoints, setArenaPoints] = useState(
     () => readStoredRecord('cetatea-arena-puncte', 640),
@@ -1595,6 +1620,10 @@ export function CommunityView() {
   const feedViewportRef = useRef<HTMLDivElement>(null)
   const composerDockRef = useRef<HTMLElement>(null)
   const feedLoadMoreRef = useRef<HTMLDivElement>(null)
+  const postMenuAnchorRef = useRef<HTMLButtonElement>(null)
+  const postMenuPanelRef = useRef<HTMLDivElement>(null)
+  const reactionPickerAnchorRef = useRef<HTMLButtonElement>(null)
+  const reactionPickerPanelRef = useRef<HTMLDivElement>(null)
   const [composerViewport, setComposerViewport] = useState({
     height: window.innerHeight,
     keyboardOpen: false,
@@ -1684,6 +1713,36 @@ export function CommunityView() {
 
     return () => resizeObserver.disconnect()
   }, [updateFloatingComposerVisibility, visiblePosts])
+
+  useLayoutEffect(() => {
+    const anchor = postMenuAnchorRef.current
+    const panel = postMenuPanelRef.current
+    if (!postMenuId || !anchor || !panel) return
+
+    const updatePlacement = () => setPostMenuPlacement(resolveAnchoredPanelPlacement(
+      anchor,
+      panel.getBoundingClientRect().height,
+      feedViewportRef.current,
+    ))
+    updatePlacement()
+    window.addEventListener('resize', updatePlacement)
+    return () => window.removeEventListener('resize', updatePlacement)
+  }, [postMenuId])
+
+  useLayoutEffect(() => {
+    const anchor = reactionPickerAnchorRef.current
+    const panel = reactionPickerPanelRef.current
+    if (!reactionPickerPostId || !anchor || !panel) return
+
+    const updatePlacement = () => setReactionPickerPlacement(resolveAnchoredPanelPlacement(
+      anchor,
+      panel.getBoundingClientRect().height,
+      feedViewportRef.current,
+    ))
+    updatePlacement()
+    window.addEventListener('resize', updatePlacement)
+    return () => window.removeEventListener('resize', updatePlacement)
+  }, [reactionPickerPostId])
 
   const activePost = posts.find((post) => post.id === activePostId)
   const activePostComments = activePost ? comments[activePost.id] ?? [] : []
@@ -1792,6 +1851,12 @@ export function CommunityView() {
       }
       if (postMenuId) {
         setPostMenuId(null)
+        window.requestAnimationFrame(() => postMenuAnchorRef.current?.focus())
+        return
+      }
+      if (reactionPickerPostId) {
+        setReactionPickerPostId(null)
+        window.requestAnimationFrame(() => reactionPickerAnchorRef.current?.focus())
         return
       }
       if (activePostId) {
@@ -1801,7 +1866,7 @@ export function CommunityView() {
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [activePostId, composerOpen, mediaViewer, postMenuId])
+  }, [activePostId, composerOpen, mediaViewer, postMenuId, reactionPickerPostId])
 
   useEffect(() => {
     const closePostMenu = (event: PointerEvent) => {
@@ -1858,6 +1923,8 @@ export function CommunityView() {
 
   const openComposer = () => {
     setActivePostId(null)
+    setPostMenuId(null)
+    setReactionPickerPostId(null)
     setMobileTribuneSection('flux')
     setComposerAppearanceOpen(false)
     setComposerOpen(true)
@@ -1962,12 +2029,50 @@ export function CommunityView() {
     setReactionPickerPostId(null)
   }
 
+  const togglePostMenu = (event: ReactMouseEvent<HTMLButtonElement>, postId: string) => {
+    const opening = postMenuId !== postId
+    postMenuAnchorRef.current = event.currentTarget
+    setReactionPickerPostId(null)
+    setPostMenuId(opening ? postId : null)
+    if (opening) {
+      setPostMenuPlacement(resolveAnchoredPanelPlacement(
+        event.currentTarget,
+        TRIBUNE_POST_MENU_ESTIMATED_HEIGHT,
+        feedViewportRef.current,
+      ))
+    }
+    play('toggle')
+  }
+
+  const toggleReactionPicker = (event: ReactMouseEvent<HTMLButtonElement>, postId: string) => {
+    const opening = reactionPickerPostId !== postId
+    reactionPickerAnchorRef.current = event.currentTarget
+    setPostMenuId(null)
+    setReactionPickerPostId(opening ? postId : null)
+    if (opening) {
+      setReactionPickerPlacement(resolveAnchoredPanelPlacement(
+        event.currentTarget,
+        TRIBUNE_REACTION_PICKER_ESTIMATED_HEIGHT,
+        feedViewportRef.current,
+      ))
+      play('toggle')
+    }
+  }
+
   const startReactionHold = (event: ReactPointerEvent<HTMLButtonElement>, postId: string) => {
     if (event.pointerType === 'mouse') return
+    const anchor = event.currentTarget
+    reactionPickerAnchorRef.current = anchor
+    setReactionPickerPlacement(resolveAnchoredPanelPlacement(
+      anchor,
+      TRIBUNE_REACTION_PICKER_ESTIMATED_HEIGHT,
+      feedViewportRef.current,
+    ))
     if (reactionHoldTimerRef.current !== null) window.clearTimeout(reactionHoldTimerRef.current)
     reactionHoldOpenedRef.current = false
     reactionHoldTimerRef.current = window.setTimeout(() => {
       reactionHoldOpenedRef.current = true
+      setPostMenuId(null)
       setReactionPickerPostId(postId)
       play('toggle')
     }, 420)
@@ -2020,6 +2125,7 @@ export function CommunityView() {
 
   const openPost = (postId: string) => {
     setComposerOpen(false)
+    setPostMenuId(null)
     setReactionPickerPostId(null)
     setActivePostId(postId)
     setMobileTribuneSection('discutie')
@@ -2027,10 +2133,14 @@ export function CommunityView() {
   }
 
   const handleFeedScroll = (event: UIEvent<HTMLDivElement>) => {
+    if (postMenuId) setPostMenuId(null)
+    if (reactionPickerPostId) setReactionPickerPostId(null)
     updateFloatingComposerVisibility(event.currentTarget)
   }
 
   const openMediaViewer = (images: string[], index: number, author: string) => {
+    setPostMenuId(null)
+    setReactionPickerPostId(null)
     setMediaViewer({ images, index, author })
     play('toggle')
   }
@@ -2450,7 +2560,7 @@ export function CommunityView() {
                     layout
                     id={`tribuna-${post.id}`}
                     key={post.id}
-                    className={`${styles.tribunePost} ${postImages.length ? styles.tribunePostWithMedia : ''} ${post.poll ? styles.tribunePostWithPoll : ''} ${post.colorCard ? styles.tribunePostColor : ''}`}
+                    className={`${styles.tribunePost} ${postImages.length ? styles.tribunePostWithMedia : ''} ${post.poll ? styles.tribunePostWithPoll : ''} ${post.colorCard ? styles.tribunePostColor : ''} ${postMenuId === post.id || reactionPickerPostId === post.id ? styles.tribunePostOverlayOpen : ''}`}
                     style={{ '--post-tone': post.tone } as CSSProperties}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -2477,13 +2587,29 @@ export function CommunityView() {
                       </span>
                       <div className={styles.tribunePostHeaderActions} data-tribune-menu>
                         {post.label && <em>{post.label}</em>}
-                        <button type="button" aria-label={`Opțiuni pentru postarea lui ${post.author}`} aria-expanded={postMenuId === post.id} onClick={() => setPostMenuId((current) => current === post.id ? null : post.id)}><MoreHorizontal /></button>
+                        <button
+                          type="button"
+                          aria-label={`Opțiuni pentru postarea lui ${post.author}`}
+                          aria-expanded={postMenuId === post.id}
+                          aria-controls={`optiuni-postare-${post.id}`}
+                          aria-haspopup="menu"
+                          onClick={(event) => togglePostMenu(event, post.id)}
+                        ><MoreHorizontal /></button>
                         <AnimatePresence>
                           {postMenuId === post.id && (
-                            <motion.div className={styles.tribunePostMenu} initial={{ opacity: 0, y: -5, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: .97 }}>
-                              <button type="button" onClick={() => { toggleBookmark(post.id); setPostMenuId(null) }}><Bookmark aria-hidden="true" fill={bookmarked ? 'currentColor' : 'none'} /><span><strong>{bookmarked ? 'Elimină din salvate' : 'Salvează postarea'}</strong><small>Păstreaz-o pentru mai târziu</small></span></button>
-                              <button type="button" onClick={() => { void copyPostText(post) }}><Copy aria-hidden="true" /><span><strong>Copiază textul</strong><small>Trimite ideea mai departe</small></span></button>
-                              <button type="button" onClick={() => hidePost(post.id)}><EyeOff aria-hidden="true" /><span><strong>Ascunde postarea</strong><small>Nu va mai apărea în feed</small></span></button>
+                            <motion.div
+                              ref={postMenuPanelRef}
+                              id={`optiuni-postare-${post.id}`}
+                              role="menu"
+                              aria-label={`Opțiunile postării lui ${post.author}`}
+                              className={`${styles.tribunePostMenu} ${postMenuPlacement === 'above' ? styles.tribunePostMenuAbove : ''}`}
+                              initial={{ opacity: 0, y: postMenuPlacement === 'above' ? 5 : -5, scale: .97 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: postMenuPlacement === 'above' ? 4 : -4, scale: .97 }}
+                            >
+                              <button role="menuitem" type="button" onClick={() => { toggleBookmark(post.id); setPostMenuId(null) }}><Bookmark aria-hidden="true" fill={bookmarked ? 'currentColor' : 'none'} /><span><strong>{bookmarked ? 'Elimină din salvate' : 'Salvează postarea'}</strong><small>Păstreaz-o pentru mai târziu</small></span></button>
+                              <button role="menuitem" type="button" onClick={() => { void copyPostText(post) }}><Copy aria-hidden="true" /><span><strong>Copiază textul</strong><small>Trimite ideea mai departe</small></span></button>
+                              <button role="menuitem" type="button" onClick={() => hidePost(post.id)}><EyeOff aria-hidden="true" /><span><strong>Ascunde postarea</strong><small>Nu va mai apărea în feed</small></span></button>
                             </motion.div>
                           )}
                         </AnimatePresence>
@@ -2558,16 +2684,14 @@ export function CommunityView() {
                           aria-label="Arată toate reacțiile"
                           aria-expanded={reactionPickerPostId === post.id}
                           aria-controls={`reactii-${post.id}`}
-                          onClick={() => {
-                            setReactionPickerPostId((current) => current === post.id ? null : post.id)
-                            play('toggle')
-                          }}
+                          onClick={(event) => toggleReactionPicker(event, post.id)}
                         >
                           <ChevronDown aria-hidden="true" />
                         </button>
                         <div
+                          ref={reactionPickerPostId === post.id ? reactionPickerPanelRef : undefined}
                           id={`reactii-${post.id}`}
-                          className={`${styles.tribuneReactionPicker} ${reactionPickerPostId === post.id ? styles.tribuneReactionPickerOpen : ''}`}
+                          className={`${styles.tribuneReactionPicker} ${reactionPickerPostId === post.id && reactionPickerPlacement === 'below' ? styles.tribuneReactionPickerBelow : ''} ${reactionPickerPostId === post.id ? styles.tribuneReactionPickerOpen : ''}`}
                           role="group"
                           aria-label={`Alege reacția pentru postarea lui ${post.author}`}
                         >
@@ -2883,7 +3007,7 @@ export function CommunityView() {
       </div>
 
       {createPortal(
-        <AnimatePresence>
+        <AnimatePresence initial={false} mode="sync">
         {composerOpen && (
           <motion.div
             className={`${styles.tribuneOverlay} ${styles.tribuneComposerOverlay} ${composerViewport.keyboardOpen ? styles.tribuneComposerKeyboardOpen : ''}`}
@@ -2891,19 +3015,24 @@ export function CommunityView() {
               '--composer-viewport-height': `${composerViewport.height}px`,
               '--composer-viewport-top': `${composerViewport.offsetTop}px`,
             } as CSSProperties}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onPointerDown={(event) => { if (event.target === event.currentTarget) setComposerOpen(false) }}
+            variants={panelLayerVariants}
+            initial="closed"
+            animate="open"
+            exit="closed"
           >
+            <motion.button
+              type="button"
+              className={styles.slidingPanelBackdrop}
+              variants={panelBackdropVariants}
+              onClick={() => setComposerOpen(false)}
+              aria-label="Închide creatorul de postări"
+            />
             <motion.div
               className={styles.tribuneComposer}
               role="dialog"
               aria-modal="true"
               aria-label="Publică în Tribună"
-              initial={{ opacity: 0, y: 24, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 18, scale: 0.98 }}
+              variants={panelFromRightVariants}
             >
               <form className={styles.tribuneComposerForm} autoComplete="off" onSubmit={publishPost}>
                 <div className={styles.tribuneComposerBody}>
@@ -3044,23 +3173,28 @@ export function CommunityView() {
       )}
 
       {createPortal(
-        <AnimatePresence>
+        <AnimatePresence initial={false} mode="sync">
           {mediaViewer && (
             <motion.div
               className={`${styles.tribuneOverlay} ${styles.tribuneMediaOverlay}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onPointerDown={(event) => { if (event.target === event.currentTarget) setMediaViewer(null) }}
+              variants={panelLayerVariants}
+              initial="closed"
+              animate="open"
+              exit="closed"
             >
+              <motion.button
+                type="button"
+                className={styles.slidingPanelBackdrop}
+                variants={panelBackdropVariants}
+                onClick={() => setMediaViewer(null)}
+                aria-label="Închide galeria foto"
+              />
               <motion.figure
                 className={styles.tribuneMediaViewer}
                 role="dialog"
                 aria-modal="true"
                 aria-label={`Fotografiile publicate de ${mediaViewer.author}`}
-                initial={{ opacity: 0, y: 16, scale: 0.985 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.985 }}
+                variants={panelFromRightVariants}
               >
                 <header>
                   <span><ImagePlus aria-hidden="true" /><i><small>Galerie foto</small><strong>{mediaViewer.author}</strong></i></span>
@@ -3772,54 +3906,60 @@ export function SquadView() {
         </div>
       </div>
 
-      <AnimatePresence>
+      <AnimatePresence initial={false} mode="sync">
         {showComparison && comparisonPlayers.length === 2 && (
           <motion.div
-            className={styles.teamComparison}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="team-comparison-title"
-            initial={{ opacity: 0, y: 30, clipPath: 'inset(10% 8%)' }}
-            animate={{ opacity: 1, y: 0, clipPath: 'inset(0 0)' }}
-            exit={{ opacity: 0, y: 22, clipPath: 'inset(8% 6%)' }}
-            transition={{ duration: .42, ease: [0.16, 1, 0.3, 1] }}
+            className={styles.sectionPanelLayer}
+            variants={panelLayerVariants}
+            initial="closed"
+            animate="open"
+            exit="closed"
           >
-            <header>
-              <div><small>Laboratorul lotului</small><strong id="team-comparison-title">Comparație directă</strong></div>
-              <button type="button" onClick={() => setShowComparison(false)} aria-label="Închide comparația"><X aria-hidden="true" /></button>
-            </header>
-            <div className={styles.comparisonArena}>
-              <div className={styles.comparisonGrid}>
-                {comparisonPlayers.map((player, playerIndex) => (
-                  <article key={player.id} style={{ '--player-tone': positionTone[player.position] } as CSSProperties}>
-                    <span className={styles.comparisonNumber}>{displayPlayerNumber(player.number, true)}</span>
-                    <div className={styles.comparisonIdentity}><SquadPortrait player={player} alt={player.image ? `Portret oficial ${player.name}` : `Identitate vizuală ${player.name}`} /><span><small>{player.role}</small><strong>{player.name}</strong></span></div>
-                    <div className={styles.comparisonBio}>
-                      <span><small>Vârstă</small><strong>{player.age} ani</strong></span>
-                      <span><small>Înălțime</small><strong>{player.height ?? '—'}</strong></span>
-                      <span><small>Picior</small><strong>{player.foot ?? '—'}</strong></span>
-                    </div>
-                    <button type="button" onClick={() => { selectPlayer(player.id); setShowComparison(false) }}>Deschide profilul <ArrowRight aria-hidden="true" /></button>
-                    {playerIndex === 0 && <em>VS</em>}
-                  </article>
-                ))}
+            <motion.button type="button" className={styles.sectionPanelBackdrop} variants={panelBackdropVariants} onClick={() => setShowComparison(false)} aria-label="Închide comparația" />
+            <motion.div
+              className={styles.teamComparison}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="team-comparison-title"
+              variants={panelFromRightVariants}
+            >
+              <header>
+                <div><small>Laboratorul lotului</small><strong id="team-comparison-title">Comparație directă</strong></div>
+                <button type="button" onClick={() => setShowComparison(false)} aria-label="Închide comparația"><X aria-hidden="true" /></button>
+              </header>
+              <div className={styles.comparisonArena}>
+                <div className={styles.comparisonGrid}>
+                  {comparisonPlayers.map((player, playerIndex) => (
+                    <article key={player.id} style={{ '--player-tone': positionTone[player.position] } as CSSProperties}>
+                      <span className={styles.comparisonNumber}>{displayPlayerNumber(player.number, true)}</span>
+                      <div className={styles.comparisonIdentity}><SquadPortrait player={player} alt={player.image ? `Portret oficial ${player.name}` : `Identitate vizuală ${player.name}`} /><span><small>{player.role}</small><strong>{player.name}</strong></span></div>
+                      <div className={styles.comparisonBio}>
+                        <span><small>Vârstă</small><strong>{player.age} ani</strong></span>
+                        <span><small>Înălțime</small><strong>{player.height ?? '—'}</strong></span>
+                        <span><small>Picior</small><strong>{player.foot ?? '—'}</strong></span>
+                      </div>
+                      <button type="button" onClick={() => { selectPlayer(player.id); setShowComparison(false) }}>Deschide profilul <ArrowRight aria-hidden="true" /></button>
+                      {playerIndex === 0 && <em>VS</em>}
+                    </article>
+                  ))}
+                </div>
+                <div className={styles.comparisonBattle} aria-label="Comparația statisticilor confirmate">
+                  {comparisonRows.map((row) => {
+                    const maximum = Math.max(row.values[0], row.values[1], 1)
+                    return (
+                      <div className={styles.comparisonMetricDuel} key={row.label}>
+                        <strong>{row.values[0]}</strong>
+                        <span className={styles.comparisonBarLeft}><i style={{ '--metric-width': `${(row.values[0] / maximum) * 100}%` } as CSSProperties} /></span>
+                        <small>{row.label}</small>
+                        <span className={styles.comparisonBarRight}><i style={{ '--metric-width': `${(row.values[1] / maximum) * 100}%` } as CSSProperties} /></span>
+                        <strong>{row.values[1]}</strong>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-              <div className={styles.comparisonBattle} aria-label="Comparația statisticilor confirmate">
-                {comparisonRows.map((row) => {
-                  const maximum = Math.max(row.values[0], row.values[1], 1)
-                  return (
-                    <div className={styles.comparisonMetricDuel} key={row.label}>
-                      <strong>{row.values[0]}</strong>
-                      <span className={styles.comparisonBarLeft}><i style={{ '--metric-width': `${(row.values[0] / maximum) * 100}%` } as CSSProperties} /></span>
-                      <small>{row.label}</small>
-                      <span className={styles.comparisonBarRight}><i style={{ '--metric-width': `${(row.values[1] / maximum) * 100}%` } as CSSProperties} /></span>
-                      <strong>{row.values[1]}</strong>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-            <footer><span>Portrete exclusiv Cetatea · statistici documentate public, fără completări inventate</span><button type="button" onClick={() => { setComparison([]); setShowComparison(false) }}>Golește selecția</button></footer>
+              <footer><span>Portrete exclusiv Cetatea · statistici documentate public, fără completări inventate</span><button type="button" onClick={() => { setComparison([]); setShowComparison(false) }}>Golește selecția</button></footer>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -4560,59 +4700,63 @@ export function NewsView() {
         </motion.aside>
       </div>
 
-      <AnimatePresence>
+      <AnimatePresence initial={false} mode="sync">
         {readerArticle && (
           <motion.div
-            className={styles.articleReader}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="article-reader-title"
-            initial={{ opacity: 0, y: 34, clipPath: 'inset(12% 8% 0)' }}
-            animate={{ opacity: 1, y: 0, clipPath: 'inset(0 0 0)' }}
-            exit={{ opacity: 0, y: 24, clipPath: 'inset(0 8% 12%)' }}
-            transition={{ duration: .46, ease: [0.16, 1, 0.3, 1] }}
-            style={{ '--news-tone': readerArticle.tone } as CSSProperties}
+            className={styles.sectionPanelLayer}
+            variants={panelLayerVariants}
+            initial="closed"
+            animate="open"
+            exit="closed"
           >
-            <header>
-              <span>{readerArticle.category} / {readerArticle.date}</span>
-              <button type="button" onClick={() => setReaderArticle(null)} aria-label="Închide articolul"><X aria-hidden="true" /></button>
-            </header>
-            <div>
-              <small>{readerArticle.kicker}</small>
-              <h2 id="article-reader-title">{readerArticle.title}</h2>
-              {readerArticle.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
-            </div>
-            <footer>
-              <span><Clock3 aria-hidden="true" /> {readerArticle.readTime} de lectură</span>
+            <motion.button type="button" className={styles.sectionPanelBackdrop} variants={panelBackdropVariants} onClick={() => setReaderArticle(null)} aria-label="Închide articolul" />
+            <motion.div
+              className={styles.articleReader}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="article-reader-title"
+              variants={panelFromRightVariants}
+              style={{ '--news-tone': readerArticle.tone } as CSSProperties}
+            >
+              <header>
+                <span>{readerArticle.category} / {readerArticle.date}</span>
+                <button type="button" onClick={() => setReaderArticle(null)} aria-label="Închide articolul"><X aria-hidden="true" /></button>
+              </header>
               <div>
-                <button type="button" onClick={() => toggleSaved(readerArticle.id)}><Bookmark aria-hidden="true" /> {saved.includes(readerArticle.id) ? 'Salvat' : 'Salvează'}</button>
-                <button type="button" onClick={() => void shareArticle(readerArticle)}><Share2 aria-hidden="true" /> Distribuie</button>
-                <button type="button" onClick={() => openConversation(readerArticle)}><MessageCircle aria-hidden="true" /> Conversație</button>
+                <small>{readerArticle.kicker}</small>
+                <h2 id="article-reader-title">{readerArticle.title}</h2>
+                {readerArticle.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
               </div>
-            </footer>
+              <footer>
+                <span><Clock3 aria-hidden="true" /> {readerArticle.readTime} de lectură</span>
+                <div>
+                  <button type="button" onClick={() => toggleSaved(readerArticle.id)}><Bookmark aria-hidden="true" /> {saved.includes(readerArticle.id) ? 'Salvat' : 'Salvează'}</button>
+                  <button type="button" onClick={() => void shareArticle(readerArticle)}><Share2 aria-hidden="true" /> Distribuie</button>
+                  <button type="button" onClick={() => openConversation(readerArticle)}><MessageCircle aria-hidden="true" /> Conversație</button>
+                </div>
+              </footer>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
+      <AnimatePresence initial={false} mode="sync">
         {conversationArticle && (
           <motion.div
             className={styles.newsConversationLayer}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            variants={panelLayerVariants}
+            initial="closed"
+            animate="open"
+            exit="closed"
           >
-            <button type="button" className={styles.newsConversationBackdrop} onClick={() => setConversationArticle(null)} aria-label="Închide conversația" />
+            <motion.button type="button" className={styles.newsConversationBackdrop} variants={panelBackdropVariants} onClick={() => setConversationArticle(null)} aria-label="Închide conversația" />
             <motion.aside
               className={styles.newsConversation}
               role="dialog"
               aria-modal="true"
               aria-labelledby="news-conversation-title"
               style={{ '--news-tone': conversationArticle.tone } as CSSProperties}
-              initial={{ x: '108%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '108%' }}
-              transition={{ duration: .5, ease: [0.16, 1, 0.3, 1] }}
+              variants={panelFromRightVariants}
             >
               <header>
                 <div><small>Conversația Cetății</small><strong id="news-conversation-title">Pulsul comunității</strong></div>

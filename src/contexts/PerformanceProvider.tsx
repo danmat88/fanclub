@@ -98,7 +98,7 @@ export function PerformanceProvider({ children }: { children: ReactNode }) {
 
   return (
     <PerformanceContext.Provider value={value}>
-      <MotionConfig reducedMotion={isEconomy ? 'always' : 'never'}>{children}</MotionConfig>
+      <MotionConfig reducedMotion="never">{children}</MotionConfig>
     </PerformanceContext.Provider>
   )
 }

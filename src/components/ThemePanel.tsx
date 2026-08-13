@@ -1,8 +1,10 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { Check, MoonStar, Palette, Sun, X } from 'lucide-react'
 import { useEffect, useRef, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import { themeOptions, type Theme } from '../contexts/theme-context'
 import { AppScrollArea } from './AppScrollArea'
+import { panelBackdropVariants, panelFromRightVariants, panelLayerVariants } from './panelMotion'
 import styles from './ThemePanel.module.css'
 
 type ThemePanelProps = {
@@ -48,21 +50,22 @@ export function ThemePanel({ open, activeTheme, onClose, onSelect }: ThemePanelP
     }
   }, [onClose, open])
 
-  return (
-    <AnimatePresence>
+  return createPortal(
+    <AnimatePresence initial={false} mode="sync">
       {open && (
         <motion.div
           className={styles.layer}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: .2 }}
+          variants={panelLayerVariants}
+          initial="closed"
+          animate="open"
+          exit="closed"
         >
-          <button
+          <motion.button
             type="button"
             className={styles.backdrop}
             onClick={onClose}
             aria-label="Închide galeria de teme"
+            variants={panelBackdropVariants}
           />
 
           <motion.aside
@@ -72,10 +75,7 @@ export function ThemePanel({ open, activeTheme, onClose, onSelect }: ThemePanelP
             role="dialog"
             aria-modal="true"
             aria-labelledby="theme-panel-title"
-            initial={{ opacity: 0, y: -18, scale: .97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: .98 }}
-            transition={{ duration: .32, ease: [0.16, 1, 0.3, 1] }}
+            variants={panelFromRightVariants}
           >
             <header className={styles.header}>
               <span className={styles.headerIcon}><Palette aria-hidden="true" /></span>
@@ -132,6 +132,7 @@ export function ThemePanel({ open, activeTheme, onClose, onSelect }: ThemePanelP
           </motion.aside>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
