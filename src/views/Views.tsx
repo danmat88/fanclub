@@ -17,6 +17,7 @@ import {
   CircleDot,
   Clock3,
   Copy,
+  Crown,
   Eye,
   EyeOff,
   ExternalLink,
@@ -38,14 +39,17 @@ import {
   Mic2,
   Minus,
   MoreHorizontal,
+  Move,
   Newspaper,
   Pause,
   PencilLine,
   Play,
   Plus,
+  RotateCcw,
   Search,
   Send,
   Share2,
+  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Star,
@@ -72,6 +76,7 @@ import {
   useState,
   type CSSProperties,
   type ChangeEvent,
+  type DragEvent as ReactDragEvent,
   type FormEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -1189,6 +1194,28 @@ type ComposerTone = 'verde' | 'cyan' | 'violet' | 'chihlimbar' | 'roz'
 type TribuneSort = 'Recente' | 'În discuție' | 'Apreciate' | 'Salvate'
 type TribuneReaction = 'inima' | 'foc' | 'forta'
 type AnchoredPanelPlacement = 'above' | 'below'
+type TribuneInteractiveFeature = 'jucator' | 'primul-11'
+type SupporterFormationId = '4-2-3-1' | '4-3-3' | '3-4-2-1'
+type SupporterFormationSlot = {
+  id: string
+  label: string
+  shortLabel: string
+  x: number
+  y: number
+  accepts: PlayerPosition[]
+}
+type SupporterFormation = {
+  id: SupporterFormationId
+  name: string
+  idea: string
+  slots: SupporterFormationSlot[]
+}
+type FormationDrafts = Record<SupporterFormationId, Record<string, string>>
+type TribuneFormation = {
+  system: SupporterFormationId
+  captainId: string
+  assignments: Array<{ slotId: string; playerId: string }>
+}
 type TribuneMotmCandidate = {
   playerId: string
   matchLine: string
@@ -1216,6 +1243,7 @@ type TribunePost = {
   tone: string
   userCreated?: boolean
   colorCard?: boolean
+  formation?: TribuneFormation
 }
 
 type TribuneComment = {
@@ -1232,6 +1260,77 @@ const TRIBUNE_POST_BATCH = 3
 const TRIBUNE_POST_MENU_ESTIMATED_HEIGHT = 168
 const TRIBUNE_REACTION_PICKER_ESTIMATED_HEIGHT = 42
 const TRIBUNE_MOTM_STORAGE_KEY = 'cetatea-tribuna-motm-2026-08-08'
+const TRIBUNE_FORMATION_STORAGE_KEY = 'cetatea-primul-11-suporter'
+
+const supporterFormations: SupporterFormation[] = [
+  {
+    id: '4-2-3-1',
+    name: 'Echilibru',
+    idea: 'Doi mijlocași de control și trei oameni între linii.',
+    slots: [
+      { id: 'p', label: 'Portar', shortLabel: 'P', x: 50, y: 91, accepts: ['Portar'] },
+      { id: 'fd', label: 'Fundaș dreapta', shortLabel: 'FD', x: 86, y: 73, accepts: ['Fundaș'] },
+      { id: 'fcd', label: 'Fundaș central', shortLabel: 'FC', x: 62, y: 78, accepts: ['Fundaș'] },
+      { id: 'fcs', label: 'Fundaș central', shortLabel: 'FC', x: 38, y: 78, accepts: ['Fundaș'] },
+      { id: 'fs', label: 'Fundaș stânga', shortLabel: 'FS', x: 14, y: 73, accepts: ['Fundaș'] },
+      { id: 'mcd', label: 'Mijlocaș central', shortLabel: 'MC', x: 63, y: 56, accepts: ['Mijlocaș', 'Fundaș'] },
+      { id: 'mcs', label: 'Mijlocaș central', shortLabel: 'MC', x: 37, y: 56, accepts: ['Mijlocaș', 'Fundaș'] },
+      { id: 'ed', label: 'Extremă dreapta', shortLabel: 'ED', x: 84, y: 34, accepts: ['Atacant', 'Mijlocaș'] },
+      { id: 'mo', label: 'Mijlocaș ofensiv', shortLabel: 'MO', x: 50, y: 39, accepts: ['Mijlocaș', 'Atacant'] },
+      { id: 'es', label: 'Extremă stânga', shortLabel: 'ES', x: 16, y: 34, accepts: ['Atacant', 'Mijlocaș'] },
+      { id: 'a', label: 'Atacant', shortLabel: 'A', x: 50, y: 14, accepts: ['Atacant'] },
+    ],
+  },
+  {
+    id: '4-3-3',
+    name: 'Presiune',
+    idea: 'Lățime în atac și un triunghi compact la mijloc.',
+    slots: [
+      { id: 'p', label: 'Portar', shortLabel: 'P', x: 50, y: 91, accepts: ['Portar'] },
+      { id: 'fd', label: 'Fundaș dreapta', shortLabel: 'FD', x: 86, y: 73, accepts: ['Fundaș'] },
+      { id: 'fcd', label: 'Fundaș central', shortLabel: 'FC', x: 62, y: 78, accepts: ['Fundaș'] },
+      { id: 'fcs', label: 'Fundaș central', shortLabel: 'FC', x: 38, y: 78, accepts: ['Fundaș'] },
+      { id: 'fs', label: 'Fundaș stânga', shortLabel: 'FS', x: 14, y: 73, accepts: ['Fundaș'] },
+      { id: 'md', label: 'Mijlocaș defensiv', shortLabel: 'MD', x: 50, y: 59, accepts: ['Mijlocaș', 'Fundaș'] },
+      { id: 'mcd', label: 'Mijlocaș central', shortLabel: 'MC', x: 68, y: 45, accepts: ['Mijlocaș'] },
+      { id: 'mcs', label: 'Mijlocaș central', shortLabel: 'MC', x: 32, y: 45, accepts: ['Mijlocaș'] },
+      { id: 'ed', label: 'Extremă dreapta', shortLabel: 'ED', x: 82, y: 24, accepts: ['Atacant', 'Mijlocaș'] },
+      { id: 'a', label: 'Atacant', shortLabel: 'A', x: 50, y: 13, accepts: ['Atacant'] },
+      { id: 'es', label: 'Extremă stânga', shortLabel: 'ES', x: 18, y: 24, accepts: ['Atacant', 'Mijlocaș'] },
+    ],
+  },
+  {
+    id: '3-4-2-1',
+    name: 'Asediu',
+    idea: 'Trei fundași, benzi înalte și doi creatori în spatele vârfului.',
+    slots: [
+      { id: 'p', label: 'Portar', shortLabel: 'P', x: 50, y: 91, accepts: ['Portar'] },
+      { id: 'fcd', label: 'Fundaș central', shortLabel: 'FC', x: 72, y: 76, accepts: ['Fundaș'] },
+      { id: 'fc', label: 'Fundaș central', shortLabel: 'FC', x: 50, y: 81, accepts: ['Fundaș'] },
+      { id: 'fcs', label: 'Fundaș central', shortLabel: 'FC', x: 28, y: 76, accepts: ['Fundaș'] },
+      { id: 'md', label: 'Bandă dreapta', shortLabel: 'BD', x: 85, y: 54, accepts: ['Mijlocaș', 'Fundaș', 'Atacant'] },
+      { id: 'mcd', label: 'Mijlocaș central', shortLabel: 'MC', x: 62, y: 57, accepts: ['Mijlocaș'] },
+      { id: 'mcs', label: 'Mijlocaș central', shortLabel: 'MC', x: 38, y: 57, accepts: ['Mijlocaș'] },
+      { id: 'ms', label: 'Bandă stânga', shortLabel: 'BS', x: 15, y: 54, accepts: ['Mijlocaș', 'Fundaș', 'Atacant'] },
+      { id: 'mod', label: 'Creator dreapta', shortLabel: 'MO', x: 65, y: 32, accepts: ['Mijlocaș', 'Atacant'] },
+      { id: 'mos', label: 'Creator stânga', shortLabel: 'MO', x: 35, y: 32, accepts: ['Mijlocaș', 'Atacant'] },
+      { id: 'a', label: 'Atacant', shortLabel: 'A', x: 50, y: 13, accepts: ['Atacant'] },
+    ],
+  },
+]
+
+const supporterFormationDefaults: Record<SupporterFormationId, string[]> = {
+  '4-2-3-1': ['alin-ciobanu', 'andrei-mihai', 'vladut-cimbru', 'ricardo-farcas', 'ciprian-perju', 'gabriel-david', 'vlad-ilie', 'catalin-golofca', 'cosmin-tucaliuc', 'stephane-ferhaoui', 'gabriel-raducan'],
+  '4-3-3': ['alin-ciobanu', 'andrei-mihai', 'vladut-cimbru', 'ricardo-farcas', 'ciprian-perju', 'gabriel-david', 'vlad-ilie', 'andrei-cerlinca', 'catalin-golofca', 'gabriel-raducan', 'stephane-ferhaoui'],
+  '3-4-2-1': ['alin-ciobanu', 'vladut-cimbru', 'ruslan-chelari', 'ricardo-farcas', 'andrei-mihai', 'gabriel-david', 'vlad-ilie', 'ciprian-perju', 'cosmin-tucaliuc', 'stephane-ferhaoui', 'gabriel-raducan'],
+}
+
+const createDefaultFormationDrafts = (): FormationDrafts => Object.fromEntries(
+  supporterFormations.map((formation) => [
+    formation.id,
+    Object.fromEntries(formation.slots.map((slot, index) => [slot.id, supporterFormationDefaults[formation.id][index]])),
+  ]),
+) as FormationDrafts
 
 const tribuneMotmCandidates: TribuneMotmCandidate[] = [
   { playerId: 'gabriel-raducan', matchLine: 'Gol · atacant central', reason: 'A atacat permanent spațiul și a deschis drumul victoriei.', baseVotes: 382, tone: 'var(--tone-green)' },
@@ -1387,6 +1486,61 @@ function readStoredReactions() {
     if (reaction === 'inima' || reaction === 'foc' || reaction === 'forta') return [[postId, reaction]]
     return []
   }))
+}
+
+function readStoredFormationDrafts(): FormationDrafts {
+  const defaults = createDefaultFormationDrafts()
+  const stored = readStoredRecord<Partial<FormationDrafts>>(TRIBUNE_FORMATION_STORAGE_KEY, {})
+
+  supporterFormations.forEach((formation) => {
+    const storedDraft = stored[formation.id]
+    if (!storedDraft || typeof storedDraft !== 'object') return
+    formation.slots.forEach((slot) => {
+      const playerId = storedDraft[slot.id]
+      if (typeof playerId === 'string' && squad.some((player) => player.id === playerId)) {
+        defaults[formation.id][slot.id] = playerId
+      }
+    })
+  })
+
+  return defaults
+}
+
+function TribuneFormationCard({ formation, variant = 'feed' }: { formation: TribuneFormation; variant?: 'feed' | 'thread' | 'preview' }) {
+  const system = supporterFormations.find((item) => item.id === formation.system) ?? supporterFormations[0]
+  const assignmentMap = Object.fromEntries(formation.assignments.map((assignment) => [assignment.slotId, assignment.playerId]))
+  const captain = squad.find((player) => player.id === formation.captainId)
+
+  return (
+    <section className={styles.tribuneFormationCard} data-variant={variant} aria-label={`Primul 11 al suporterului în sistem ${system.id}`}>
+      <header>
+        <span><ShieldCheck aria-hidden="true" /><i><small>Primul meu 11</small><strong>{nextMatch.home.name} – {nextMatch.away.name}</strong></i></span>
+        <em>{system.id}</em>
+      </header>
+      <div className={styles.tribuneFormationPitch}>
+        <span className={styles.tribuneFormationHalf} aria-hidden="true" />
+        <span className={styles.tribuneFormationCircle} aria-hidden="true" />
+        <span className={styles.tribuneFormationAreaTop} aria-hidden="true" />
+        <span className={styles.tribuneFormationAreaBottom} aria-hidden="true" />
+        {system.slots.map((slot) => {
+          const player = squad.find((item) => item.id === assignmentMap[slot.id])
+          if (!player) return null
+          const shortName = player.name.split(' ').at(-1) ?? player.name
+          return (
+            <span
+              key={slot.id}
+              className={styles.tribuneFormationPlayer}
+              style={{ '--formation-x': `${slot.x}%`, '--formation-y': `${slot.y}%`, '--formation-tone': positionTone[player.position] } as CSSProperties}
+            >
+              <i><SquadPortrait player={player} lazy />{formation.captainId === player.id && <b>C</b>}</i>
+              <strong>{shortName}</strong>
+            </span>
+          )
+        })}
+      </div>
+      <footer><span><i /> Formația unui suporter</span><strong>{captain ? `Căpitan · ${captain.name.split(' ').at(-1)}` : system.idea}</strong></footer>
+    </section>
+  )
 }
 
 type TribuneMediaMosaicProps = {
@@ -1551,6 +1705,20 @@ export function CommunityView() {
     () => readStoredMotmVote() ?? tribuneMotmCandidates[0].playerId,
   )
   const [motmEditingVote, setMotmEditingVote] = useState(false)
+  const [interactiveFeature, setInteractiveFeature] = useState<TribuneInteractiveFeature>('jucator')
+  const [formationSystem, setFormationSystem] = useState<SupporterFormationId>(() => {
+    const stored = localStorage.getItem('cetatea-primul-11-sistem')
+    return supporterFormations.some((formation) => formation.id === stored) ? stored as SupporterFormationId : '4-2-3-1'
+  })
+  const [formationDrafts, setFormationDrafts] = useState<FormationDrafts>(() => readStoredFormationDrafts())
+  const [selectedFormationSlot, setSelectedFormationSlot] = useState('a')
+  const [formationRosterMode, setFormationRosterMode] = useState<'potriviti' | 'tot-lotul'>('potriviti')
+  const [formationCaptain, setFormationCaptain] = useState(() => localStorage.getItem('cetatea-primul-11-capitan') ?? 'gabriel-david')
+  const [formationShareOpen, setFormationShareOpen] = useState(false)
+  const [formationShareText, setFormationShareText] = useState('Așa aș începe următorul meci. Voi pe cine ați schimba?')
+  const [formationPublishedId, setFormationPublishedId] = useState<string | null>(null)
+  const [formationDrag, setFormationDrag] = useState<{ playerId: string; x: number; y: number } | null>(null)
+  const [formationDropSlot, setFormationDropSlot] = useState<string | null>(null)
   const [activePostId, setActivePostId] = useState<string | null>(null)
   const [commentDraft, setCommentDraft] = useState('')
   const [likedComments, setLikedComments] = useState<Record<string, boolean>>(
@@ -1570,6 +1738,8 @@ export function CommunityView() {
   const postMenuPanelRef = useRef<HTMLDivElement>(null)
   const reactionPickerAnchorRef = useRef<HTMLButtonElement>(null)
   const reactionPickerPanelRef = useRef<HTMLDivElement>(null)
+  const formationPointerRef = useRef<{ playerId: string; sourceSlotId?: string; pointerId: number; startX: number; startY: number; dragged: boolean } | null>(null)
+  const formationSuppressClickRef = useRef(false)
   const [composerViewport, setComposerViewport] = useState({
     height: window.innerHeight,
     keyboardOpen: false,
@@ -1623,10 +1793,44 @@ export function CommunityView() {
 
   const renderedPosts = visiblePosts.slice(0, visiblePostCount)
   const hasMorePosts = visiblePostCount < visiblePosts.length
+  const activeSupporterFormation = supporterFormations.find((formation) => formation.id === formationSystem) ?? supporterFormations[0]
+  const activeFormationDraft = formationDrafts[formationSystem]
+  const activeFormationSlot = activeSupporterFormation.slots.find((slot) => slot.id === selectedFormationSlot) ?? activeSupporterFormation.slots.at(-1)!
+  const activeFormationPlayerIds = activeSupporterFormation.slots.map((slot) => activeFormationDraft[slot.id]).filter(Boolean)
+  const formationCompleteCount = new Set(activeFormationPlayerIds).size
+  const selectedFormationPlayer = squad.find((player) => player.id === activeFormationDraft[activeFormationSlot.id])
+  const resolvedFormationCaptain = activeFormationPlayerIds.includes(formationCaptain) ? formationCaptain : activeFormationPlayerIds[0] ?? ''
+  const formationRosterPlayers = squad.filter((player) => (
+    formationRosterMode === 'tot-lotul' || activeFormationSlot.accepts.includes(player.position)
+  )).sort((first, second) => {
+    const firstSelected = activeFormationPlayerIds.includes(first.id) ? 1 : 0
+    const secondSelected = activeFormationPlayerIds.includes(second.id) ? 1 : 0
+    if (firstSelected !== secondSelected) return secondSelected - firstSelected
+    return (second.appearances ?? 0) - (first.appearances ?? 0) || first.name.localeCompare(second.name, 'ro')
+  })
+  const formationForSharing: TribuneFormation = {
+    system: formationSystem,
+    captainId: resolvedFormationCaptain,
+    assignments: activeSupporterFormation.slots
+      .map((slot) => ({ slotId: slot.id, playerId: activeFormationDraft[slot.id] }))
+      .filter((assignment) => Boolean(assignment.playerId)),
+  }
 
   useEffect(() => {
     setVisiblePostCount(TRIBUNE_INITIAL_POSTS)
   }, [feedSort, filter])
+
+  useEffect(() => {
+    localStorage.setItem(TRIBUNE_FORMATION_STORAGE_KEY, JSON.stringify(formationDrafts))
+  }, [formationDrafts])
+
+  useEffect(() => {
+    localStorage.setItem('cetatea-primul-11-sistem', formationSystem)
+  }, [formationSystem])
+
+  useEffect(() => {
+    localStorage.setItem('cetatea-primul-11-capitan', formationCaptain)
+  }, [formationCaptain])
 
   useEffect(() => {
     const viewport = feedViewportRef.current
@@ -1946,6 +2150,148 @@ export function CommunityView() {
     play('success')
   }
 
+  const assignFormationPlayer = useCallback((slotId: string, playerId: string) => {
+    setFormationDrafts((current) => {
+      const draft = { ...current[formationSystem] }
+      const previousSlot = Object.entries(draft).find(([, assignedPlayerId]) => assignedPlayerId === playerId)?.[0]
+      const replacedPlayer = draft[slotId]
+
+      draft[slotId] = playerId
+      if (previousSlot && previousSlot !== slotId) draft[previousSlot] = replacedPlayer
+
+      return { ...current, [formationSystem]: draft }
+    })
+    setSelectedFormationSlot(slotId)
+    play('toggle')
+  }, [formationSystem, play])
+
+  const selectSupporterFormation = (system: SupporterFormationId) => {
+    setFormationSystem(system)
+    setSelectedFormationSlot('a')
+    setFormationRosterMode('potriviti')
+    play('navigate')
+  }
+
+  const resetSupporterFormation = () => {
+    const defaults = createDefaultFormationDrafts()
+    setFormationDrafts((current) => ({ ...current, [formationSystem]: defaults[formationSystem] }))
+    setSelectedFormationSlot('a')
+    play('success')
+  }
+
+  const handleFormationDragStart = (event: ReactDragEvent<HTMLElement>, playerId: string, sourceSlotId?: string) => {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('application/x-cetatea-player', JSON.stringify({ playerId, sourceSlotId }))
+    event.dataTransfer.setData('text/plain', playerId)
+  }
+
+  const handleFormationDrop = (event: ReactDragEvent<HTMLElement>, slotId: string) => {
+    event.preventDefault()
+    let playerId = event.dataTransfer.getData('text/plain')
+    try {
+      const payload = JSON.parse(event.dataTransfer.getData('application/x-cetatea-player') || '{}') as { playerId?: string }
+      playerId = payload.playerId ?? playerId
+    } catch {
+      // Identificatorul text rămâne alternativa sigură pentru drag-and-drop nativ.
+    }
+    if (squad.some((player) => player.id === playerId)) assignFormationPlayer(slotId, playerId)
+    setFormationDrag(null)
+    setFormationDropSlot(null)
+  }
+
+  const beginFormationPointerDrag = (event: ReactPointerEvent<HTMLElement>, playerId: string, sourceSlotId?: string) => {
+    if (event.button !== 0 || event.pointerType === 'mouse') return
+    formationPointerRef.current = {
+      playerId,
+      sourceSlotId,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      dragged: false,
+    }
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+
+  const moveFormationPointerDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    const pointer = formationPointerRef.current
+    if (!pointer || pointer.pointerId !== event.pointerId) return
+    const distance = Math.hypot(event.clientX - pointer.startX, event.clientY - pointer.startY)
+    if (distance > 6) pointer.dragged = true
+    if (!pointer.dragged) return
+    event.preventDefault()
+    setFormationDrag({ playerId: pointer.playerId, x: event.clientX, y: event.clientY })
+    setFormationDropSlot(document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-formation-slot]')?.dataset.formationSlot ?? null)
+  }
+
+  const finishFormationPointerDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    const pointer = formationPointerRef.current
+    formationPointerRef.current = null
+    if (!pointer || pointer.pointerId !== event.pointerId) return
+    event.currentTarget.releasePointerCapture?.(event.pointerId)
+    if (!pointer.dragged) return
+
+    formationSuppressClickRef.current = true
+    const dropTarget = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-formation-slot]')
+    const slotId = dropTarget?.dataset.formationSlot
+    if (slotId) assignFormationPlayer(slotId, pointer.playerId)
+    setFormationDrag(null)
+    setFormationDropSlot(null)
+    window.setTimeout(() => { formationSuppressClickRef.current = false }, 0)
+  }
+
+  const handleFormationSlotClick = (slotId: string) => {
+    if (formationSuppressClickRef.current) return
+    setSelectedFormationSlot(slotId)
+    setFormationRosterMode('potriviti')
+    play('navigate')
+  }
+
+  const handleFormationRosterClick = (playerId: string) => {
+    if (formationSuppressClickRef.current) return
+    assignFormationPlayer(activeFormationSlot.id, playerId)
+  }
+
+  const openFormationShare = () => {
+    if (formationCompleteCount !== 11) return
+    setFormationShareText('Așa aș începe următorul meci. Voi pe cine ați schimba?')
+    setFormationShareOpen(true)
+    play('toggle')
+  }
+
+  const publishFormationPost = (event: FormEvent) => {
+    event.preventDefault()
+    if (formationCompleteCount !== 11) return
+    const postId = `primul-11-${Date.now()}`
+    const newPost: TribunePost = {
+      id: postId,
+      author: 'Suporter Cetatea',
+      initials: 'SC',
+      role: 'Pe Areni, împreună',
+      time: 'acum',
+      text: formationShareText.trim() || 'Acesta este primul meu 11 pentru următorul meci.',
+      label: 'Primul 11 · Meci',
+      reactionBase: 0,
+      commentBase: 0,
+      tone: 'var(--tone-green)',
+      userCreated: true,
+      formation: formationForSharing,
+    }
+    const nextPosts = [newPost, ...posts]
+    setPosts(nextPosts)
+    persistUserPosts(nextPosts)
+    setFormationShareOpen(false)
+    setFormationPublishedId(postId)
+    setMobileTribuneSection('flux')
+    setActivePostId(null)
+    setFilter('Toate')
+    setFeedSort('Recente')
+    setVisiblePostCount(TRIBUNE_INITIAL_POSTS)
+    setShowFloatingComposer(false)
+    window.requestAnimationFrame(() => feedViewportRef.current?.scrollTo({ top: 0, behavior: 'smooth' }))
+    window.setTimeout(() => setFormationPublishedId((current) => current === postId ? null : current), 3200)
+    play('success')
+  }
+
   const toggleReaction = (postId: string, reaction: TribuneReaction) => {
     const removingReaction = reactions[postId] === reaction
     if (!removingReaction) {
@@ -2210,6 +2556,7 @@ export function CommunityView() {
             />
           )}
         </div>
+        {activePost.formation && <TribuneFormationCard formation={activePost.formation} variant="thread" />}
         <div className={styles.tribuneThreadStats}>
           <span><i><Zap /><Heart /><Flame /></i><b>{activePost.reactionBase + (activePostReaction ? 1 : 0)} reacții</b></span>
           <span>{activePostCommentCount === 1 ? '1 comentariu' : `${activePostCommentCount} comentarii`}</span>
@@ -2291,9 +2638,9 @@ export function CommunityView() {
             play('toggle')
           }}
         >
-          {activePost ? <MessageCircle aria-hidden="true" /> : <Trophy aria-hidden="true" />}
+          {activePost ? <MessageCircle aria-hidden="true" /> : interactiveFeature === 'primul-11' ? <ShieldCheck aria-hidden="true" /> : <Trophy aria-hidden="true" />}
           <span>{activePost ? 'Discuție' : 'Interactiv'}</span>
-          <small>{activePost ? activePostCommentCount : 'Vot'}</small>
+          <small>{activePost ? activePostCommentCount : interactiveFeature === 'primul-11' ? `${formationCompleteCount}/11` : 'Vot'}</small>
         </button>
       </nav>
 
@@ -2502,6 +2849,7 @@ export function CommunityView() {
                         />
                       )}
                     </div>
+                    {post.formation && <TribuneFormationCard formation={post.formation} />}
                     {post.poll && (
                       <div className={styles.tribunePollBlock}>
                         <div className={styles.tribunePollOptions}>
@@ -2640,6 +2988,10 @@ export function CommunityView() {
               <motion.div key="text-copiat" className={styles.tribuneFeedNotice} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>
                 <Copy aria-hidden="true" /><span><strong>Text copiat</strong><small>Este gata de trimis.</small></span>
               </motion.div>
+            ) : formationPublishedId ? (
+              <motion.div key="formatie-publicata" className={styles.tribuneFeedNotice} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>
+                <ShieldCheck aria-hidden="true" /><span><strong>Primul tău 11 este în Tribună</strong><small>Suporterii îl pot vedea și comenta acum.</small></span>
+              </motion.div>
             ) : null}
           </AnimatePresence>
         </motion.section>
@@ -2653,9 +3005,21 @@ export function CommunityView() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 24 }}
               transition={{ duration: .48, ease: [0.16, 1, 0.3, 1] }}
-              aria-label="Vot pentru Jucătorul Tribunei"
+              aria-label="Experiențele interactive ale Tribunei"
             >
-              <header className={styles.motmHeader}>
+              <nav className={styles.tribuneInteractiveSwitcher} aria-label="Alege experiența interactivă">
+                <button type="button" className={interactiveFeature === 'jucator' ? styles.tribuneInteractiveFeatureActive : ''} aria-pressed={interactiveFeature === 'jucator'} onClick={() => { setInteractiveFeature('jucator'); play('navigate') }}>
+                  <Trophy aria-hidden="true" /><span><small>După meci</small><strong>Jucătorul Tribunei</strong></span><b>01</b>
+                </button>
+                <button type="button" className={interactiveFeature === 'primul-11' ? styles.tribuneInteractiveFeatureActive : ''} aria-pressed={interactiveFeature === 'primul-11'} onClick={() => { setInteractiveFeature('primul-11'); play('navigate') }}>
+                  <ShieldCheck aria-hidden="true" /><span><small>Înainte de meci</small><strong>Alege primul 11</strong></span><b>02</b>
+                </button>
+              </nav>
+
+              <AnimatePresence mode="wait" initial={false}>
+                {interactiveFeature === 'jucator' ? (
+                  <motion.div key="experienta-motm" className={styles.motmFeatureScene} initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 22 }} transition={{ duration: .38, ease: [0.16, 1, 0.3, 1] }}>
+                    <header className={styles.motmHeader}>
                 <div>
                   <span><Sparkles aria-hidden="true" /> Tribuna Interactivă <b>01</b></span>
                   <strong>Jucătorul Tribunei</strong>
@@ -2831,12 +3195,147 @@ export function CommunityView() {
                     </div>
                   </motion.section>
                 )}
+                    </AnimatePresence>
+                  </motion.div>
+                ) : (
+                  <motion.section key="experienta-primul-11" className={styles.supporterFormationBuilder} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -22 }} transition={{ duration: .38, ease: [0.16, 1, 0.3, 1] }}>
+                    <header className={styles.supporterFormationHeader}>
+                      <div><span><Sparkles aria-hidden="true" /> Laboratorul Tribunei</span><strong>Primul tău 11</strong><small>Alege, mută și publică echipa cu care ai începe.</small></div>
+                      <span className={styles.supporterFormationProgress}><b>{formationCompleteCount}</b><i>/11</i><small>{formationCompleteCount === 11 ? 'Gata de publicat' : 'Completează echipa'}</small></span>
+                    </header>
+
+                    <div className={styles.supporterFormationSystems} role="group" aria-label="Alege sistemul tactic">
+                      {supporterFormations.map((formation) => (
+                        <button type="button" key={formation.id} className={formationSystem === formation.id ? styles.supporterFormationSystemActive : ''} aria-pressed={formationSystem === formation.id} onClick={() => selectSupporterFormation(formation.id)}>
+                          <span>{formation.id}</span><small>{formation.name}</small><i />
+                        </button>
+                      ))}
+                      <button type="button" className={styles.supporterFormationReset} onClick={resetSupporterFormation} title="Revino la selecția inițială"><RotateCcw aria-hidden="true" /><span>Resetează</span></button>
+                    </div>
+
+                    <div className={styles.supporterFormationWorkspace}>
+                      <div className={styles.supporterFormationBoard}>
+                        <header><span><CircleDot aria-hidden="true" /><i><small>{activeSupporterFormation.name}</small><strong>{activeSupporterFormation.id}</strong></i></span><small><Move aria-hidden="true" /> Trage sau atinge</small></header>
+                        <div className={styles.supporterFormationPitch} aria-label={`Primul 11 în sistem ${activeSupporterFormation.id}`}>
+                          <span className={styles.supporterPitchHalf} aria-hidden="true" /><span className={styles.supporterPitchCircle} aria-hidden="true" /><span className={styles.supporterPitchAreaTop} aria-hidden="true" /><span className={styles.supporterPitchAreaBottom} aria-hidden="true" />
+                          {activeSupporterFormation.slots.map((slot) => {
+                            const player = squad.find((item) => item.id === activeFormationDraft[slot.id])
+                            const selected = slot.id === activeFormationSlot.id
+                            return (
+                              <button
+                                type="button"
+                                key={slot.id}
+                                data-formation-slot={slot.id}
+                                className={`${styles.supporterFormationSlot} ${selected ? styles.supporterFormationSlotActive : ''} ${formationDropSlot === slot.id ? styles.supporterFormationSlotDrop : ''}`}
+                                style={{ '--formation-x': `${slot.x}%`, '--formation-y': `${slot.y}%`, '--formation-tone': player ? positionTone[player.position] : 'var(--tone-green)' } as CSSProperties}
+                                draggable={Boolean(player)}
+                                onClick={() => handleFormationSlotClick(slot.id)}
+                                onDragStart={(event) => player && handleFormationDragStart(event, player.id, slot.id)}
+                                onDragEnd={() => { setFormationDrag(null); setFormationDropSlot(null) }}
+                                onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setFormationDropSlot(slot.id) }}
+                                onDrop={(event) => handleFormationDrop(event, slot.id)}
+                                onPointerDown={(event) => player && beginFormationPointerDrag(event, player.id, slot.id)}
+                                onPointerMove={moveFormationPointerDrag}
+                                onPointerUp={finishFormationPointerDrag}
+                                onPointerCancel={() => { formationPointerRef.current = null; setFormationDrag(null); setFormationDropSlot(null) }}
+                                aria-label={player ? `${slot.label}: ${player.name}. Apasă pentru selecție sau trage pentru mutare.` : `${slot.label}, necompletat`}
+                                aria-pressed={selected}
+                              >
+                                <span>{player ? <SquadPortrait player={player} lazy /> : <Plus aria-hidden="true" />}{resolvedFormationCaptain === player?.id && <b>C</b>}<i>{slot.shortLabel}</i></span>
+                                <strong>{player?.name.split(' ').at(-1) ?? slot.label}</strong>
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <footer><span><i /> Se salvează automat</span><strong>{activeSupporterFormation.idea}</strong></footer>
+                      </div>
+
+                      <aside className={styles.supporterFormationRoster}>
+                        <header>
+                          <span><small>Post selectat</small><strong>{activeFormationSlot.label}</strong></span>
+                          <div role="group" aria-label="Filtrul lotului"><button type="button" className={formationRosterMode === 'potriviti' ? styles.supporterRosterFilterActive : ''} aria-pressed={formationRosterMode === 'potriviti'} onClick={() => setFormationRosterMode('potriviti')}>Potriviți</button><button type="button" className={formationRosterMode === 'tot-lotul' ? styles.supporterRosterFilterActive : ''} aria-pressed={formationRosterMode === 'tot-lotul'} onClick={() => setFormationRosterMode('tot-lotul')}>Tot lotul</button></div>
+                        </header>
+                        {selectedFormationPlayer && (
+                          <div className={styles.supporterFormationSelection} style={{ '--formation-tone': positionTone[selectedFormationPlayer.position] } as CSSProperties}>
+                            <span><SquadPortrait player={selectedFormationPlayer} /><b>{displayPlayerNumber(selectedFormationPlayer.number, true)}</b></span>
+                            <i><small>Acum pe poziție</small><strong>{selectedFormationPlayer.name}</strong><em>{selectedFormationPlayer.role}</em></i>
+                            <button type="button" className={resolvedFormationCaptain === selectedFormationPlayer.id ? styles.supporterCaptainActive : ''} onClick={() => { setFormationCaptain(selectedFormationPlayer.id); play('success') }} aria-label={`Alege căpitan: ${selectedFormationPlayer.name}`} aria-pressed={resolvedFormationCaptain === selectedFormationPlayer.id} title="Alege căpitanul"><Crown aria-hidden="true" /></button>
+                          </div>
+                        )}
+                        <AppScrollArea className={styles.supporterFormationRosterScroll} contentClassName={styles.supporterFormationRosterList} horizontalScroll={false} label={`Jucători pentru ${activeFormationSlot.label}`}>
+                          {formationRosterPlayers.map((player) => {
+                            const assignedSlot = activeSupporterFormation.slots.find((slot) => activeFormationDraft[slot.id] === player.id)
+                            const isCurrent = activeFormationDraft[activeFormationSlot.id] === player.id
+                            return (
+                              <button
+                                type="button"
+                                key={player.id}
+                                className={`${isCurrent ? styles.supporterRosterPlayerActive : ''} ${assignedSlot && !isCurrent ? styles.supporterRosterPlayerUsed : ''}`}
+                                style={{ '--formation-tone': positionTone[player.position] } as CSSProperties}
+                                draggable
+                                onClick={() => handleFormationRosterClick(player.id)}
+                                onDragStart={(event) => handleFormationDragStart(event, player.id, assignedSlot?.id)}
+                                onDragEnd={() => { setFormationDrag(null); setFormationDropSlot(null) }}
+                                aria-pressed={isCurrent}
+                              >
+                                <span><SquadPortrait player={player} lazy /><b>{displayPlayerNumber(player.number, true)}</b></span>
+                                <i><strong>{player.name}</strong><small>{player.role}</small></i>
+                                <em>{assignedSlot ? assignedSlot.shortLabel : <Plus aria-label="Adaugă" />}</em>
+                              </button>
+                            )
+                          })}
+                        </AppScrollArea>
+                      </aside>
+                    </div>
+
+                    <footer className={styles.supporterFormationActions}>
+                      <span><ShieldCheck aria-hidden="true" /><i><small>Selecția ta pentru</small><strong>{nextMatch.home.name} – {nextMatch.away.name}</strong></i></span>
+                      <button type="button" disabled={formationCompleteCount !== 11} onClick={openFormationShare}><Share2 aria-hidden="true" /><span><small>Arată tuturor</small><strong>Publică în Tribună</strong></span><ArrowRight aria-hidden="true" /></button>
+                    </footer>
+                  </motion.section>
+                )}
               </AnimatePresence>
             </motion.aside>
           )}
         </AnimatePresence>
 
       </div>
+
+      {createPortal(
+        <AnimatePresence initial={false} mode="sync">
+          {formationShareOpen && (
+            <motion.div className={`${styles.tribuneOverlay} ${styles.formationShareOverlay}`} variants={panelLayerVariants} initial="closed" animate="open" exit="closed">
+              <motion.button type="button" className={styles.slidingPanelBackdrop} variants={panelBackdropVariants} onClick={() => setFormationShareOpen(false)} aria-label="Închide publicarea formației" />
+              <motion.aside className={styles.formationSharePanel} role="dialog" aria-modal="true" aria-labelledby="formation-share-title" variants={panelFromRightVariants}>
+                <header>
+                  <span><Share2 aria-hidden="true" /><i><small>Postare tactică</small><strong id="formation-share-title">Publică primul tău 11</strong></i></span>
+                  <button type="button" onClick={() => setFormationShareOpen(false)} aria-label="Închide"><X aria-hidden="true" /></button>
+                </header>
+                <div className={styles.formationShareBody}>
+                  <div className={styles.formationShareIdentity}><span>SC<i /></span><div><strong>Suporter Cetatea</strong><small><UsersRound aria-hidden="true" /> Vizibil tuturor suporterilor</small></div><em>{activeSupporterFormation.id}</em></div>
+                  <label className={styles.formationShareMessage}>
+                    <span><strong>Mesajul tău</strong><small>{formationShareText.length}/240</small></span>
+                    <textarea {...nonSensitiveTextFieldProps} name="mesaj_primul_11" value={formationShareText} maxLength={240} onChange={(event) => setFormationShareText(event.target.value)} placeholder="Spune de ce ai ales această echipă…" />
+                  </label>
+                  <TribuneFormationCard formation={formationForSharing} variant="preview" />
+                  <div className={styles.formationShareNote}><ShieldCheck aria-hidden="true" /><span><strong>Card interactiv în feed</strong><small>Formația, sistemul și căpitanul rămân clare pe orice ecran.</small></span></div>
+                </div>
+                <footer><button type="button" onClick={() => setFormationShareOpen(false)}>Mai modific</button><button type="button" onClick={publishFormationPost}><Send aria-hidden="true" /> Publică în Tribună</button></footer>
+              </motion.aside>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
+
+      {formationDrag && createPortal((() => {
+        const player = squad.find((item) => item.id === formationDrag.playerId)
+        return player ? (
+          <div className={styles.supporterFormationDragGhost} style={{ '--drag-x': `${formationDrag.x}px`, '--drag-y': `${formationDrag.y}px`, '--formation-tone': positionTone[player.position] } as CSSProperties} aria-hidden="true">
+            <span><SquadPortrait player={player} /></span><i><strong>{player.name.split(' ').at(-1)}</strong><small>Așază pe poziție</small></i>
+          </div>
+        ) : null
+      })(), document.body)}
 
       {createPortal(
         <AnimatePresence initial={false} mode="sync">
